@@ -35,7 +35,7 @@ SELECT
   'v1' as product_class,
   'v1' as product,
   start_time,
-  1 as start_month,
+  TO_CHAR(start_time, 'mon') as start_month,
   end_time,
   user_address,
   end_time - start_time as period,
