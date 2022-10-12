@@ -43,7 +43,11 @@ SELECT
     when end_time >= NOW() then True
     when end_time < NOW() then False
   end as active,
-  1 as rank_no,
+  COUNT(user_address) OVER (
+    PARTITION BY user_address
+    ORDER BY
+      start_time
+  ) as rank_no_of_purchase,
   call_tx
 from
   covers
