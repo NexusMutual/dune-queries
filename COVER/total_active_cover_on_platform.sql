@@ -8,7 +8,7 @@ with
         when "curr" = '\x45544800' then 'ETH'
         when "curr" = '\x44414900' then 'DAI'
       end as cover_asset,
-      date '1970-01-01 00:00:00' + concat("expiry", ' second'):: interval as cover_end_time
+      date '1970-01-01 00:00:00' + concat("expiry", ' second') :: interval as cover_end_time
     from
       nexusmutual."QuotationData_evt_CoverDetailsEvent"
   ),
@@ -167,8 +167,8 @@ with
       day,
       price_ma.moving_average_eth,
       price_ma.moving_average_dai,
-       total_eth,
-       total_dai
+      total_eth,
+      total_dai
     from
       price_ma
       INNER JOIN running_net_cover ON price_ma.day = running_net_cover.date_C
