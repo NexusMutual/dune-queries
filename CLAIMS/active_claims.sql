@@ -18,7 +18,8 @@ WITH
   cover_details as (
     select
       "cid" as cover_id,
-      "evt_block_time" as start_time,
+      "evt_block_time" as cover_start_time,
+      date '1970-01-01 00:00:00' + concat("expiry", ' second') :: interval as cover_end_time,
       "sumAssured" as sum_assured,
       "sumAssured" * 0.2 as assessor_rewards,
       case
@@ -81,7 +82,9 @@ WITH
   claimsStatusDetails as (
     SELECT
       cover_details.cover_id,
-      cover_details.start_time,
+      claimsStatus.claim_id,
+      cover_details.cover_start_time,
+      cover_details.cover_end_time,
       cover_details.sum_assured,
       cover_details.assessor_rewards,
       cover_details.cover_asset
@@ -91,11 +94,12 @@ WITH
   ),
   claims_status_details_votes as (
     SELECT
+      claimsStatusDetails.cover_id,
       votes.claim_id,
       votes.vote_yes,
       votes.vote_no,
-      claimsStatusDetails.cover_id,
-      claimsStatusDetails.start_time,
+      claimsStatusDetails.cover_start_time,
+      claimsStatusDetails.cover_end_time,
       claimsStatusDetails.sum_assured,
       claimsStatusDetails.assessor_rewards,
       claimsStatusDetails.cover_asset
