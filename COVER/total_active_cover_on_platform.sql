@@ -132,8 +132,6 @@ with
       ) as moving_average_eth
     from
       average_day_ethereum_price
-    WHERE
-      day > '2019-05-01 00:00:00'
     ORDER BY
       day DESC
   ),
@@ -148,8 +146,6 @@ with
       ) as moving_average_dai
     from
       average_day_dai_price
-    WHERE
-      day > '2019-05-01 00:00:00'
     ORDER BY
       day DESC
   ),
@@ -181,6 +177,9 @@ SELECT
   moving_average_dai * total_dai as total_dai_dollars,
   moving_average_eth * total_eth + moving_average_dai * total_dai as total_dollars
 FROM
-  eth_dai_totals_prices
+  eth_dai_totals_prices AS T
+WHERE
+  t.day >= '{{1. Start Date}}'
+  AND t.day <= '{{2. End Date}}'
 ORDER by
   day
