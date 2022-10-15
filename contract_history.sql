@@ -20,14 +20,21 @@ WITH
       nexusmutual."NXMaster_call_upgradeMultipleContracts"
     WHERE
       "call_success" = 'true'
-  )
-select
-  time,
-  ROW_NUMBER() OVER (
-    ORDER BY
-      hash ASC
   ),
-  UNNEST(addr) as contract_address,
-  UNNEST(name) as hex_name
+  unnested_contract_history as (
+    select
+      time,
+      ROW_NUMBER() OVER (
+        ORDER BY
+          hash ASC
+      ),
+      UNNEST(addr) as contract_address,
+      UNNEST(name) as hex_name
+    FROM
+      contract_upgrades
+  )
+SELECT
+  *,
+  convert_from(hex_name :: bytea, 'UTF8')
 FROM
-  contract_upgrades
+   unnested_contract_history
