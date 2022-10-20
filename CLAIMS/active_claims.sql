@@ -26,29 +26,40 @@ WITH
         when "curr" = '\x45544800' then 'ETH'
         when "curr" = '\x44414900' then 'DAI'
       end as cover_asset,
-      date '1970-01-01 00:00:00' + concat("expiry", ' second'):: interval as end_time
+      date '1970-01-01 00:00:00' + concat("expiry", ' second') :: interval as end_time
     from
       nexusmutual."QuotationData_evt_CoverDetailsEvent"
   ),
   votes as (
-    SELECT
+    select
       "claimId" as claim_id,
-      count(
+      SUM(
         case
-          when "_verdict" = 1 then 1
+          when "verdict" = 1 then 1
           else 0
         end
-      ) as vote_yes,
-      count(
+      ) OVER (PARTITION BY "claimId") as vote_yes,
+      SUM(
         case
-          when "_verdict" = -1 then 1
+          when "verdict" = -1 then 1
           else 0
         end
-      ) as vote_no
+      ) OVER (PARTITION BY "claimId") as vote_no,
+      SUM(
+        case
+          when "verdict" = 1 then "tokens" * 1E-18
+          else 0
+        end
+      ) OVER (PARTITION BY "claimId") as nxm_vote_yes,
+      SUM(
+        case
+          when "verdict" = -1 then "tokens" * 1E-18
+          else 0
+        end
+      ) OVER (PARTITION BY "claimId") as nxm_vote_no,
+      SUM("tokens") OVER (PARTITION BY "claimId") * 1E-18 as total_tokens
     FROM
-      nexusmutual."ClaimsData_call_addVote"
-    group by
-      claim_id
+      nexusmutual."ClaimsData_evt_VoteCast"
   ),
   claimsStatus as(
     SELECT
