@@ -132,9 +132,9 @@ WITH
       votes.total_tokens,
       claimsStatusDetails.assessor_rewards,
       case
-        when nxm_vote_yes > nxm_vote_no then 'PAID'
-        ELSE 'REJECTED'
-      end
+        when nxm_vote_yes > nxm_vote_no then 'APPROVED'
+        ELSE 'DENIED'
+      end as verdict
     from
       claimsStatusDetails
       INNER JOIN votes ON votes.claim_id = claimsStatusDetails.claim_id
