@@ -210,4 +210,7 @@ select
   assessor_rewards,
   verdict
 from
-  claims_status_details_votes
+  config_joined_result as t
+where
+  x = 1
+  and claim_submit_time + (interval '1 hour' * maxTime_hrs) < NOW()
