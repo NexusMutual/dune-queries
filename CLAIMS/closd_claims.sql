@@ -15,13 +15,21 @@ WITH
     from
       nexusmutual."ClaimsData_call_setClaimStatus"
   ),
+  assessor_rewards as (
+    SELECT
+      "claimid" as claimId,
+      "tokens" * 1E-18 as nxm_assessor_rewards
+    from
+      nexusmutual."ClaimsData_call_setClaimRewardDetail"
+    WHERE
+      call_success = true
+  ),
   cover_details as (
     select
       "cid" as cover_id,
       "evt_block_time" as cover_start_time,
       date '1970-01-01 00:00:00' + concat("expiry", ' second') :: interval as cover_end_time,
       "sumAssured" as sum_assured,
-      "sumAssured" * 0.2 as assessor_rewards,
       case
         when "curr" = '\x45544800' then 'ETH'
         when "curr" = '\x44414900' then 'DAI'
@@ -97,12 +105,13 @@ WITH
       claimsStatus.claim_submit_time,
       cover_details.cover_start_time,
       cover_details.cover_end_time,
-      cover_details.sum_assured,
-      cover_details.assessor_rewards,
-      cover_details.cover_asset
+      assessor_rewards.nxm_assessor_rewards as assessor_rewards,
+      cover_details.cover_asset,
+      cover_details.sum_assured
     from
       claimsStatus
       INNER JOIN cover_details ON cover_details.cover_id = claimsStatus.coverId
+      INNER JOIN assessor_rewards ON assessor_rewards.claimId = claimsStatus.claim_id
   ),
   claims_status_details_votes as (
     SELECT
