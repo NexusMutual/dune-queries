@@ -124,11 +124,11 @@ WITH
       claimsStatusDetails.cover_start_time,
       claimsStatusDetails.cover_end_time,
       claimsStatusDetails.claim_submit_time as claim_submit_time,
-      1 as voting_expiry,
       votes.vote_yes,
       votes.vote_no,
       votes.nxm_vote_yes,
       votes.nxm_vote_no,
+      1 as quoroum,
       votes.total_tokens,
       claimsStatusDetails.assessor_rewards,
       case
@@ -205,6 +205,7 @@ select
   vote_no,
   nxm_vote_yes,
   nxm_vote_no,
+  quoroum,
   total_tokens,
   assessor_rewards,
   verdict
