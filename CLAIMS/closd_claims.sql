@@ -129,8 +129,75 @@ WITH
     from
       claimsStatusDetails
       INNER JOIN votes ON votes.claim_id = claimsStatusDetails.claim_id
+  ),
+  changes_config as (
+    select
+      "call_block_time" as date,
+      case
+        when code = '\x43414d494e565400' then val
+      end as mintime_hrs,
+      case
+        when code = '\x43414d4158565400' then val
+      end as maxTime_hrs
+    from
+      nexusmutual."ClaimsData_call_updateUintParameters"
+    WHERE
+      code in ('\x43414d4158565400', '\x43414d494e565400')
+    UNION
+    SELECT
+      '2019-01-01 00:00' as date,
+      12 as minTime_hrs,
+      48 as maxTime_hrs
+  ),
+  config as (
+    SELECT
+      date,
+      Coalesce(
+        minTime_hrs,
+        lag(minTime_hrs) OVER(
+          ORDER BY
+            date
+        )
+      ) as minTime_hrs,
+      Coalesce(
+        maxTime_hrs,
+        lag(maxTime_hrs) OVER(
+          ORDER BY
+            date
+        )
+      ) as maxTime_hrs
+    FROM
+      changes_config
+  ),
+  config_joined_result as (
+    SELECT
+      *,
+      row_number() OVER(
+        PARTITION BY claim_id
+        ORDER BY
+          config.date DESC
+      ) as x
+    from
+      claims_status_details_votes
+      LEFT JOIN config ON claims_status_details_votes.claim_submit_time > config.date
   )
-SELECT
-  *
+select
+  cover_id,
+  claim_id,
+  product,
+  syndicate,
+  cover_asset,
+  sum_assured,
+  cover_start_time,
+  cover_end_time,
+  claim_submit_time,
+  claim_submit_time + (interval '1 hour' * maxTime_hrs) as voting_expiry,
+  vote_yes,
+  vote_no,
+  nxm_vote_yes,
+  nxm_vote_no,
+  total_tokens,
+  assessor_rewards,
+  verdict
 from
   claims_status_details_votes
