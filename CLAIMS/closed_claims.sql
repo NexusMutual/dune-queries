@@ -62,38 +62,95 @@ WITH
       cover_details
       INNER JOIN v1_product_info ON v1_product_info.product_address = cover_details.productContract
   ),
-  votes as (
+  -- CA & MV vote calculation
+  ca_votes as (
     select
-      "claimId" as claim_id,
+      DISTINCT "_claimId" as claim_id,
       SUM(
         case
-          when "verdict" = 1 then 1
+          when "_vote" = 1 then 1
           else 0
         end
-      ) OVER (PARTITION BY "claimId") as vote_yes,
+      ) OVER (PARTITION BY "_claimId") as ca_vote_yes,
       SUM(
         case
-          when "verdict" = -1 then 1
+          when "_vote" = -1 then 1
           else 0
         end
-      ) OVER (PARTITION BY "claimId") as vote_no,
+      ) OVER (PARTITION BY "_claimId") as ca_vote_no,
       SUM(
         case
-          when "verdict" = 1 then "tokens" * 1E-18
+          when "_vote" = 1 then "_tokens" * 1E-18
           else 0
         end
-      ) OVER (PARTITION BY "claimId") as nxm_vote_yes,
+      ) OVER (PARTITION BY "_claimId") as ca_nxm_vote_yes,
       SUM(
         case
-          when "verdict" = -1 then "tokens" * 1E-18
+          when "_vote" = -1 then "_tokens" * 1E-18
           else 0
         end
-      ) OVER (PARTITION BY "claimId") as nxm_vote_no,
-      SUM("tokens") OVER (PARTITION BY "claimId") * 1E-18 as total_tokens
+      ) OVER (PARTITION BY "_claimId") as ca_nxm_vote_no,
+      SUM("_tokens") OVER (PARTITION BY "_claimId") * 1E-18 as ca_total_tokens
     FROM
-      nexusmutual."ClaimsData_evt_VoteCast"
+      nexusmutual."ClaimsData_call_setClaimTokensCA"
+    WHERE
+      nexusmutual."ClaimsData_call_setClaimTokensCA"."call_success" = true
+    ORDER BY
+      claim_id
   ),
-  --- QUORUM CACULATION
+  mv_votes as (
+    select
+      DISTINCT "_claimId" as claim_id,
+      SUM(
+        case
+          when "_vote" = 1 then 1
+          else 0
+        end
+      ) OVER (PARTITION BY "_claimId") as mv_vote_yes,
+      SUM(
+        case
+          when "_vote" = -1 then 1
+          else 0
+        end
+      ) OVER (PARTITION BY "_claimId") as mv_vote_no,
+      SUM(
+        case
+          when "_vote" = 1 then "_tokens" * 1E-18
+          else 0
+        end
+      ) OVER (PARTITION BY "_claimId") as mv_nxm_vote_yes,
+      SUM(
+        case
+          when "_vote" = -1 then "_tokens" * 1E-18
+          else 0
+        end
+      ) OVER (PARTITION BY "_claimId") as mv_nxm_vote_no,
+      SUM("_tokens") OVER (PARTITION BY "_claimId") * 1E-18 as mv_total_tokens
+    FROM
+      nexusmutual."ClaimsData_call_setClaimTokensMV"
+    WHERE
+      nexusmutual."ClaimsData_call_setClaimTokensMV"."call_success" = true
+    ORDER BY
+      claim_id
+  ),
+  votes as (
+    SELECT
+      ca_votes.claim_id,
+      ca_vote_yes,
+      ca_vote_no,
+      ca_nxm_vote_yes,
+      ca_nxm_vote_no,
+      ca_total_tokens,
+      mv_vote_yes,
+      mv_vote_no,
+      mv_nxm_vote_yes,
+      mv_nxm_vote_no,
+      mv_total_tokens
+    FROM
+      ca_votes
+      FULL JOIN mv_votes ON ca_votes.claim_id = mv_votes.claim_id
+  ),
+  -- QUORUM CACULATION
   CA_token as (
     SELECT
       "claimId" as claim_id,
@@ -183,13 +240,18 @@ WITH
   votes_quorum as (
     SELECT
       DISTINCT COALESCE(votes.claim_id, quorum.claim_id) as claim_id,
+      ca_vote_yes,
+      ca_vote_no,
+      ca_nxm_vote_yes,
+      ca_nxm_vote_no,
+      ca_total_tokens,
       ca_nxm_quorum,
-      mv_nxm_quorum,
-      vote_yes,
-      vote_no,
-      nxm_vote_yes,
-      nxm_vote_no,
-      total_tokens
+      mv_vote_yes,
+      mv_vote_no,
+      mv_nxm_vote_yes,
+      mv_nxm_vote_no,
+      mv_total_tokens,
+      mv_nxm_quorum
     FROM
       quorum
       FULL JOIN votes ON votes.claim_id = quorum.claim_id
@@ -253,16 +315,21 @@ WITH
       claimsStatusDetails.cover_start_time,
       claimsStatusDetails.cover_end_time,
       claimsStatusDetails.claim_submit_time as claim_submit_time,
-      votes_quorum.vote_yes,
-      votes_quorum.vote_no,
-      votes_quorum.nxm_vote_yes,
-      votes_quorum.nxm_vote_no,
+      votes_quorum.ca_vote_yes,
+      votes_quorum.ca_vote_no,
+      votes_quorum.ca_nxm_vote_yes,
+      votes_quorum.ca_nxm_vote_no,
+      votes_quorum.ca_total_tokens,
       votes_quorum.ca_nxm_quorum,
+      votes_quorum.mv_vote_yes,
+      votes_quorum.mv_vote_no,
+      votes_quorum.mv_nxm_vote_yes,
+      votes_quorum.mv_nxm_vote_no,
+      votes_quorum.mv_total_tokens,
       votes_quorum.mv_nxm_quorum,
-      votes_quorum.total_tokens,
       claimsStatusDetails.assessor_rewards,
       case
-        when nxm_vote_yes > nxm_vote_no then 'APPROVED'
+        when ca_nxm_vote_yes > ca_nxm_vote_no then 'APPROVED'
         ELSE 'DENIED'
       end as verdict
     from
@@ -332,13 +399,18 @@ select
   cover_end_time,
   claim_submit_time,
   claim_submit_time + (interval '1 hour' * maxTime_hrs) as voting_expiry,
-  vote_yes,
-  vote_no,
-  nxm_vote_yes,
-  nxm_vote_no,
+  ca_vote_yes,
+  ca_vote_no,
+  ca_nxm_vote_yes,
+  ca_nxm_vote_no,
+  ca_total_tokens,
   ca_nxm_quorum,
+  mv_vote_yes,
+  mv_vote_no,
+  mv_nxm_vote_yes,
+  mv_nxm_vote_no,
+  mv_total_tokens,
   mv_nxm_quorum,
-  total_tokens,
   assessor_rewards,
   verdict
 from
