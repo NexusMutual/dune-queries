@@ -225,25 +225,29 @@ WITH
   ),
   claimsStatusDetails as (
     SELECT
-      cover_details.cover_id,
+      cover_product_info.cover_id,
       claimsStatus.claim_id,
       claimsStatus.claim_submit_time,
-      cover_details.cover_start_time,
-      cover_details.cover_end_time,
+      cover_product_info.cover_start_time,
+      cover_product_info.cover_end_time,
       assessor_rewards.nxm_assessor_rewards as assessor_rewards,
-      cover_details.cover_asset,
-      cover_details.sum_assured
+      cover_product_info.cover_asset,
+      cover_product_info.sum_assured,
+      cover_product_info.syndicate,
+      cover_product_info.product_name,
+      cover_product_info.product_type
     from
       claimsStatus
-      INNER JOIN cover_details ON cover_details.cover_id = claimsStatus.coverId
+      INNER JOIN cover_product_info ON cover_product_info.cover_id = claimsStatus.coverId
       INNER JOIN assessor_rewards ON assessor_rewards.claimId = claimsStatus.claim_id
   ),
   claims_status_details_votes as (
     SELECT
-      DISTINCT claimsStatusDetails.cover_id,
-      votes.claim_id,
-      1 as product,
-      1 as syndicate,
+      claimsStatusDetails.cover_id,
+      votes_quorum.claim_id,
+      claimsStatusDetails.syndicate,
+      claimsStatusDetails.product_name,
+      claimsStatusDetails.product_type,
       claimsStatusDetails.cover_asset,
       claimsStatusDetails.sum_assured,
       claimsStatusDetails.cover_start_time,
@@ -319,7 +323,8 @@ WITH
 select
   cover_id,
   claim_id,
-  product,
+  product_name,
+  product_type,
   syndicate,
   cover_asset,
   sum_assured,
