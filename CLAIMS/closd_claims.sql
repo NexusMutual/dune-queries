@@ -29,6 +29,7 @@ WITH
       "cid" as cover_id,
       "evt_block_time" as cover_start_time,
       date '1970-01-01 00:00:00' + concat("expiry", ' second') :: interval as cover_end_time,
+      "scAdd" as productContract,
       "sumAssured" as sum_assured,
       case
         when "curr" = '\x45544800' then 'ETH'
@@ -37,6 +38,29 @@ WITH
       date '1970-01-01 00:00:00' + concat("expiry", ' second') :: interval as end_time
     from
       nexusmutual."QuotationData_evt_CoverDetailsEvent"
+  ),
+  v1_product_info as (
+    select
+      "contract_address" as product_address,
+      "syndicate" as syndicate,
+      "name" as product_name,
+      "type" as product_type
+    from
+      dune_user_generated.nexus_v1_product_info_view
+  ),
+  cover_product_info as (
+    SELECT
+      cover_id,
+      cover_start_time,
+      cover_end_time,
+      sum_assured,
+      cover_asset,
+      syndicate,
+      product_name,
+      product_type
+    from
+      cover_details
+      INNER JOIN v1_product_info ON v1_product_info.product_address = cover_details.productContract
   ),
   votes as (
     select
