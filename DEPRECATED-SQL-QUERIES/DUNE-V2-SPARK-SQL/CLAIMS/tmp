@@ -1,0 +1,110 @@
+WITH
+  ca_votes as (
+    select
+      "claimId" as claim_id,
+      "verdict" as verdict,
+      "call_tx_hash" as tx_hash
+    from
+      nexusmutual."Claims_call_submitCAVote"
+    where
+      "call_success" = true
+  ),
+  ca_vote_transactions as (
+    select
+      *
+    from
+      ethereum.transactions
+    where
+      "to" in (
+        '\x58676340f458b36997608672be6548c92ce50714',
+        '\xcafea332b66ee4b2c3a2d9c9a2f9618c9c94a1e9',
+        '\x813174d3ec6f7c11f4364a637cef0f1cd6176139'
+      )
+      AND "success" = true
+  ),
+  status as (
+    SELECT
+      "_claimId" as claim_id,
+      "_stat" as statusNo
+    from
+      nexusmutual."ClaimsData_call_setClaimStatus"
+    where
+      "_stat" in ( 6, 14)
+  ),
+  raw as (
+    select
+      ca_votes.claim_id as claim_id,
+      verdict,
+      gas_price * 1E-18 as gas_price,
+      gas_used,
+      gas_price * 1E-18 * gas_used as tx_cost
+    from
+      status
+      LEFT JOIN ca_votes ON status.claim_id = ca_votes.claim_id
+      LEFT JOIN ca_vote_transactions ON ca_vote_transactions."hash" = ca_votes.tx_hash
+  ),
+  gas_vote_count as (
+    select
+      distinct claim_id,
+      case
+       WHEN SUM(verdict) OVER (PARTITION BY claim_id) > 0 THEN 1
+       ELSE -1
+      END as result,
+      SUM(
+      CASE
+          WHEN verdict = 1 THEN 1
+          ELSE 0
+      END
+      ) OVER (PARTITION BY claim_id) as yes_votes,
+      SUM(
+      CASE
+          WHEN verdict = -1 THEN 1
+          ELSE 0
+      END
+      ) OVER (PARTITION BY claim_id) as no_votes,
+      SUM(tx_cost) OVER (PARTITION BY claim_id) as total_gas_spent
+    from
+      raw
+  ),
+  ca_votes_summary as (
+   SELECT
+   claim_id,
+   total_gas_spent,
+   CASE
+        WHEN result = 1 THEN yes_votes
+        WHEN result = -1 THEN no_votes
+   END as vote_count
+   FROM
+        gas_vote_count
+  ), 
+   assessor_rewards as (
+    select
+      "claimid" as claim_id,
+      "tokens" * 1E-18 as nxm,
+      SUM("tokens" * 1E-18) OVER(
+        ORDER BY
+          "call_block_time"
+      ) as running_total_nxm,
+      "call_block_time" as date
+    from
+      nexusmutual."ClaimsData_call_setClaimRewardDetail"
+    WHERE
+      call_success = true
+  )
+select
+ *,
+  date,
+  vote_count,
+  assessor_rewards.claim_id as claim_id,
+  nxm,
+  running_total_nxm,
+  nxm / vote_count as reward_per_user,
+  total_gas_spent / vote_count as gas_per_rewarded_user,
+  AVG(nxm / vote_count) OVER() as av_reward_per_user,
+  AVG(total_gas_spent / vote_count) OVER() as av_gas_per_rewarded_user
+FROM
+  assessor_rewards
+  INNER JOIN ca_votes_summary ON assessor_rewards.claim_id = ca_votes_summary.claim_id
+ORDER BY
+  date DESC
+  
