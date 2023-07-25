@@ -11,7 +11,7 @@ WITH
   labels AS (
     SELECT
       name,
-      cASt(address AS varbinary) AS contract_address
+      CAST(address AS varbinary) AS contract_address
     FROM
       labels.all
     WHERE
@@ -24,7 +24,7 @@ WITH
   erc_transactions AS (
     SELECT
       name,
-      CASt(a.contract_address AS varbinary) AS contract_address,
+      CAST(a.contract_address AS varbinary) AS contract_address,
       DATE_TRUNC('day', evt_block_time) AS day,
       CASE
         WHEN "to" IN (
@@ -81,7 +81,7 @@ WITH
           'Lido: steth',
           'Rocketpool: RocketTokenRETH'
         )
-        OR cast(a.contract_address as varbinary) = 0x27f23c710dd3d878fe9393d93465fed1302f2ebd /* nxmty */
+        OR CAST(a.contract_address AS varbinary) = 0x27f23c710dd3d878fe9393d93465fed1302f2ebd /* nxmty */
       )
       AND NOT (
         (
@@ -134,7 +134,7 @@ WITH
     SELECT
       1 AS anchor,
       DATE_TRUNC('day', evt_block_time) AS day,
-      CAST(postTotalPooledEther AS DOUBLE) / CAST(totalShares AS DOUBLE) AS rebASe
+      CAST(postTotalPooledEther AS DOUBLE) / CAST(totalShares AS DOUBLE) AS rebase
     FROM
       lido_ethereum.LegacyOracle_evt_PostTotalShares
     WHERE
@@ -147,18 +147,18 @@ WITH
       ingress,
       egress,
       ingress - egress AS steth_amount,
-      rebASe AS rebASe2
+      rebase AS rebase2
     FROM
       lido
       INNER JOIN erc_transactions ON erc_transactions.day = lido.day
       AND erc_transactions.name = 'Lido: steth'
   ),
-  expanded_rebASe_steth AS (
+  expanded_rebase_steth AS (
     SELECT
       lido.day AS day,
       steth_amount,
-      lido.rebASe AS rebASe,
-      lido_staking_net_steth.rebASe2 AS rebASe2
+      lido.rebase AS rebase,
+      lido_staking_net_steth.rebase2 AS rebase2
     FROM
       lido_staking_net_steth
       FULL JOIN lido ON lido.anchor = lido_staking_net_steth.anchor
@@ -170,16 +170,16 @@ WITH
     SELECT DISTINCT
       day,
       SUM(
-        steth_amount * CAST(rebASe AS DOUBLE) / CAST(rebASe2 AS DOUBLE)
+        steth_amount * CAST(rebase AS DOUBLE) / CAST(rebase2 AS DOUBLE)
       ) OVER (
         PARTITION BY
           day
       ) AS lido_ingress
     FROM
-      expanded_rebASe_steth
+      expanded_rebase_steth
   ),
   weth_nxmty_transactions AS (
-    select distinct
+    SELECT DISTINCT
       day,
       SUM(ingress) OVER (
         PARTITION BY
@@ -239,7 +239,7 @@ WITH
   eth_day_prices AS (
     SELECT
       day,
-      price_dollar as eth_price_dollar
+      price_dollar AS eth_price_dollar
     FROM
       day_prices
     WHERE
@@ -263,8 +263,8 @@ WITH
     WHERE
       symbol = 'rETH'
   ),
-  ethereum_price_ma7 as (
-    select
+  ethereum_price_ma7 AS (
+    SELECT
       day,
       eth_price_dollar,
       avg(eth_price_dollar) OVER (
@@ -278,14 +278,14 @@ WITH
       day DESC
   ),
   dai_price_ma7 AS (
-    select
+    SELECT
       day,
       dai_price_dollar,
       avg(dai_price_dollar) OVER (
         ORDER BY
           day ROWS BETWEEN 6 PRECEDING
           AND CURRENT ROW
-      ) as moving_average_dai
+      ) AS moving_average_dai
     from
       dai_day_prices
     ORDER BY
@@ -305,8 +305,8 @@ WITH
     ORDER BY
       day DESC
   ),
-  price_ma as (
-    select
+  price_ma AS (
+    SELECT
       ethereum_price_ma7.day,
       ethereum_price_ma7.moving_average_eth,
       dai_price_ma7.moving_average_dai,
@@ -316,9 +316,9 @@ WITH
       LEFT JOIN dai_price_ma7 ON ethereum_price_ma7.day = dai_price_ma7.day
       LEFT JOIN rpl_price_ma7 ON ethereum_price_ma7.day = rpl_price_ma7.day
   ),
-  all_running_totals as (
-    select
-      price_ma.day as day,
+  all_running_totals AS (
+    SELECT
+      price_ma.day AS day,
       moving_average_eth,
       moving_average_dai,
       moving_average_rpl,
@@ -327,7 +327,7 @@ WITH
       SUM(COALESCE(net_eth, 0)) OVER (
         ORDER BY
           price_ma.day
-      ) as running_net_eth,
+      ) AS running_net_eth,
       SUM(COALESCE(net_enzyme, 0)) OVER (
         ORDER BY
           price_ma.day
@@ -342,11 +342,11 @@ WITH
       SUM(COALESCE(dai_net_total, 0)) OVER (
         ORDER BY
           price_ma.day
-      ) as running_net_dai,
+      ) AS running_net_dai,
       SUM(COALESCE(rpl_net_total, 0)) OVER (
         ORDER BY
           price_ma.day
-      ) as running_net_rpl,
+      ) AS running_net_rpl,
       COALESCE(
         lido_ingress,
         LAG(lido_ingress) OVER (
@@ -354,7 +354,7 @@ WITH
             price_ma.day
         ),
         0
-      ) as running_net_lido
+      ) AS running_net_lido
     from
       price_ma
       LEFT JOIN nxmty ON price_ma.day = nxmty.day
@@ -368,41 +368,41 @@ SELECT
   moving_average_eth,
   moving_average_dai,
   case
-    when '{{display_currency}}' = 'USD' then moving_average_eth * running_net_eth
-    when '{{display_currency}}' = 'ETH' then running_net_eth
+    WHEN '{{display_currency}}' = 'USD' THEN moving_average_eth * running_net_eth
+    WHEN '{{display_currency}}' = 'ETH' THEN running_net_eth
     ELSE -1
-  END as running_net_eth_display_curr,
+  END AS running_net_eth_display_curr,
   case
-    when '{{display_currency}}' = 'USD' then moving_average_dai * running_net_dai
-    when '{{display_currency}}' = 'ETH' then moving_average_dai * running_net_dai / moving_average_eth
+    WHEN '{{display_currency}}' = 'USD' THEN moving_average_dai * running_net_dai
+    WHEN '{{display_currency}}' = 'ETH' THEN moving_average_dai * running_net_dai / moving_average_eth
     ELSE -1
-  END as running_net_dai_display_curr,
+  END AS running_net_dai_display_curr,
   case
-    when '{{display_currency}}' = 'USD' then moving_average_rpl * running_net_rpl
-    when '{{display_currency}}' = 'ETH' then moving_average_rpl * running_net_rpl / moving_average_eth
+    WHEN '{{display_currency}}' = 'USD' THEN moving_average_rpl * running_net_rpl
+    WHEN '{{display_currency}}' = 'ETH' THEN moving_average_rpl * running_net_rpl / moving_average_eth
     ELSE -1
-  END as running_net_rpl_display_curr,
+  END AS running_net_rpl_display_curr,
   case
-    when '{{display_currency}}' = 'USD' then moving_average_eth * running_net_lido
-    when '{{display_currency}}' = 'ETH' then running_net_lido
+    WHEN '{{display_currency}}' = 'USD' THEN moving_average_eth * running_net_lido
+    WHEN '{{display_currency}}' = 'ETH' THEN running_net_lido
     ELSE -1
-  END as running_net_lido_display_curr,
+  END AS running_net_lido_display_curr,
   case
-    when '{{display_currency}}' = 'USD' then moving_average_eth * running_net_enzyme
-    when '{{display_currency}}' = 'ETH' then running_net_enzyme
+    WHEN '{{display_currency}}' = 'USD' THEN moving_average_eth * running_net_enzyme
+    WHEN '{{display_currency}}' = 'ETH' THEN running_net_enzyme
     ELSE -1
-  END as running_net_enzyme_display_curr,
+  END AS running_net_enzyme_display_curr,
   case
-    when '{{display_currency}}' = 'USD' then (moving_average_dai * running_net_dai) + (moving_average_rpl * running_net_rpl) + (
+    WHEN '{{display_currency}}' = 'USD' THEN (moving_average_dai * running_net_dai) + (moving_average_rpl * running_net_rpl) + (
       moving_average_eth * (
         running_net_eth + running_net_lido + running_net_enzyme
       )
     )
-    when '{{display_currency}}' = 'ETH' then (
+    WHEN '{{display_currency}}' = 'ETH' THEN (
       (moving_average_dai * running_net_dai) / moving_average_eth
     ) + running_net_eth + running_net_lido + running_net_enzyme + (moving_average_rpl * running_net_rpl / moving_average_eth)
     ELSE -1
-  END as running_total_display_curr
+  END AS running_total_display_curr
 FROM
   all_running_totals
 WHERE
