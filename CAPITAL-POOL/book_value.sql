@@ -1,91 +1,11 @@
-WITH
-  eth_daily_transactions AS (
-    SELECT DISTINCT
-      DATE_TRUNC('day', block_time) AS day,
-      SUM(
-        CASE
-          WHEN "to" IN (
-            0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8,
-            0xcafeada4d15bbc7592113d5d5af631b5dcd53dcb,
-            0xcafea35ce5a2fc4ced4464da4349f81a122fd12b,
-            0xcafea8321b5109d22c53ac019d7a449c947701fb,
-            0xfd61352232157815cf7b71045557192bf0ce1884,
-            0x7cbe5682be6b648cc1100c76d4f6c96997f753d6,
-            0xcafea112Db32436c2390F5EC988f3aDB96870627
-          ) THEN CAST(value AS DOUBLE) * 1E-18
-          ELSE 0
-        END
-      ) OVER (
-        PARTITION BY
-          DATE_TRUNC('day', block_time)
-      ) AS eth_ingress,
-      SUM(
-        CASE
-          WHEN "from" IN (
-            0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8,
-            0xcafeada4d15bbc7592113d5d5af631b5dcd53dcb,
-            0xcafea35ce5a2fc4ced4464da4349f81a122fd12b,
-            0xcafea8321b5109d22c53ac019d7a449c947701fb,
-            0xfd61352232157815cf7b71045557192bf0ce1884,
-            0x7cbe5682be6b648cc1100c76d4f6c96997f753d6,
-            0xcafea112Db32436c2390F5EC988f3aDB96870627
-          ) THEN CAST(value AS DOUBLE) * 1E-18
-          ELSE 0
-        END
-      ) OVER (
-        PARTITION BY
-          DATE_TRUNC('day', block_time)
-      ) AS eth_egress
-    FROM
-      ethereum.traces
-    WHERE
-      success = TRUE
-      AND block_time > CAST('2019-01-01 00:00:00' AS TIMESTAMP)
-      AND (
-        "to" IN (
-          0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8,
-          0xcafeada4d15bbc7592113d5d5af631b5dcd53dcb,
-          0xcafea35ce5a2fc4ced4464da4349f81a122fd12b,
-          0xcafea8321b5109d22c53ac019d7a449c947701fb,
-          0xfd61352232157815cf7b71045557192bf0ce1884,
-          0x7cbe5682be6b648cc1100c76d4f6c96997f753d6,
-          0xcafea112Db32436c2390F5EC988f3aDB96870627
-        )
-        OR "from" IN (
-          0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8,
-          0xcafeada4d15bbc7592113d5d5af631b5dcd53dcb,
-          0xcafea35ce5a2fc4ced4464da4349f81a122fd12b,
-          0xcafea8321b5109d22c53ac019d7a449c947701fb,
-          0xfd61352232157815cf7b71045557192bf0ce1884,
-          0x7cbe5682be6b648cc1100c76d4f6c96997f753d6,
-          0xcafea112Db32436c2390F5EC988f3aDB96870627
-        )
-      )
-      AND NOT (
-        (
-          "to" = 0xcafea35ce5a2fc4ced4464da4349f81a122fd12b
-          AND "from" = 0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8
-        )
-        OR (
-          "to" = 0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8
-          AND "from" = 0xcafeada4d15bbc7592113d5d5af631b5dcd53dcb
-        )
-        OR (
-          "to" = 0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8
-          AND "from" = 0xfd61352232157815cf7b71045557192bf0ce1884
-        )
-      )
-  ),
-  eth AS (
-    SELECT DISTINCT
+  WITH eth_daily_transactions AS (
+    SELECT
       day,
       eth_ingress,
       eth_egress,
       eth_ingress - eth_egress AS net_eth
     FROM
-      eth_daily_transactions
-    ORDER BY
-      day DESC
+      nexusmutual_ethereum.capital_pool_eth_daily_transaction_summary
   ),
   labels AS (
     SELECT
