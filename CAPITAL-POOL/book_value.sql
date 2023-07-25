@@ -14,7 +14,11 @@
     FROM
       labels.all
     WHERE
-      name IN ('Maker: dai', 'Lido: steth')
+      name IN (
+        'Maker: dai',
+        'Lido: steth',
+        'Rocketpool: RocketTokenRETH'
+      )
   ),
   erc_transactions AS (
     SELECT
@@ -71,7 +75,11 @@
       )
       AND evt_block_time > CAST('2019-01-01 00:00:00' AS TIMESTAMP)
       AND (
-        name IN ('Maker: dai', 'Lido: steth')
+        name IN (
+          'Maker: dai',
+          'Lido: steth',
+          'Rocketpool: RocketTokenRETH'
+        )
         OR CAST(a.contract_address AS varbinary) = 0x27f23c710dd3d878fe9393d93465fed1302f2ebd /* nxmty */
       )
       AND NOT (
@@ -108,6 +116,18 @@
       erc_transactions
     WHERE
       name = 'Maker: dai'
+  ),
+  rocket_pool_transactions AS (
+    SELECT DISTINCT
+      day,
+      SUM(ingress - egress) OVER (
+        PARTITION BY
+          day
+      ) AS rpl_net_total
+    FROM
+      erc_transactions
+    WHERE
+      name = 'Rocketpool: RocketTokenRETH'
   ),
   lido AS (
     SELECT
@@ -158,7 +178,7 @@
       expanded_rebase_steth
   ),
   weth_nxmty_transactions AS (
-    select distinct
+    SELECT DISTINCT
       day,
       SUM(ingress) OVER (
         PARTITION BY
@@ -211,8 +231,9 @@
       (
         symbol = 'DAI'
         OR symbol = 'ETH'
+        OR symbol = 'rETH'
       )
-      AND minute > CAST('2019-01-01' AS TIMESTAMP)
+      AND minute > CAST('2019-05-23' AS TIMESTAMP)
   ),
   eth_day_prices AS (
     SELECT
@@ -232,8 +253,17 @@
     WHERE
       symbol = 'DAI'
   ),
+  rpl_day_prices AS (
+    SELECT
+      day,
+      price_dollar AS rpl_price_dollar
+    FROM
+      day_prices
+    WHERE
+      symbol = 'rETH'
+  ),
   ethereum_price_ma7 AS (
-    select
+    SELECT
       day,
       eth_price_dollar,
       avg(eth_price_dollar) OVER (
@@ -247,7 +277,7 @@
       day DESC
   ),
   dai_price_ma7 AS (
-    select
+    SELECT
       day,
       dai_price_dollar,
       avg(dai_price_dollar) OVER (
@@ -260,54 +290,90 @@
     ORDER BY
       day DESC
   ),
+  rpl_price_ma7 AS (
+    SELECT
+      day,
+      rpl_price_dollar,
+      AVG(rpl_price_dollar) OVER (
+        ORDER BY
+          day ROWS BETWEEN 6 PRECEDING
+          AND CURRENT ROW
+      ) AS moving_average_rpl
+    FROM
+      rpl_day_prices
+    ORDER BY
+      day DESC
+  ),
   price_ma AS (
-    select
+    SELECT
       ethereum_price_ma7.day,
       ethereum_price_ma7.moving_average_eth,
-      dai_price_ma7.moving_average_dai
+      COALESCE(dai_price_ma7.moving_average_dai, 0) AS moving_average_dai,
+      COALESCE(rpl_price_ma7.moving_average_rpl, 0) AS moving_average_rpl
     from
       ethereum_price_ma7
-      INNER JOIN dai_price_ma7 ON ethereum_price_ma7.day = dai_price_ma7.day
+      LEFT JOIN dai_price_ma7 ON ethereum_price_ma7.day = dai_price_ma7.day
+      LEFT JOIN rpl_price_ma7 ON ethereum_price_ma7.day = rpl_price_ma7.day
   ),
   all_running_totals AS (
-    select
+    SELECT
       price_ma.day AS day,
       moving_average_eth,
       moving_average_dai,
+      moving_average_rpl,
       eth_ingress,
       eth_egress,
       SUM(COALESCE(net_eth, 0)) OVER (
         ORDER BY
           price_ma.day
       ) AS running_net_eth,
+      SUM(COALESCE(net_enzyme, 0)) OVER (
+        ORDER BY
+          price_ma.day
+      ) * COALESCE(
+        nxmty_price,
+        LAG(nxmty_price) OVER (
+          ORDER BY
+            price_ma.day ASC
+        ),
+        0
+      ) AS running_net_enzyme,
       SUM(COALESCE(dai_net_total, 0)) OVER (
         ORDER BY
           price_ma.day
       ) AS running_net_dai,
-      SUM(COALESCE(net_enzyme, 0)) OVER (
+      SUM(COALESCE(rpl_net_total, 0)) OVER (
         ORDER BY
           price_ma.day
-      ) * COALESCE(nxmty_price,LAG(nxmty_price) OVER (ORDER BY price_ma.day ASC),0) AS running_net_enzyme,
-      COALESCE(lido_ingress, LAG(lido_ingress) OVER (ORDER BY price_ma.day), 0) AS running_net_lido
+      ) AS running_net_rpl,
+      COALESCE(
+        lido_ingress,
+        LAG(lido_ingress) OVER (
+          ORDER BY
+            price_ma.day
+        ),
+        0
+      ) AS running_net_lido
     from
       price_ma
       LEFT JOIN nxmty ON price_ma.day = nxmty.day
       LEFT JOIN dai_transactions ON price_ma.day = dai_transactions.day
+      LEFT JOIN rocket_pool_transactions ON price_ma.day = rocket_pool_transactions.day
       LEFT JOIN steth ON price_ma.day = steth.day
-      LEFT JOIN eth ON price_ma.day = eth.day
-  ),
-  display_currency_total AS (
+      LEFT JOIN eth_daily_transactions ON price_ma.day = eth_daily_transactions.day
+ ),
+  display_currency_total as (
     SELECT
       day,
       case
         when '{{display_currency}}' = 'USD' then (moving_average_dai * running_net_dai) + (
-          moving_average_eth * (running_net_eth + running_net_lido +  running_net_enzyme)
+          moving_average_eth * (running_net_eth + running_net_lido +  running_net_enzyme) +  (moving_average_rpl * running_net_rpl)
         )
         when '{{display_currency}}' = 'ETH' then (
           (moving_average_dai * running_net_dai) / moving_average_eth
-        ) + running_net_eth + running_net_lido + running_net_enzyme
+        ) + running_net_eth + running_net_lido + running_net_enzyme + (moving_average_rpl * running_net_rpl / moving_average_eth )
         ELSE -1
-      END AS running_total_display_curr
+      END as running_total_display_curr
     FROM
       all_running_totals
   ),
@@ -374,13 +440,13 @@
       minted_burnt_nxm
   )
 select
-  coalesce(display_currency_total.day, nxm_supply.day) AS day,
+  coalesce(display_currency_total.day, nxm_supply.day) as day,
   running_total_display_curr,
   total_nxm,
-  running_total_display_curr / total_nxm AS book_value
+  running_total_display_curr / total_nxm as book_value
 FROM
   nxm_supply
-  INNER JOIN display_currency_total ON display_currency_total.day = nxm_supply.day
+  INNER JOIN display_currency_total on display_currency_total.day = nxm_supply.day
 WHERE
   coalesce(display_currency_total.day, nxm_supply.day) >= CAST('{{Start Date}}' AS TIMESTAMP)
   AND coalesce(display_currency_total.day, nxm_supply.day) <= CAST('{{End Date}}' AS TIMESTAMP)
