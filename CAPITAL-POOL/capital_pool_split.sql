@@ -26,7 +26,11 @@ WITH
     FROM
       labels.all
     WHERE
-      name IN ('Maker: dai', 'Lido: steth')
+      name IN (
+        'Maker: dai',
+        'Lido: steth',
+        'Rocketpool: RocketTokenRETH'
+      )
   ),
   erc_transactions AS (
     SELECT
@@ -83,7 +87,11 @@ WITH
       )
       AND evt_block_time > CAST('2019-01-01 00:00:00' AS TIMESTAMP)
       AND (
-        name IN ('Maker: dai', 'Lido: steth')
+        name IN (
+          'Maker: dai',
+          'Lido: steth',
+          'Rocketpool: RocketTokenRETH'
+        )
         OR CAST(a.contract_address AS VARBINARY) = 0x27f23c710dd3d878fe9393d93465fed1302f2ebd /* nxmty */
       )
       AND NOT (
@@ -115,9 +123,23 @@ WITH
     LIMIT
       1
   ),
+  rocket_pool_transactions AS (
+    SELECT DISTINCT
+      'rETH' AS asset_type,
+      day,
+      SUM(ingress - egress) OVER () AS rpl_net_total
+    FROM
+      erc_transactions
+    WHERE
+      name = 'Rocketpool: RocketTokenRETH'
+    ORDER BY
+      day DESC
+    LIMIT
+      1
+  ),
   lido AS (
     SELECT
-      1 AS anchor,
+      1 as anchor,
       DATE_TRUNC('day', evt_block_time) AS day,
       CAST(postTotalPooledEther AS DOUBLE) / CAST(totalShares AS DOUBLE) AS rebase
     FROM
@@ -127,12 +149,12 @@ WITH
   ),
   lido_staking_net_steth AS (
     SELECT DISTINCT
-      1 AS anchor,
-      lido.day AS day,
+      1 as anchor,
+      lido.day as day,
       ingress,
       egress,
       ingress - egress AS steth_amount,
-      rebase AS rebase2
+      rebase as rebase2
     FROM
       lido
       INNER JOIN erc_transactions ON erc_transactions.day = lido.day
@@ -244,6 +266,13 @@ WITH
       net_eth AS value
     FROM
       eth
+    UNION
+    SELECT
+      asset_type,
+      day,
+      rpl_net_total AS value
+    FROM
+      rocket_pool_transactions
   ),
   day_prices AS (
     SELECT DISTINCT
@@ -260,6 +289,7 @@ WITH
       (
         symbol = 'DAI'
         OR symbol = 'ETH'
+        OR symbol = 'rETH'
       )
       AND minute > CAST(
         CAST('2019-01-01 00:00:00' AS TIMESTAMP) AS TIMESTAMP
@@ -282,6 +312,15 @@ WITH
       day_prices
     WHERE
       symbol = 'DAI'
+  ),
+  rpl_day_prices AS (
+    SELECT
+      day,
+      price_dollar AS rpl_price_dollar
+    FROM
+      day_prices
+    WHERE
+      symbol = 'rETH'
   ),
   ethereum_price_ma7 AS (
     SELECT
@@ -311,16 +350,32 @@ WITH
     ORDER BY
       day DESC
   ),
+  rpl_price_ma7 AS (
+    SELECT
+      day,
+      rpl_price_dollar,
+      AVG(rpl_price_dollar) OVER (
+        ORDER BY
+          day ROWS BETWEEN 6 PRECEDING
+          AND CURRENT ROW
+      ) AS moving_average_rpl
+    FROM
+      rpl_day_prices
+    ORDER BY
+      day DESC
+  ),
   price_ma AS (
     SELECT
       ethereum_price_ma7.day,
       ethereum_price_ma7.moving_average_eth,
-      dai_price_ma7.moving_average_dai,
+      COALESCE(dai_price_ma7.moving_average_dai, 0) AS moving_average_dai,
+      COALESCE(rpl_price_ma7.moving_average_rpl, 0) AS moving_average_rpl,
       asset_type,
-      CAST(value AS DOUBLE) AS asset_value
+      CAST(value AS DOUBLE) as asset_value
     FROM
       ethereum_price_ma7
-      INNER JOIN dai_price_ma7 ON ethereum_price_ma7.day = dai_price_ma7.day
+      LEFT JOIN dai_price_ma7 ON ethereum_price_ma7.day = dai_price_ma7.day
+      LEFT JOIN rpl_price_ma7 ON ethereum_price_ma7.day = rpl_price_ma7.day
       LEFT JOIN asset_split ON ethereum_price_ma7.day = asset_split.day
   )
 SELECT
@@ -334,6 +389,10 @@ SELECT
     AND '{{display_currency}}' = 'ETH' THEN CAST(asset_value AS DOUBLE) * moving_average_dai / moving_average_eth
     WHEN asset_type IN ('DAI')
     AND '{{display_currency}}' = 'USD' THEN CAST(asset_value AS DOUBLE) * moving_average_dai
+    WHEN asset_type IN ('rETH')
+    AND '{{display_currency}}' = 'ETH' THEN CAST(asset_value AS DOUBLE) * moving_average_rpl / moving_average_eth
+    WHEN asset_type IN ('rETH')
+    AND '{{display_currency}}' = 'USD' THEN CAST(asset_value AS DOUBLE) * moving_average_rpl
   END AS asset_value
 FROM
   price_ma
