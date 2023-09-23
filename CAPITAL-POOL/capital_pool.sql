@@ -309,8 +309,8 @@ WITH
     SELECT
       ethereum_price_ma7.day,
       ethereum_price_ma7.moving_average_eth,
-      dai_price_ma7.moving_average_dai,
-      rpl_price_ma7.moving_average_rpl
+      COALESCE(dai_price_ma7.moving_average_dai, 0) AS moving_average_dai,
+      COALESCE(rpl_price_ma7.moving_average_rpl, 0) AS moving_average_rpl
     from
       ethereum_price_ma7
       LEFT JOIN dai_price_ma7 ON ethereum_price_ma7.day = dai_price_ma7.day
