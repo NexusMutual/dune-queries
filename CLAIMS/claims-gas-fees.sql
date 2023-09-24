@@ -13,18 +13,18 @@ WITH
     FROM
       nexusmutual_ethereum.ClaimsData_evt_VoteCast
     UNION
-    select
+    SELECT
       concat('V2_', CAST(assessmentId AS VARCHAR)) AS name,
       NULL AS v1_claim_id,
       assessmentId AS v2_claim_id,
       evt_tx_hash,
       accepted,
       CAST(stakedAmount AS DOUBLE) * 1E-18 AS nxm_vote
-    from
+    FROM
       nexusmutual_ethereum.Assessment_evt_VoteCast
   ),
   votes_with_gas_usage AS (
-    select
+    SELECT
     DISTINCT
       name,
       v1_claim_id,
@@ -57,17 +57,17 @@ WITH
         )
         ELSE NULL
       END AS v2_gas_used
-    from
+    FROM
       vote_count
       INNER JOIN ethereum.transactions AS t ON vote_count.evt_tx_hash = t.hash
     WHERE
       block_time > CAST('2019-05-01' AS TIMESTAMP)
   )
-select
+SELECT
 *,
 AVG(v1_average_gas_cost) OVER () AS v1_average_gas_cost_all,
 AVG(v2_average_gas_cost) OVER () AS v2_average_gas_cost_all
-from
+FROM
   votes_with_gas_usage
 ORDER by
   v1_claim_id,
