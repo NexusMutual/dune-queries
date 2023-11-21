@@ -2,7 +2,7 @@ WITH
   book_value_eth AS (
     SELECT
       CAST(call_block_time AS TIMESTAMP) AS ts,
-      CAST(output_0 AS DOUBLE) AS book_value_eth
+      CAST(output_bookValue AS DOUBLE) AS book_value_eth
     FROM
       nexusmutual_ethereum.Ramm_call_getBookValue AS a
     WHERE
