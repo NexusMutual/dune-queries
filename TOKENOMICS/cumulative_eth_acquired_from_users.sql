@@ -4,7 +4,7 @@ WITH
       CAST(evt_block_time AS TIMESTAMP) AS ts,
       CAST(ethIn AS DOUBLE) * 1E-18 AS eth_in
     FROM
-      nexusmutual_ethereum.QuotationData_evt_ethswappedfornxm
+      nexusmutual_ethereum.Ramm_evt_EthSwappedForNxm
   )
 SELECT
   *
