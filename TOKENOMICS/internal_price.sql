@@ -2,9 +2,9 @@ WITH
   internal_price AS (
     SELECT
       date_trunc('minute', call_block_time) AS ts,
-      CAST(output_0 AS DOUBLE) AS internal_price_eth
+      CAST(output_internalPrice AS DOUBLE) AS internal_price_eth
     FROM
-      nexusmutual_ethereum.Ramm_call_getReserves
+      nexusmutual_ethereum.Ramm_call_getInternalPriceAndUpdateTwap
   ),
   prices AS (
     SELECT DISTINCT
