@@ -291,6 +291,87 @@ WITH
     ORDER BY
       cover_id
   ),
+  eth_daily_transactions_fix AS (
+    select distinct
+      date_trunc('day', block_time) as day,
+      SUM(
+        CASE
+          WHEN "to" IN (
+            0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8,
+            0xcafeada4d15bbc7592113d5d5af631b5dcd53dcb,
+            0xcafea35ce5a2fc4ced4464da4349f81a122fd12b,
+            0xcafea8321b5109d22c53ac019d7a449c947701fb,
+            0xfd61352232157815cf7b71045557192bf0ce1884,
+            0x7cbe5682be6b648cc1100c76d4f6c96997f753d6,
+            0xcafea112Db32436c2390F5EC988f3aDB96870627,
+            0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60
+          ) THEN CAST(value AS DOUBLE) * 1E-18
+          ELSE 0
+        END
+      ) OVER (
+        PARTITION BY
+          date_trunc('day', block_time)
+      ) as eth_ingress,
+      SUM(
+        CASE
+          WHEN "from" IN (
+            0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8,
+            0xcafeada4d15bbc7592113d5d5af631b5dcd53dcb,
+            0xcafea35ce5a2fc4ced4464da4349f81a122fd12b,
+            0xcafea8321b5109d22c53ac019d7a449c947701fb,
+            0xfd61352232157815cf7b71045557192bf0ce1884,
+            0x7cbe5682be6b648cc1100c76d4f6c96997f753d6,
+            0xcafea112Db32436c2390F5EC988f3aDB96870627,
+            0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60
+          ) THEN CAST(value AS DOUBLE) * 1E-18
+          ELSE 0
+        END
+      ) OVER (
+        PARTITION BY
+          date_trunc('day', block_time)
+      ) as eth_egress
+    from
+      ethereum.traces
+    where
+      success = true
+      AND block_time > CAST('2019-01-01 00:00:00' AS TIMESTAMP)
+      AND (
+        "to" IN (
+          0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8,
+          0xcafeada4d15bbc7592113d5d5af631b5dcd53dcb,
+          0xcafea35ce5a2fc4ced4464da4349f81a122fd12b,
+          0xcafea8321b5109d22c53ac019d7a449c947701fb,
+          0xfd61352232157815cf7b71045557192bf0ce1884,
+          0x7cbe5682be6b648cc1100c76d4f6c96997f753d6,
+          0xcafea112Db32436c2390F5EC988f3aDB96870627,
+          0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60
+        )
+        OR "from" IN (
+          0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8,
+          0xcafeada4d15bbc7592113d5d5af631b5dcd53dcb,
+          0xcafea35ce5a2fc4ced4464da4349f81a122fd12b,
+          0xcafea8321b5109d22c53ac019d7a449c947701fb,
+          0xfd61352232157815cf7b71045557192bf0ce1884,
+          0x7cbe5682be6b648cc1100c76d4f6c96997f753d6,
+          0xcafea112Db32436c2390F5EC988f3aDB96870627,
+          0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60
+        )
+      )
+      AND NOT (
+        (
+          "to" = 0xcafea35ce5a2fc4ced4464da4349f81a122fd12b
+          AND "from" = 0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8
+        )
+        OR (
+          "to" = 0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8
+          AND "from" = 0xcafeada4d15bbc7592113d5d5af631b5dcd53dcb
+        )
+        OR (
+          "to" = 0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8
+          AND "from" = 0xfd61352232157815cf7b71045557192bf0ce1884
+        )
+      )
+  ),
   eth_daily_transactions AS (
     SELECT
       day,
@@ -298,7 +379,8 @@ WITH
       eth_egress,
       eth_ingress - eth_egress AS net_eth
     FROM
-      nexusmutual_ethereum.capital_pool_eth_daily_transaction_summary
+      --nexusmutual_ethereum.eth_daily_transactions
+      eth_daily_transactions_fix
   ),
   labels AS (
     SELECT
@@ -326,7 +408,8 @@ WITH
           0xcafea8321b5109d22c53ac019d7a449c947701fb,
           0xfd61352232157815cf7b71045557192bf0ce1884,
           0x7cbe5682be6b648cc1100c76d4f6c96997f753d6,
-          0xcafea112Db32436c2390F5EC988f3aDB96870627
+          0xcafea112Db32436c2390F5EC988f3aDB96870627,
+          0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60
         ) THEN CAST(value AS DOUBLE) * 1E-18
         ELSE 0
       END AS ingress,
@@ -338,7 +421,8 @@ WITH
           0xcafea8321b5109d22c53ac019d7a449c947701fb,
           0xfd61352232157815cf7b71045557192bf0ce1884,
           0x7cbe5682be6b648cc1100c76d4f6c96997f753d6,
-          0xcafea112Db32436c2390F5EC988f3aDB96870627
+          0xcafea112Db32436c2390F5EC988f3aDB96870627,
+          0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60
         ) THEN CAST(value AS DOUBLE) * 1E-18
         ELSE 0
       END AS egress
@@ -354,7 +438,8 @@ WITH
           0xcafea8321b5109d22c53ac019d7a449c947701fb,
           0xfd61352232157815cf7b71045557192bf0ce1884,
           0x7cbe5682be6b648cc1100c76d4f6c96997f753d6,
-          0xcafea112Db32436c2390F5EC988f3aDB96870627
+          0xcafea112Db32436c2390F5EC988f3aDB96870627,
+          0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60
         )
         OR "from" IN (
           0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8,
@@ -363,7 +448,8 @@ WITH
           0xcafea8321b5109d22c53ac019d7a449c947701fb,
           0xfd61352232157815cf7b71045557192bf0ce1884,
           0x7cbe5682be6b648cc1100c76d4f6c96997f753d6,
-          0xcafea112Db32436c2390F5EC988f3aDB96870627
+          0xcafea112Db32436c2390F5EC988f3aDB96870627,
+          0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60
         )
       )
       AND evt_block_time > CAST('2019-01-01 00:00:00' AS TIMESTAMP)
@@ -816,12 +902,20 @@ WITH
       summed
     ORDER BY
       day
+  ),
+  ramm_nxm_queries AS (
+    SELECT DISTINCT
+      t.call_tx_hash,
+      CAST(output_internalprice  * 1E-18 AS DOUBLE) AS ramm_nxm_price_in_eth
+    FROM
+      nexusmutual_ethereum.Cover_call_buyCover AS t
+      INNER JOIN nexusmutual_ethereum.Ramm_call_getInternalPriceAndUpdateTwap AS v ON v.call_tx_hash = t.call_tx_hash
   )
 SELECT DISTINCT
   CAST(cover_id AS INT) AS cover_id,
   CASE
-    when cover_end_time >= NOW() then 'Active'
-    when cover_end_time < NOW() then 'Expired'
+    WHEN cover_end_time >= NOW() THEN 'Active'
+    WHEN cover_end_time < NOW() THEN 'Expired'
   END AS active,
   cover_asset,
   --  eth_price_dollar,
@@ -841,8 +935,8 @@ SELECT DISTINCT
   partial_cover_amount_in_nxm,
   partial_cover_amount_in_nxm * (
     CASE
-      WHEN cover_asset = 'ETH' THEN nxm_token_price_in_eth
-      WHEN cover_asset = 'DAI' THEN nxm_token_price_in_dollar
+      WHEN cover_asset = 'ETH' THEN COALESCE(ramm_nxm_price_in_eth, nxm_token_price_in_eth)
+      WHEN cover_asset = 'DAI' THEN COALESCE(ramm_nxm_price_in_eth * eth_price_dollar, nxm_token_price_in_dollar)
     END
   ) * 100.0 / (
     CASE
@@ -850,8 +944,8 @@ SELECT DISTINCT
       WHEN cover_asset = 'DAI' THEN sum_assured * dai_price_dollar
     END
   ) AS cover_percentage,
-  partial_cover_amount_in_nxm * nxm_token_price_in_eth AS partial_cover_amount_in_eth,
-  partial_cover_amount_in_nxm * nxm_token_price_in_dollar AS partial_cover_amount_in_dollar,
+  partial_cover_amount_in_nxm * COALESCE(ramm_nxm_price_in_eth, nxm_token_price_in_eth) AS partial_cover_amount_in_eth,
+  partial_cover_amount_in_nxm * COALESCE(ramm_nxm_price_in_eth * eth_price_dollar, nxm_token_price_in_dollar) AS partial_cover_amount_in_dollar,
   premium_asset,
   premium_nxm,
   /* CASE
@@ -860,10 +954,10 @@ SELECT DISTINCT
   WHEN premium_asset = 'NXM' THEN premium
   END AS premium_nxm,*/
   CASE
-    WHEN cover_asset = 'ETH' THEN premium_nxm * nxm_token_price_in_eth
-    WHEN cover_asset = 'DAI' THEN premium_nxm * nxm_token_price_in_dollar / dai_price_dollar
+    WHEN cover_asset = 'ETH' THEN premium_nxm * COALESCE(ramm_nxm_price_in_eth, nxm_token_price_in_eth)
+    WHEN cover_asset = 'DAI' THEN premium_nxm * COALESCE(ramm_nxm_price_in_eth * eth_price_dollar, nxm_token_price_in_dollar) / dai_price_dollar
   END AS premium_native,
-  premium_nxm * nxm_token_price_in_dollar AS premium_dollar,
+  premium_nxm * COALESCE(ramm_nxm_price_in_eth * eth_price_dollar, nxm_token_price_in_dollar) AS premium_dollar,
   syndicate AS staking_pool,
   COALESCE(product_type, 'unknown') AS product_type,
   COALESCE(product_name, 'unknown') AS product_name,
@@ -871,9 +965,10 @@ SELECT DISTINCT
   cover_end_time,
   owner,
   date_diff('day', cover_start_time, cover_end_time) AS cover_period,
-  call_tx_hash
+  t.call_tx_hash
 FROM
   covers AS t
   LEFT JOIN nxm_token_price AS f ON f.day = DATE_TRUNC('day', cover_start_time)
+  LEFT JOIN ramm_nxm_queries AS v ON v.call_tx_hash = t.call_tx_hash
 ORDER BY
   cover_id DESC
