@@ -31,14 +31,14 @@ WITH
       v2_claim_id,
       CASE
         WHEN v1_claim_id IS NOT NULL THEN AVG(gas_used * gas_price * 1E-18) OVER (
-          partition by
+          PARTITION BY
             name
         )
         ELSE NULL
       END AS v1_average_gas_cost,
       CASE
         WHEN v2_claim_id IS NOT NULL THEN AVG(gas_used * gas_price * 1E-18) OVER (
-          partition by
+          PARTITION BY
             name
         )
         ELSE NULL
@@ -69,6 +69,6 @@ AVG(v1_average_gas_cost) OVER () AS v1_average_gas_cost_all,
 AVG(v2_average_gas_cost) OVER () AS v2_average_gas_cost_all
 FROM
   votes_with_gas_usage
-ORDER by
+ORDER BY
   v1_claim_id,
   v2_claim_id
