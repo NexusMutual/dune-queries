@@ -906,16 +906,19 @@ WITH
   ramm_nxm_queries AS (
     SELECT DISTINCT
       t.call_tx_hash,
-      CAST(output_internalprice  * 1E-18 AS DOUBLE) AS ramm_nxm_price_in_eth
+      AVG(CAST(output_internalprice * 1E-18 AS DOUBLE)) OVER (
+        PARTITION BY
+          t.call_tx_hash
+      ) AS ramm_nxm_price_in_eth
     FROM
-      nexusmutual_ethereum.Cover_call_buyCover AS t
+      nexusmutual_ethereum.Cover_call_buyCover as t
       INNER JOIN nexusmutual_ethereum.Ramm_call_getInternalPriceAndUpdateTwap AS v ON v.call_tx_hash = t.call_tx_hash
   )
 SELECT DISTINCT
   CAST(cover_id AS INT) AS cover_id,
   CASE
-    WHEN cover_end_time >= NOW() THEN 'Active'
-    WHEN cover_end_time < NOW() THEN 'Expired'
+    when cover_end_time >= NOW() then 'Active'
+    when cover_end_time < NOW() then 'Expired'
   END AS active,
   cover_asset,
   --  eth_price_dollar,
@@ -936,7 +939,10 @@ SELECT DISTINCT
   partial_cover_amount_in_nxm * (
     CASE
       WHEN cover_asset = 'ETH' THEN COALESCE(ramm_nxm_price_in_eth, nxm_token_price_in_eth)
-      WHEN cover_asset = 'DAI' THEN COALESCE(ramm_nxm_price_in_eth * eth_price_dollar, nxm_token_price_in_dollar)
+      WHEN cover_asset = 'DAI' THEN COALESCE(
+        ramm_nxm_price_in_eth * eth_price_dollar,
+        nxm_token_price_in_dollar
+      )
     END
   ) * 100.0 / (
     CASE
@@ -945,7 +951,10 @@ SELECT DISTINCT
     END
   ) AS cover_percentage,
   partial_cover_amount_in_nxm * COALESCE(ramm_nxm_price_in_eth, nxm_token_price_in_eth) AS partial_cover_amount_in_eth,
-  partial_cover_amount_in_nxm * COALESCE(ramm_nxm_price_in_eth * eth_price_dollar, nxm_token_price_in_dollar) AS partial_cover_amount_in_dollar,
+  partial_cover_amount_in_nxm * COALESCE(
+    ramm_nxm_price_in_eth * eth_price_dollar,
+    nxm_token_price_in_dollar
+  ) AS partial_cover_amount_in_dollar,
   premium_asset,
   premium_nxm,
   /* CASE
@@ -955,9 +964,15 @@ SELECT DISTINCT
   END AS premium_nxm,*/
   CASE
     WHEN cover_asset = 'ETH' THEN premium_nxm * COALESCE(ramm_nxm_price_in_eth, nxm_token_price_in_eth)
-    WHEN cover_asset = 'DAI' THEN premium_nxm * COALESCE(ramm_nxm_price_in_eth * eth_price_dollar, nxm_token_price_in_dollar) / dai_price_dollar
+    WHEN cover_asset = 'DAI' THEN premium_nxm * COALESCE(
+      ramm_nxm_price_in_eth * eth_price_dollar,
+      nxm_token_price_in_dollar
+    ) / dai_price_dollar
   END AS premium_native,
-  premium_nxm * COALESCE(ramm_nxm_price_in_eth * eth_price_dollar, nxm_token_price_in_dollar) AS premium_dollar,
+  premium_nxm * COALESCE(
+    ramm_nxm_price_in_eth * eth_price_dollar,
+    nxm_token_price_in_dollar
+  ) AS premium_dollar,
   syndicate AS staking_pool,
   COALESCE(product_type, 'unknown') AS product_type,
   COALESCE(product_name, 'unknown') AS product_name,
