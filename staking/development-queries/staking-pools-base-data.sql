@@ -10,7 +10,33 @@ select * from nexusmutual_ethereum.TokenController_call_assignStakingPoolManager
 
 with
 
-staking_pools as (
+staking_pool_names (pool_id, pool_name) as (
+  values
+  (1, 'Nexus Foundation'),
+  (2, 'Hugh'),
+  (3, 'Ease AAA Low Risk Pool'),
+  (4, 'Ease AA Medium Risk Pool'),
+  (5, 'Unity Cover'),
+  (6, 'Safe Invest'),
+  (7, 'ShieldX Staking Pool'),
+  (8, 'DeFiSafety X OpenCover Blue Chip Protocol Pool'),
+  (9, 'My Conservative Pool'),
+  (10, 'SAFU Pool'),
+  (11, 'Sherlock'),
+  (12, 'Gm Exit Here (GLP) Pool'),
+  (13, 'My Nexus Pool'),
+  (14, 'My Private Pool'),
+  (15, 'Reflection'),
+  (16, 'Good KarMa Capital'),
+  (17, 'High Trust Protocols'),
+  (18, 'UnoRe WatchDog Pool'),
+  (19, 'Broad And Diversified'),
+  (20, 'Lowest Risk'),
+  (21, 'Crypto Plaza'),
+  (22, 'BraveNewDeFi''s Pool')
+),
+
+staking_pools_created as (
   select
     call_block_time as block_time,
     output_0 as pool_id,
@@ -36,11 +62,11 @@ staking_pools_and_products as (
     cast(json_query(t.json, 'lax $.weight') as int) as weight,
     cast(json_query(t.json, 'lax $.initialPrice') as int) as initial_price,
     cast(json_query(t.json, 'lax $.targetPrice') as int) as target_price
-  from staking_pools as sp
+  from staking_pools_created as sp
     cross join unnest(params) as t(json)
 ),
 
-staking_pool_updates as (
+staking_pool_products_updated as (
   select
     *,
     row_number() over (partition by pool_id, product_id order by block_time desc) as rn
@@ -70,27 +96,28 @@ staking_pool_products_combined as (
     spp.target_price,
     spu.target_price as updated_target_price,
     spp.weight as initial_weight,
-    spu.target_weight as updated_target_weight,
+    spu.target_weight,
     spu.block_time as updated_time
   from staking_pools_and_products spp
-    full outer join staking_pool_updates as spu on spp.pool_id = spu.pool_id and spp.product_id = spu.product_id
+    full outer join staking_pool_products_updated as spu on spp.pool_id = spu.pool_id and spp.product_id = spu.product_id
   where coalesce(spu.rn, 1) = 1
 )
 
 select
   sp.pool_id,
   sp.pool_address,
+  spn.pool_name,
   sp.is_private_pool,
   sp.initial_pool_fee,
   sp.max_management_fee,
   spc.product_id,
   spc.initial_price,
-  spc.target_price,
-  spc.updated_target_price,
+  coalesce(spc.updated_target_price, spc.target_price) as target_price,
   spc.initial_weight,
-  spc.updated_target_weight,
+  spc.target_weight,
   sp.block_time as created_time,
   spc.updated_time
-from staking_pools as sp
+from staking_pools_created as sp
+  left join staking_pool_names as spn on sp.pool_id = spn.pool_id
   inner join staking_pool_products_combined as spc on sp.pool_id = spc.pool_id
-order by pool_id, product_id
+order by sp.pool_id, spc.product_id
