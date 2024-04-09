@@ -101,12 +101,33 @@ staking_pool_products_combined as (
   from staking_pools_and_products spp
     full outer join staking_pool_products_updated as spu on spp.pool_id = spu.pool_id and spp.product_id = spu.product_id
   where coalesce(spu.rn, 1) = 1
+),
+
+staking_pool_managers as (
+  select
+    t.block_time,
+    t.pool_id,
+    coalesce(ens.name, cast(t.manager as varchar)) as manager,
+    t.tx_hash
+  from (
+      select
+        call_block_time as block_time,
+        poolId as pool_id,
+        manager,
+        call_tx_hash as tx_hash,
+        row_number() over (partition by poolId order by call_block_time, call_trace_address desc) as rn
+      from nexusmutual_ethereum.TokenController_call_assignStakingPoolManager
+      where call_success
+    ) t
+    left join labels.ens on t.manager = ens.address
+  where t.rn = 1
 )
 
 select
   sp.pool_id,
   sp.pool_address,
   spn.pool_name,
+  spm.manager,
   sp.is_private_pool,
   sp.initial_pool_fee,
   sp.max_management_fee,
@@ -118,6 +139,7 @@ select
   sp.block_time as created_time,
   spc.updated_time
 from staking_pools_created as sp
-  left join staking_pool_names as spn on sp.pool_id = spn.pool_id
   inner join staking_pool_products_combined as spc on sp.pool_id = spc.pool_id
+  left join staking_pool_names as spn on sp.pool_id = spn.pool_id
+  left join staking_pool_managers spm on sp.pool_id = spm.pool_id
 order by sp.pool_id, spc.product_id
