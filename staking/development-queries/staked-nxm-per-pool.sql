@@ -4,8 +4,24 @@ staking_pools as (
   select distinct
     pool_id,
     pool_address,
-    pool_name
+    pool_name,
+    manager
   from query_3597103
+),
+
+staking_pool_products_all_days as (
+  select
+    sp.pool_id,
+    sp.product_id,
+    s.block_date
+  from query_3597103 sp
+    cross join unnest (
+      sequence(
+        cast(date_trunc('day', sp.product_added_time) as timestamp),
+        cast(date_trunc('day', now()) as timestamp),
+        interval '1' day
+      )
+    ) as s(block_date)
 ),
 
 covers as (
@@ -193,10 +209,11 @@ staked_nxm_history_with_rewards as (
 staking_rewards as (
   select
     mr.call_block_time as block_time,
+    date_trunc('day', mr.call_block_time) as block_date,
     mr.poolId as pool_id,
     c.product_id,
     c.cover_id,
-    mr.amount as reward_amount_total,
+    mr.amount as reward_amount_expected_total,
     mr.amount * 86400.0 / c.period as reward_amount_per_day,
     mr.call_tx_hash as tx_hash
   from nexusmutual_ethereum.TokenController_call_mintStakingPoolNXMRewards mr
@@ -223,10 +240,22 @@ staked_nxm_per_pool_bar_withdrawn_rewards as (
   group by 1
 ),
 
+staked_nxm_daily_rewards_per_pool as (
+  select
+    d.pool_id,
+    sum(r.reward_amount_per_day) / 1e18 as reward_amount_current_total
+    --sum(r.reward_amount_per_day / 1e18) over (partition by d.pool_id order by d.block_time) as reward_amount_current_total,
+    --row_number() over (partition by d.pool_id order by d.block_time desc) as rn
+  from staking_pool_products_all_days d
+    inner join staking_rewards r on d.pool_id = r.pool_id and d.product_id = r.product_id
+  where d.block_date < current_date
+  group by 1
+),
+
 staked_nxm_rewards_per_pool as (
   select
     pool_id,
-    sum(reward_amount_total) / 1e18 as reward_amount
+    sum(reward_amount_expected_total) / 1e18 as reward_amount_expected_total
   from staking_rewards
   group by 1
 )
@@ -234,11 +263,14 @@ staked_nxm_rewards_per_pool as (
 select
   sp.pool_id,
   sp.pool_name,
+  sp.manager,
   t.amount,
   tr.amount_minus_withdrawn_rewards,
-  r.reward_amount
+  dr.reward_amount_current_total,
+  r.reward_amount_expected_total
 from staking_pools sp
   left join staked_nxm_per_pool t on sp.pool_id = t.pool_id
   left join staked_nxm_per_pool_bar_withdrawn_rewards tr on sp.pool_id = tr.pool_id
+  left join staked_nxm_daily_rewards_per_pool dr on sp.pool_id = dr.pool_id --and dr.rn = 1
   left join staked_nxm_rewards_per_pool r on sp.pool_id = r.pool_id
 order by 1

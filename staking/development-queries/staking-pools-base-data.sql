@@ -97,27 +97,48 @@ staking_pool_products_combined as (
     spu.target_price as updated_target_price,
     spp.weight as initial_weight,
     spu.target_weight,
-    spu.block_time as updated_time
+    spu.block_time as updated_time,
+    if(spp.product_id is null, true, false) as is_product_added
   from staking_pools_and_products spp
     full outer join staking_pool_products_updated as spu on spp.pool_id = spu.pool_id and spp.product_id = spu.product_id
   where coalesce(spu.rn, 1) = 1
 ),
 
+staking_pool_managers_history as (
+  select
+    call_block_time as block_time,
+    poolId as pool_id,
+    manager,
+    call_trace_address,
+    call_tx_hash as tx_hash
+  from nexusmutual_ethereum.TokenController_call_assignStakingPoolManager
+  where call_success
+  union all
+  select distinct
+    m.call_block_time as block_time,
+    sp.poolId as pool_id,
+    m.output_0 as manager,
+    m.call_trace_address,
+    m.call_tx_hash as tx_hash
+  from nexusmutual_ethereum.StakingProducts_evt_ProductUpdated pu
+    inner join nexusmutual_ethereum.StakingProducts_call_setProducts sp on pu.evt_tx_hash = call_tx_hash
+    inner join nexusmutual_ethereum.StakingPool_call_manager m on sp.call_tx_hash = m.call_tx_hash
+  where sp.call_success
+    and m.call_success
+),
+
 staking_pool_managers as (
   select
-    t.block_time,
     t.pool_id,
-    coalesce(ens.name, cast(t.manager as varchar)) as manager,
-    t.tx_hash
+    t.manager as manager_address,
+    ens.name as manager_ens,
+    coalesce(ens.name, cast(t.manager as varchar)) as manager
   from (
       select
-        call_block_time as block_time,
-        poolId as pool_id,
+        pool_id,
         manager,
-        call_tx_hash as tx_hash,
-        row_number() over (partition by poolId order by call_block_time, call_trace_address desc) as rn
-      from nexusmutual_ethereum.TokenController_call_assignStakingPoolManager
-      where call_success
+        row_number() over (partition by pool_id order by block_time, call_trace_address desc) as rn
+      from staking_pool_managers_history
     ) t
     left join labels.ens on t.manager = ens.address
   where t.rn = 1
@@ -127,6 +148,8 @@ select
   sp.pool_id,
   sp.pool_address,
   spn.pool_name,
+  spm.manager_address,
+  spm.manager_ens,
   spm.manager,
   sp.is_private_pool,
   sp.initial_pool_fee,
@@ -136,8 +159,8 @@ select
   coalesce(spc.updated_target_price, spc.target_price) as target_price,
   spc.initial_weight,
   spc.target_weight,
-  sp.block_time as created_time,
-  spc.updated_time
+  sp.block_time as pool_created_time,
+  if(spc.is_product_added, spc.updated_time, sp.block_time) as product_added_time
 from staking_pools_created as sp
   inner join staking_pool_products_combined as spc on sp.pool_id = spc.pool_id
   left join staking_pool_names as spn on sp.pool_id = spn.pool_id
