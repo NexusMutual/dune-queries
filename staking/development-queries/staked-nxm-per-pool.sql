@@ -56,6 +56,7 @@ staked_nxm_history as (
     sd.tokenId as token_id,
     sd.trancheId as tranche_id,
     cast(null as uint256) as new_tranche_id,
+    if(from_unixtime(91.0 * 86400.0 * cast(sd.trancheId + 1 as double)) < date_trunc('day', now()), false, true) as is_active,
     cast(sd.amount as double) as amount,
     sd.user,
     sd.evt_tx_hash as tx_hash
@@ -71,6 +72,7 @@ staked_nxm_history as (
     de.tokenId as token_id,
     de.initialTrancheId as tranche_id,
     de.newTrancheId as new_tranche_id,
+    if(from_unixtime(91.0 * 86400.0 * cast(de.newTrancheId + 1 as double)) < date_trunc('day', now()), false, true) as is_active,
     cast(de.topUpAmount as double) as amount,
     de.user,
     de.evt_tx_hash as tx_hash
@@ -86,7 +88,8 @@ staked_nxm_history as (
     w.tokenId as token_id,
     w.tranche as tranche_id,
     cast(null as uint256) as new_tranche_id,
-    -1 * cast((w.amountStakeWithdrawn) as double) as amount, -- + w.amountRewardsWithdrawn
+    if(from_unixtime(91.0 * 86400.0 * cast(w.tranche + 1 as double)) < date_trunc('day', now()), false, true) as is_active,
+    -1 * cast((w.amountStakeWithdrawn) as double) as amount,
     w.user,
     w.evt_tx_hash as tx_hash
   from nexusmutual_ethereum.StakingPool_evt_Withdraw w
@@ -95,114 +98,18 @@ staked_nxm_history as (
   union all
 
   select
-    'stake burn - pool' as flow_type,
+    'stake burn' as flow_type,
     eb.evt_block_time as block_time,
     cb.poolId as pool_id,
     cast(null as uint256) as token_id,
     cast(null as uint256) as tranche_id,
     cast(null as uint256) as new_tranche_id,
+    false as is_active, -- ???
     -1 * cast(eb.amount as double) as amount,
     cast(null as varbinary) as user,
     eb.evt_tx_hash as tx_hash
   from nexusmutual_ethereum.StakingPool_evt_StakeBurned eb
     inner join nexusmutual_ethereum.TokenController_call_burnStakedNXM cb on eb.evt_tx_hash = cb.call_tx_hash
-  where cb.call_success
-
-  union all
-
-  select
-    'stake burn - cover' as flow_type,
-    cb.call_block_time as block_time,
-    c.pool_id,
-    cast(null as uint256) as token_id,
-    cast(null as uint256) as tranche_id,
-    cast(null as uint256) as new_tranche_id,
-    -1 * cast(cb.payoutAmountInAsset as double) as amount,
-    cb.output_0 as user,
-    cb.call_tx_hash
-  from nexusmutual_ethereum.Cover_call_burnStake cb
-    inner join (
-      select distinct cover_id, pool_id from covers
-    ) c on cb.coverId = c.cover_id
-  where cb.call_success
-),
-
-staked_nxm_history_with_rewards as (
-  select
-    'deposit' as flow_type,
-    sd.evt_block_time as block_time,
-    m.pool_id,
-    sd.tokenId as token_id,
-    sd.trancheId as tranche_id,
-    cast(null as uint256) as new_tranche_id,
-    cast(sd.amount as double) as amount,
-    sd.user,
-    sd.evt_tx_hash as tx_hash
-  from nexusmutual_ethereum.StakingPool_evt_StakeDeposited sd
-    inner join staking_nft_mints m on sd.tokenId = m.token_id
-  
-  union all
-
-  select
-    'deposit extended' as flow_type,
-    de.evt_block_time as block_time,
-    m.pool_id,
-    de.tokenId as token_id,
-    de.initialTrancheId as tranche_id,
-    de.newTrancheId as new_tranche_id,
-    cast(de.topUpAmount as double) as amount,
-    de.user,
-    de.evt_tx_hash as tx_hash
-  from nexusmutual_ethereum.StakingPool_evt_DepositExtended de
-    inner join staking_nft_mints m on de.tokenId = m.token_id
-
-  union all
-
-  select
-    'withdraw' as flow_type,
-    w.evt_block_time as block_time,
-    m.pool_id,
-    w.tokenId as token_id,
-    w.tranche as tranche_id,
-    cast(null as uint256) as new_tranche_id,
-    -1 * cast((w.amountStakeWithdrawn + w.amountRewardsWithdrawn) as double) as amount,
-    w.user,
-    w.evt_tx_hash as tx_hash
-  from nexusmutual_ethereum.StakingPool_evt_Withdraw w
-    inner join staking_nft_mints m on w.tokenId = m.token_id
-
-  union all
-
-  select
-    'stake burn - pool' as flow_type,
-    eb.evt_block_time as block_time,
-    cb.poolId as pool_id,
-    cast(null as uint256) as token_id,
-    cast(null as uint256) as tranche_id,
-    cast(null as uint256) as new_tranche_id,
-    -1 * cast(eb.amount as double) as amount,
-    cast(null as varbinary) as user,
-    eb.evt_tx_hash as tx_hash
-  from nexusmutual_ethereum.StakingPool_evt_StakeBurned eb
-    inner join nexusmutual_ethereum.TokenController_call_burnStakedNXM cb on eb.evt_tx_hash = cb.call_tx_hash
-  where cb.call_success
-
-  union all
-
-  select
-    'stake burn - cover' as flow_type,
-    cb.call_block_time as block_time,
-    c.pool_id,
-    cast(null as uint256) as token_id,
-    cast(null as uint256) as tranche_id,
-    cast(null as uint256) as new_tranche_id,
-    -1 * cast(cb.payoutAmountInAsset as double) as amount,
-    cb.output_0 as user,
-    cb.call_tx_hash
-  from nexusmutual_ethereum.Cover_call_burnStake cb
-    inner join (
-      select distinct cover_id, pool_id from covers
-    ) c on cb.coverId = c.cover_id
   where cb.call_success
 ),
 
@@ -229,14 +136,7 @@ staked_nxm_per_pool as (
     pool_id,
     sum(amount) / 1e18 as amount
   from staked_nxm_history
-  group by 1
-),
-
-staked_nxm_per_pool_bar_withdrawn_rewards as (
-  select
-    pool_id,
-    sum(amount) / 1e18 as amount_minus_withdrawn_rewards
-  from staked_nxm_history_with_rewards
+  where is_active
   group by 1
 ),
 
@@ -264,10 +164,9 @@ select
   sp.pool_id,
   sp.pool_name,
   sp.manager,
-  t.amount,
-  tr.amount_minus_withdrawn_rewards,
-  dr.reward_amount_current_total,
-  r.reward_amount_expected_total
+  t.amount
+  --dr.reward_amount_current_total,
+  --r.reward_amount_expected_total
 from staking_pools sp
   left join staked_nxm_per_pool t on sp.pool_id = t.pool_id
   left join staked_nxm_per_pool_bar_withdrawn_rewards tr on sp.pool_id = tr.pool_id
