@@ -5,7 +5,10 @@ staking_pools as (
     pool_id,
     pool_address,
     pool_name,
-    manager
+    if(is_private_pool, 'Private', 'Public') as pool_type,
+    manager,
+    initial_pool_fee / 100.00 as current_management_fee,
+    max_management_fee / 100.00 as max_management_fee
   from query_3597103 -- staking pools base data
 ),
 
@@ -86,6 +89,7 @@ staked_nxm_per_pool as (
 staked_nxm_allocated as (
   select
     w.pool_address,
+    count(distinct w.product_id) filter (where w.target_weight > 0) as product_count,
     sum(w.target_weight * s.total_nxm_staked) / 100.00 as total_nxm_allocated
   from staking_pool_products w
     inner join staked_nxm_per_pool s on w.pool_address = s.pool_address
@@ -134,9 +138,13 @@ select
   sp.pool_id,
   sp.pool_name,
   sp.manager,
+  sp.pool_type,
+  sp.current_management_fee,
+  sp.max_management_fee,
   t.total_nxm_staked,
   a.total_nxm_allocated,
-  a.total_nxm_allocated / t.total_nxm_staked as leverage
+  a.total_nxm_allocated / t.total_nxm_staked as leverage,
+  a.product_count
   --dr.reward_amount_current_total,
   --r.reward_amount_expected_total
 from staking_pools sp
