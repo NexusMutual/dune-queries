@@ -57,11 +57,11 @@ staking_pools_and_products as (
     sp.initial_pool_fee,
     sp.max_management_fee,
     cast(json_query(t.json, 'lax $.productId') as int) as product_id,
-    cast(json_query(t.json, 'lax $.weight') as int) as weight,
-    cast(json_query(t.json, 'lax $.initialPrice') as int) as initial_price,
-    cast(json_query(t.json, 'lax $.targetPrice') as int) as target_price
+    cast(json_query(t.json, 'lax $.weight') as double) as weight,
+    cast(json_query(t.json, 'lax $.initialPrice') as double) as initial_price,
+    cast(json_query(t.json, 'lax $.targetPrice') as double) as target_price
   from staking_pools_created as sp
-    cross join unnest(params) as t(json)
+    left join unnest(params) as t(json) on true
 ),
 
 staking_pool_products_updated as (
