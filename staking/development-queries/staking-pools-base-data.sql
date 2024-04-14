@@ -4,8 +4,6 @@ select
   stakingPoolAddress as pool_address
 from nexusmutual_ethereum.StakingPoolFactory_evt_StakingPoolCreated
 order by 1
-
-select * from nexusmutual_ethereum.TokenController_call_assignStakingPoolManager
 */
 
 with
