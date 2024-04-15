@@ -1,17 +1,5 @@
 with
 
-staking_pools as (
-  select distinct
-    pool_id,
-    pool_address,
-    pool_name,
-    if(is_private_pool, 'Private', 'Public') as pool_type,
-    manager,
-    initial_pool_fee / 100.00 as current_management_fee,
-    max_management_fee / 100.00 as max_management_fee
-  from query_3597103 -- staking pools base data
-),
-
 staking_pool_products as (
   select
     pool_id,
@@ -19,6 +7,27 @@ staking_pool_products as (
     product_id,
     coalesce(target_weight, initial_weight) as target_weight
   from query_3597103 -- staking pools base data
+),
+
+staking_pools as (
+  select distinct
+    sp.pool_id,
+    sp.pool_address,
+    sp.pool_name,
+    if(sp.is_private_pool, 'Private', 'Public') as pool_type,
+    sp.manager,
+    sp.initial_pool_fee / 100.00 as current_management_fee,
+    sp.max_management_fee / 100.00 as max_management_fee,
+    spp.total_weight / 100.00 as leverage
+  from query_3597103 sp -- staking pools base data
+    inner join (
+      select
+        pool_id,
+        count(distinct product_id) filter (where target_weight > 0) as product_count,
+        sum(target_weight) as total_weight
+      from staking_pool_products
+      group by 1
+    ) spp on sp.pool_id = spp.pool_id
 ),
 
 staking_pool_products_all_days as (
@@ -89,7 +98,6 @@ staked_nxm_per_pool as (
 staked_nxm_allocated as (
   select
     w.pool_address,
-    count(distinct w.product_id) filter (where w.target_weight > 0) as product_count,
     sum(w.target_weight * s.total_nxm_staked) / 100.00 as total_nxm_allocated
   from staking_pool_products w
     inner join staked_nxm_per_pool s on w.pool_address = s.pool_address
@@ -141,10 +149,10 @@ select
   sp.pool_type,
   sp.current_management_fee,
   sp.max_management_fee,
-  t.total_nxm_staked,
-  a.total_nxm_allocated,
-  a.total_nxm_allocated / t.total_nxm_staked as leverage,
-  a.product_count
+  coalesce(t.total_nxm_staked, 0) as total_nxm_staked,
+  coalesce(a.total_nxm_allocated, 0) as total_nxm_allocated,
+  sp.leverage,
+  sp.product_count
   --dr.reward_amount_current_total,
   --r.reward_amount_expected_total
 from staking_pools sp
