@@ -1,4 +1,85 @@
 WITH
+  eth_daily_transactions_fix AS (
+  select distinct
+      date_trunc('day', block_time) as day,
+      SUM(
+        CASE
+        WHEN "to" IN (
+          0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8,
+          0xcafeada4d15bbc7592113d5d5af631b5dcd53dcb,
+          0xcafea35ce5a2fc4ced4464da4349f81a122fd12b,
+          0xcafea8321b5109d22c53ac019d7a449c947701fb,
+          0xfd61352232157815cf7b71045557192bf0ce1884,
+          0x7cbe5682be6b648cc1100c76d4f6c96997f753d6,
+          0xcafea112Db32436c2390F5EC988f3aDB96870627,
+          0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60
+        ) THEN CAST(value AS DOUBLE) * 1E-18
+          ELSE 0
+        END
+      ) OVER (
+        PARTITION BY
+          date_trunc('day', block_time)
+      ) as eth_ingress,
+      SUM(
+        CASE
+        WHEN "from" IN (
+          0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8,
+          0xcafeada4d15bbc7592113d5d5af631b5dcd53dcb,
+          0xcafea35ce5a2fc4ced4464da4349f81a122fd12b,
+          0xcafea8321b5109d22c53ac019d7a449c947701fb,
+          0xfd61352232157815cf7b71045557192bf0ce1884,
+          0x7cbe5682be6b648cc1100c76d4f6c96997f753d6,
+          0xcafea112Db32436c2390F5EC988f3aDB96870627,
+          0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60
+        ) THEN CAST(value AS DOUBLE) * 1E-18
+          ELSE 0
+        END
+      ) OVER (
+        PARTITION BY
+          date_trunc('day', block_time)
+      ) as eth_egress
+    from
+      ethereum.traces
+    where
+      success = true
+      AND block_time > CAST('2019-01-01 00:00:00' AS TIMESTAMP)
+      AND (
+        "to" IN (
+          0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8,
+          0xcafeada4d15bbc7592113d5d5af631b5dcd53dcb,
+          0xcafea35ce5a2fc4ced4464da4349f81a122fd12b,
+          0xcafea8321b5109d22c53ac019d7a449c947701fb,
+          0xfd61352232157815cf7b71045557192bf0ce1884,
+          0x7cbe5682be6b648cc1100c76d4f6c96997f753d6,
+          0xcafea112Db32436c2390F5EC988f3aDB96870627,
+          0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60
+        )
+        OR "from" IN (
+          0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8,
+          0xcafeada4d15bbc7592113d5d5af631b5dcd53dcb,
+          0xcafea35ce5a2fc4ced4464da4349f81a122fd12b,
+          0xcafea8321b5109d22c53ac019d7a449c947701fb,
+          0xfd61352232157815cf7b71045557192bf0ce1884,
+          0x7cbe5682be6b648cc1100c76d4f6c96997f753d6,
+          0xcafea112Db32436c2390F5EC988f3aDB96870627,
+          0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60
+        )
+      )
+      AND NOT (
+        (
+          "to" = 0xcafea35ce5a2fc4ced4464da4349f81a122fd12b
+          AND "from" = 0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8
+        )
+        OR (
+          "to" = 0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8
+          AND "from" = 0xcafeada4d15bbc7592113d5d5af631b5dcd53dcb
+        )
+        OR (
+          "to" = 0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8
+          AND "from" = 0xfd61352232157815cf7b71045557192bf0ce1884
+        )
+      )
+  ),
   eth_daily_transactions AS (
     SELECT
       day,
@@ -6,7 +87,8 @@ WITH
       eth_egress,
       eth_ingress - eth_egress AS net_eth
     FROM
-      nexusmutual_ethereum.capital_pool_eth_daily_transaction_summary
+      --nexusmutual_ethereum.eth_daily_transactions
+      eth_daily_transactions_fix
   ),
   labels AS (
     SELECT
@@ -34,7 +116,8 @@ WITH
           0xcafea8321b5109d22c53ac019d7a449c947701fb,
           0xfd61352232157815cf7b71045557192bf0ce1884,
           0x7cbe5682be6b648cc1100c76d4f6c96997f753d6,
-          0xcafea112Db32436c2390F5EC988f3aDB96870627
+          0xcafea112Db32436c2390F5EC988f3aDB96870627,
+          0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60
         ) THEN CAST(value AS DOUBLE) * 1E-18
         ELSE 0
       END AS ingress,
@@ -46,7 +129,8 @@ WITH
           0xcafea8321b5109d22c53ac019d7a449c947701fb,
           0xfd61352232157815cf7b71045557192bf0ce1884,
           0x7cbe5682be6b648cc1100c76d4f6c96997f753d6,
-          0xcafea112Db32436c2390F5EC988f3aDB96870627
+          0xcafea112Db32436c2390F5EC988f3aDB96870627,
+          0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60
         ) THEN CAST(value AS DOUBLE) * 1E-18
         ELSE 0
       END AS egress
@@ -62,7 +146,8 @@ WITH
           0xcafea8321b5109d22c53ac019d7a449c947701fb,
           0xfd61352232157815cf7b71045557192bf0ce1884,
           0x7cbe5682be6b648cc1100c76d4f6c96997f753d6,
-          0xcafea112Db32436c2390F5EC988f3aDB96870627
+          0xcafea112Db32436c2390F5EC988f3aDB96870627,
+          0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60
         )
         OR "from" IN (
           0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8,
@@ -71,7 +156,8 @@ WITH
           0xcafea8321b5109d22c53ac019d7a449c947701fb,
           0xfd61352232157815cf7b71045557192bf0ce1884,
           0x7cbe5682be6b648cc1100c76d4f6c96997f753d6,
-          0xcafea112Db32436c2390F5EC988f3aDB96870627
+          0xcafea112Db32436c2390F5EC988f3aDB96870627,
+          0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60
         )
       )
       AND evt_block_time > CAST('2019-01-01 00:00:00' AS TIMESTAMP)
@@ -179,7 +265,7 @@ WITH
       expanded_rebase_steth
   ),
   weth_nxmty_transactions AS (
-    SELECT DISTINCT
+    select distinct
       day,
       SUM(ingress) OVER (
         PARTITION BY
@@ -264,7 +350,7 @@ WITH
       symbol = 'rETH'
   ),
   ethereum_price_ma7 AS (
-    SELECT
+    select
       day,
       eth_price_dollar,
       avg(eth_price_dollar) OVER (
@@ -278,7 +364,7 @@ WITH
       day DESC
   ),
   dai_price_ma7 AS (
-    SELECT
+    select
       day,
       dai_price_dollar,
       avg(dai_price_dollar) OVER (
@@ -306,18 +392,18 @@ WITH
       day DESC
   ),
   price_ma AS (
-    SELECT
+    select
       ethereum_price_ma7.day,
       ethereum_price_ma7.moving_average_eth,
-      COALESCE(dai_price_ma7.moving_average_dai, 0) AS moving_average_dai,
-      COALESCE(rpl_price_ma7.moving_average_rpl, 0) AS moving_average_rpl
+      dai_price_ma7.moving_average_dai,
+      rpl_price_ma7.moving_average_rpl
     from
       ethereum_price_ma7
       LEFT JOIN dai_price_ma7 ON ethereum_price_ma7.day = dai_price_ma7.day
       LEFT JOIN rpl_price_ma7 ON ethereum_price_ma7.day = rpl_price_ma7.day
   ),
   all_running_totals AS (
-    SELECT
+    select
       price_ma.day AS day,
       moving_average_eth,
       moving_average_dai,
