@@ -1,7 +1,7 @@
 WITH
   eth_daily_transactions_fix AS (
   select distinct
-      date_trunc('day', block_time) as day,
+      date_trunc('day', block_time) AS day,
       SUM(
         CASE
         WHEN "to" IN (
@@ -19,7 +19,7 @@ WITH
       ) OVER (
         PARTITION BY
           date_trunc('day', block_time)
-      ) as eth_ingress,
+      ) AS eth_ingress,
       SUM(
         CASE
         WHEN "from" IN (
@@ -37,11 +37,11 @@ WITH
       ) OVER (
         PARTITION BY
           date_trunc('day', block_time)
-      ) as eth_egress
-    from
+      ) AS eth_egress
+    FROM
       ethereum.traces
-    where
-      success = true
+    WHERE
+      success
       AND block_time > CAST('2019-01-01 00:00:00' AS TIMESTAMP)
       AND (
         "to" IN (
@@ -118,7 +118,7 @@ WITH
   erc_transactions AS (
     SELECT
       name,
-      CAST(a.contract_address as varbinary) as contract_address,
+      CAST(a.contract_address AS varbinary) AS contract_address,
       DATE_TRUNC('day', evt_block_time) AS day,
       CASE
         WHEN "to" IN (
@@ -226,7 +226,7 @@ WITH
   ),
   lido AS (
     SELECT
-      1 as anchor,
+      1 AS anchor,
       DATE_TRUNC('day', evt_block_time) AS day,
       CAST(postTotalPooledEther AS DOUBLE) / CAST(totalShares AS DOUBLE) AS rebase
     FROM
@@ -236,12 +236,12 @@ WITH
   ),
   lido_staking_net_steth AS (
     SELECT DISTINCT
-      1 as anchor,
-      lido.day as day,
+      1 AS anchor,
+      lido.day AS day,
       ingress,
       egress,
       ingress - egress AS steth_amount,
-      rebase as rebase2
+      rebase AS rebase2
     FROM
       lido
       INNER JOIN erc_transactions ON erc_transactions.day = lido.day
@@ -249,10 +249,10 @@ WITH
   ),
   expanded_rebase_steth AS (
     SELECT
-      lido.day as day,
+      lido.day AS day,
       'stEth' AS asset_type,
-      lido.rebase as rebase,
-      lido_staking_net_steth.rebase2 as rebase2,
+      lido.rebase AS rebase,
+      lido_staking_net_steth.rebase2 AS rebase2,
       steth_amount
     FROM
       lido_staking_net_steth
@@ -261,7 +261,7 @@ WITH
     ORDER BY
       lido.day DESC
   ),
-  steth as (
+  steth AS (
     SELECT DISTINCT
       day,
       'stEth' AS asset_type,
@@ -270,7 +270,7 @@ WITH
       ) OVER (
         PARTITION BY
           day
-      ) as eth_total
+      ) AS eth_total
     FROM
       expanded_rebase_steth
     ORDER BY
@@ -375,17 +375,10 @@ WITH
           DATE_TRUNC('day', minute),
           symbol
       ) AS price_dollar
-    FROM
-      prices.usd
-    WHERE
-      (
-        symbol = 'DAI'
-        OR symbol = 'ETH'
-        OR symbol = 'rETH'
-      )
-      AND minute > CAST(
-        CAST('2019-01-01 00:00:00' AS TIMESTAMP) AS TIMESTAMP
-      )
+    FROM prices.usd
+    WHERE symbol IN ('DAI', 'ETH', 'rETH')
+      AND coalesce(blockchain, 'ethereum') = 'ethereum'
+      AND minute > CAST('2019-05-01' AS TIMESTAMP)
   ),
   eth_day_prices AS (
     SELECT

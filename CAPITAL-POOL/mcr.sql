@@ -37,13 +37,12 @@ WITH
           DATE_TRUNC('day', minute),
           symbol
       ) AS price_dollar
-    FROM
-      prices.usd
-    WHERE
-      (symbol = 'ETH')
+    FROM prices.usd
+    WHERE symbol = 'ETH'
+      AND coalesce(blockchain, 'ethereum') = 'ethereum'
       AND minute > CAST('2019-11-06 00:00:00' AS TIMESTAMP)
   ),
-  ethereum_price_ma7 AS (
+  ethereum_price_ma7 as (
     select
       day,
       price_dollar,
@@ -51,7 +50,7 @@ WITH
         ORDER BY
           day ROWS BETWEEN 6 PRECEDING
           AND CURRENT ROW
-      ) AS moving_average_eth
+      ) as moving_average_eth
     from
       day_prices
     ORDER BY
@@ -60,7 +59,7 @@ WITH
   mcr AS (
     SELECT
       COALESCE(MCR_updated_event.date, ethereum_price_ma7.day) AS date,
-      moving_average_eth AS eth_price_dollar,
+      moving_average_eth as eth_price_dollar,
       mcr_eth,
       mcr_floor,
       mcr_cover_min
