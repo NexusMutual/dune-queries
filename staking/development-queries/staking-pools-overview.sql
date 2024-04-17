@@ -16,7 +16,7 @@ staking_pools as (
     sp.pool_name,
     if(sp.is_private_pool, 'Private', 'Public') as pool_type,
     sp.manager,
-    sp.initial_pool_fee / 100.00 as current_management_fee,
+    sp.current_pool_fee / 100.00 as current_management_fee,
     sp.max_management_fee / 100.00 as max_management_fee,
     spp.total_weight / 100.00 as leverage,
     spp.product_count
@@ -117,6 +117,7 @@ staking_rewards as (
     c.cover_id,
     c.cover_start_time,
     c.cover_end_time,
+    date_diff('day', c.cover_start_time, if(c.cover_end_time > now(), now(), c.cover_end_time)) as cover_period,
     mr.amount as reward_amount_expected_total,
     mr.amount * 86400.0 / c.period as reward_amount_per_day,
     mr.call_tx_hash as tx_hash
@@ -143,11 +144,7 @@ staked_nxm_daily_rewards_per_pool as (
 staked_nxm_rewards_per_pool as (
   select
     pool_id,
-    sum(
-      reward_amount_per_day
-        *
-      date_diff('day', cover_start_time, if(cover_end_time > now(), now(), cover_end_time))
-    ) / 1e18 as reward_amount_current_total,
+    sum(reward_amount_per_day * cover_period) / 1e18 as reward_amount_current_total,
     sum(reward_amount_expected_total) / 1e18 as reward_amount_expected_total
   from staking_rewards
   group by 1
