@@ -144,12 +144,18 @@ staking_pool_managers as (
 
 staking_pool_fee_updates as (
   select
-    evt_block_time as block_time,
-    contract_address as pool_address,
-    newFee as new_fee,
-    evt_tx_hash as tx_hash,
-    row_number() over (partition by contract_address order by evt_block_time desc, evt_index desc) as rn
-  from nexusmutual_ethereum.StakingPool_evt_PoolFeeChanged
+    pool_address,
+    new_fee
+  from (
+      select
+        evt_block_time as block_time,
+        contract_address as pool_address,
+        newFee as new_fee,
+        evt_tx_hash as tx_hash,
+        row_number() over (partition by contract_address order by evt_block_time desc, evt_index desc) as rn
+      from nexusmutual_ethereum.StakingPool_evt_PoolFeeChanged
+    ) t
+  where t.rn = 1
 )
 
 select
@@ -160,6 +166,7 @@ select
   spm.manager_ens,
   spm.manager,
   sp.is_private_pool,
+  sp.initial_pool_fee,
   coalesce(spf.new_fee, sp.initial_pool_fee) as current_pool_fee,
   sp.max_management_fee,
   spc.product_id,
