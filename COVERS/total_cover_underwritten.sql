@@ -8,13 +8,10 @@ WITH
           DATE_TRUNC('day', minute),
           symbol
       ) AS dai_price_dollar
-    FROM
-      prices.usd
-    WHERE
-      (symbol = 'DAI')
-      AND minute > CAST(
-        CAST('2019-05-01 00:00:00' AS TIMESTAMP) AS TIMESTAMP
-      )
+    FROM prices.usd
+    WHERE symbol = 'DAI'
+      AND coalesce(blockchain, 'ethereum') = 'ethereum'
+      AND minute > CAST('2019-05-01 00:00:00' AS TIMESTAMP)
   ),
   eth_prices AS (
     SELECT DISTINCT
@@ -25,13 +22,10 @@ WITH
           DATE_TRUNC('day', minute),
           symbol
       ) AS eth_price_dollar
-    FROM
-      prices.usd
-    WHERE
-      (symbol = 'ETH')
-      AND minute > CAST(
-        CAST('2019-05-01 00:00:00' AS TIMESTAMP) AS TIMESTAMP
-      )
+    FROM prices.usd
+    WHERE symbol = 'ETH'
+      AND coalesce(blockchain, 'ethereum') = 'ethereum'
+      AND minute > CAST('2019-05-01 00:00:00' AS TIMESTAMP)
   ),
   covers_details_event AS (
     SELECT
