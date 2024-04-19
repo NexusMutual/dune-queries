@@ -119,8 +119,8 @@ staking_pool_managers_history as (
     m.call_trace_address,
     m.call_tx_hash as tx_hash
   from nexusmutual_ethereum.StakingProducts_evt_ProductUpdated pu
-    inner join nexusmutual_ethereum.StakingProducts_call_setProducts sp on pu.evt_tx_hash = call_tx_hash
-    inner join nexusmutual_ethereum.StakingPool_call_manager m on sp.call_tx_hash = m.call_tx_hash
+    inner join nexusmutual_ethereum.StakingProducts_call_setProducts sp on pu.evt_tx_hash = call_tx_hash and pu.evt_block_number = sp.call_block_number
+    inner join nexusmutual_ethereum.StakingPool_call_manager m on sp.call_tx_hash = m.call_tx_hash and sp.call_block_number = m.call_block_number
   where sp.call_success
     and m.call_success
 ),

@@ -88,6 +88,7 @@ staking_nft_mints as (
 covers as (
   select
     c.call_block_time as block_time,
+    c.call_block_number as block_number,
     c.output_coverId as cover_id,
     c.call_block_time as cover_start_time,
     date_add('second', cast(json_query(c.params, 'lax $.period') as int), c.call_block_time) as cover_end_time,
@@ -113,6 +114,7 @@ covers as (
 staking_product_premiums as (
   select
     call_block_time as premium_start_time,
+    call_block_number as block_number,
     poolId as pool_id,
     productId as product_id,
     output_premium as premium,
@@ -151,14 +153,17 @@ cover_premiums as (
     p.premium_period_ratio * p.premium / 1e18 * 0.5 * h.pool_fee as pool_manager_commission_emitted,
     p.premium_period_ratio * p.premium / 1e18 * 0.5 * (1 - h.pool_fee) as staker_commission_emitted
   from covers c
-    inner join staking_product_premiums p on c.tx_hash = p.tx_hash and c.pool_id = p.pool_id and c.product_id = p.product_id
-    inner join staking_pool_fee_history h on p.pool_id = h.pool_id and p.premium_start_time between h.start_time and h.end_time
+    inner join staking_product_premiums p on c.tx_hash = p.tx_hash and c.block_number = p.block_number
+      and c.pool_id = p.pool_id and c.product_id = p.product_id
+    inner join staking_pool_fee_history h on p.pool_id = h.pool_id
+      and p.premium_start_time between h.start_time and h.end_time
 ),
 
 staked_nxm_per_pool as (
   select
-    pool_address,
-    sum(amount) as total_nxm_staked
+    sp.pool_id,
+    t.pool_address,
+    sum(t.amount) as total_nxm_staked
   from (
       select
         pool_address,
@@ -176,21 +181,23 @@ staked_nxm_per_pool as (
         and flow_type = 'withdraw' -- burn TBD
       group by 1
     ) t
-  group by 1
+    join staking_pools sp on t.pool_address = sp.pool_address
+  group by 1,2
 ),
 
 staked_nxm_allocated as (
   select
-    w.pool_address,
+    w.pool_id,
     sum(w.target_weight * s.total_nxm_staked) / 100.00 as total_nxm_allocated
   from staking_pool_products w
-    inner join staked_nxm_per_pool s on w.pool_address = s.pool_address
+    inner join staked_nxm_per_pool s on w.pool_id = s.pool_id
   group by 1
 ),
 
 staking_rewards as (
   select
     mr.call_block_time as block_time,
+    mr.call_block_number as block_number,
     date_trunc('day', mr.call_block_time) as block_date,
     mr.poolId as pool_id,
     c.product_id,
@@ -202,7 +209,7 @@ staking_rewards as (
     mr.amount * 86400.0 / c.cover_period_seconds as reward_amount_per_day,
     mr.call_tx_hash as tx_hash
   from nexusmutual_ethereum.TokenController_call_mintStakingPoolNXMRewards mr
-    inner join covers c on mr.call_tx_hash = c.tx_hash
+    inner join covers c on mr.call_tx_hash = c.tx_hash and mr.call_block_number = c.block_number
   where mr.call_success
     and mr.poolId = c.pool_id
     and (c.call_trace_address is null
@@ -244,8 +251,7 @@ select
   r.reward_amount_current_total,
   r.reward_amount_expected_total
 from staking_pools sp
-  left join staked_nxm_per_pool t on sp.pool_address = t.pool_address
-  left join staked_nxm_allocated a on sp.pool_address = a.pool_address
-  --left join staked_nxm_daily_rewards_per_pool dr on sp.pool_id = dr.pool_id --and dr.rn = 1
+  left join staked_nxm_per_pool t on sp.pool_id = t.pool_id
+  left join staked_nxm_allocated a on sp.pool_id = a.pool_id
   left join staked_nxm_rewards_per_pool r on sp.pool_id = r.pool_id
 order by 1
