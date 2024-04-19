@@ -91,8 +91,8 @@ covers as (
     c.call_block_number as block_number,
     c.output_coverId as cover_id,
     c.call_block_time as cover_start_time,
-    date_add('second', cast(json_query(c.params, 'lax $.period') as int), c.call_block_time) as cover_end_time,
-    cast(json_query(c.params, 'lax $.period') as int) as cover_period_seconds,
+    date_add('second', cast(json_query(c.params, 'lax $.period') as bigint), c.call_block_time) as cover_end_time,
+    cast(json_query(c.params, 'lax $.period') as bigint) as cover_period_seconds,
     cast(json_query(t.pool_allocation, 'lax $.poolId') as uint256) as pool_id,
     cast(json_query(c.params, 'lax $.productId') as uint256) as product_id,
     json_query(c.params, 'lax $.owner' omit quotes) as owner,
@@ -157,6 +157,42 @@ cover_premiums as (
       and c.pool_id = p.pool_id and c.product_id = p.product_id
     inner join staking_pool_fee_history h on p.pool_id = h.pool_id
       and p.premium_start_time between h.start_time and h.end_time
+),
+
+cover_premium_commissions as (
+  select
+    pool_id,
+    sum(commission) as total_commission,
+    sum(commission_emitted) as total_commission_emitted,
+    sum(commission_distibutor_fee) as pool_distributor_commission,
+    sum(pool_manager_commission) as pool_manager_commission,
+    sum(pool_manager_commission_emitted) as pool_manager_commission_emitted,
+    sum(staker_commission) as staker_commission,
+    sum(staker_commission_emitted) as staker_commission_emitted
+  from cover_premiums
+  group by 1
+),
+
+allocation_requests as (
+  select
+    call_block_time as block_time,
+    call_block_number as block_number,
+    output_allocationId as allocation_id,
+    output_premium as premium,
+    amount,
+    cast(json_query(request, 'lax $.coverId') as uint256) as cover_id,
+    cast(json_query(request, 'lax $.productId') as uint256) as product_id,
+    cast(json_query(request, 'lax $.period') as bigint) as period,
+    cast(json_query(request, 'lax $.gracePeriod') as bigint) as grace_period,
+    cast(json_query(request, 'lax $.useFixedPrice') as boolean) as use_fixed_price,
+    cast(json_query(request, 'lax $.rewardRatio') as bigint) as reward_ratio,
+    cast(json_query(request, 'lax $.globalMinPrice') as bigint) as global_min_price,
+    cast(json_query(request, 'lax $.globalCapacityRatio') as bigint) as global_capacity_ratio,
+    call_trace_address,
+    call_tx_hash as tx_hash,
+    row_number() over (partition by call_block_number, call_tx_hash order by call_trace_address desc) as rn
+  from nexusmutual_ethereum.StakingPool_call_requestAllocation
+  where call_success
 ),
 
 staked_nxm_per_pool as (
@@ -248,10 +284,17 @@ select
   coalesce(a.total_nxm_allocated, 0) as total_nxm_allocated,
   sp.leverage,
   sp.product_count,
+  c.pool_manager_commission + c.pool_distributor_commission + c.staker_commission as total_commission,
+  c.pool_distributor_commission,
+  c.staker_commission_emitted,
+  c.staker_commission - c.staker_commission_emitted as future_staker_commission,
+  c.pool_manager_commission_emitted,
+  c.pool_manager_commission - c.pool_manager_commission_emitted as future_pool_manager_commission,
   r.reward_amount_current_total,
   r.reward_amount_expected_total
 from staking_pools sp
   left join staked_nxm_per_pool t on sp.pool_id = t.pool_id
   left join staked_nxm_allocated a on sp.pool_id = a.pool_id
   left join staked_nxm_rewards_per_pool r on sp.pool_id = r.pool_id
+  left join cover_premium_commissions c on sp.pool_id = c.pool_id
 order by 1
