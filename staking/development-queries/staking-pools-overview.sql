@@ -244,10 +244,17 @@ staking_rewards as (
     mr.amount as reward_amount_expected_total,
     mr.amount * 86400.0 / c.cover_period_seconds as reward_amount_per_day,
     mr.call_tx_hash as tx_hash
-  from nexusmutual_ethereum.TokenController_call_mintStakingPoolNXMRewards mr
+  from (
+      select call_block_time, call_block_number, poolId, amount, call_trace_address, call_tx_hash
+      from nexusmutual_ethereum.TokenController_call_mintStakingPoolNXMRewards
+      where call_success
+      union all
+      select call_block_time, call_block_number, poolId, amount, call_trace_address, call_tx_hash
+      from nexusmutual_ethereum.TokenController2_call_mintStakingPoolNXMRewards
+      where call_success
+    ) mr
     inner join covers c on mr.call_tx_hash = c.tx_hash and mr.call_block_number = c.block_number
-  where mr.call_success
-    and mr.poolId = c.pool_id
+  where mr.poolId = c.pool_id
     and (c.call_trace_address is null
       or slice(mr.call_trace_address, 1, cardinality(c.call_trace_address)) = c.call_trace_address)
 ),
