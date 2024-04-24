@@ -1,7 +1,8 @@
 -- query_3609519: staking pool history
 
-with recursive deposit_chain (pool_address, token_id, tranche_id, new_tranche_id, total_amount, is_active, chain_level) as (
+with recursive deposit_chain (block_time, pool_address, token_id, tranche_id, new_tranche_id, total_amount, is_active, chain_level) as (
   select
+    block_time,
     pool_address,
     token_id,
     tranche_id as tranche_id,
@@ -16,6 +17,7 @@ with recursive deposit_chain (pool_address, token_id, tranche_id, new_tranche_id
   union all
   
   select 
+    d.block_time,
     d.pool_address,
     d.token_id,
     dc.tranche_id,
@@ -31,6 +33,7 @@ with recursive deposit_chain (pool_address, token_id, tranche_id, new_tranche_id
 )
 
 select 
+  block_time,
   pool_address,
   token_id,
   tranche_id as init_tranche_id,
@@ -42,5 +45,5 @@ from (
       *,
       row_number() over (partition by pool_address, token_id, tranche_id order by chain_level desc) as rn
     from deposit_chain
-  ) ranked
+  ) t
 where rn = 1
