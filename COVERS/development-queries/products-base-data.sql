@@ -111,3 +111,14 @@ TODO:
 nexusmutual_ethereum.Cover_evt_ProductSet : evt_index -> call ordinality?
 nexusmutual_ethereum.Cover_evt_ProductTypeSet
 */
+
+select
+  evt_block_time as block_time,
+  evt_block_number as block_number,
+  id as product_id,
+  ipfsMetadata as product_ipfs_metadata,
+  evt_index,
+  evt_tx_hash as tx_hash,
+  row_number() over (partition by evt_block_time, evt_tx_hash order by evt_index) as rn
+from nexusmutual_ethereum.Cover_evt_ProductSet
+order by 1, rn
