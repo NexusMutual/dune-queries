@@ -58,7 +58,10 @@ product_data as (
     allowed_pools,
     product_ordinality,
     tx_hash,
-    row_number() over (partition by block_time, tx_hash order by product_ordinality) as call_rn
+    case
+      when product_id < 1000000 then null
+      else row_number() over (partition by block_time, tx_hash, if(product_id < 1000000, 0, 1) order by product_ordinality)
+    end as call_rn
   from product_data_raw
 ),
 
@@ -99,8 +102,8 @@ products_ext as (
     cast(0 as bigint) as evt_index,
     c.tx_hash
   from product_data c
-    left join product_events e on c.tx_hash = e.tx_hash
-  where e.tx_hash is null
+    left join product_events e on e.block_time = c.block_time and e.block_number = c.block_number and e.evt_rn = c.call_rn
+  where e.block_number is null
 ),
 
 products as (
