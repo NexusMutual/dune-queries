@@ -20,6 +20,7 @@ cover_details as (
       when cde.curr = 0x44414900 then 'DAI'
     end as cover_asset,
     cde.premiumNXM / 1e18 as premium_nxm,
+    ac._userAddress as cover_owner,
     cde.evt_index,
     cde.evt_tx_hash as tx_hash
   from nexusmutual_ethereum.QuotationData_evt_CoverDetailsEvent cde
@@ -27,6 +28,8 @@ cover_details as (
       on cde.evt_tx_hash = cm.call_tx_hash and cde.evt_block_number = cm.call_block_number and cm.call_success
     left join nexusmutual_ethereum.Quotation_call_makeCoverUsingNXMTokens ct
       on cde.evt_tx_hash = ct.call_tx_hash and cde.evt_block_number = ct.call_block_number and ct.call_success
+    left join nexusmutual_ethereum.QuotationData_call_addCover ac
+      on cde.evt_tx_hash = ac.call_tx_hash and cde.evt_block_number = ac.call_block_number and ac.call_success
 )
 
 select
@@ -44,6 +47,7 @@ select
   cd.premium,
   cd.cover_asset,
   cd.premium_nxm,
+  cd.cover_owner,
   cd.evt_index,
   cd.tx_hash
 from cover_details cd
