@@ -118,4 +118,4 @@ select
   tx_hash
 from product_types
 where rn = 1
-order by product_type_id
+--order by product_type_id

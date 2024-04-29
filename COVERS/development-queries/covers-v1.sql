@@ -48,3 +48,4 @@ select
   cd.tx_hash
 from cover_details cd
   left join nexusmutual_ethereum.product_information pi on cd.product_contract = pi.product_contract_address
+--order by cd.cover_id desc

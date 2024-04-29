@@ -53,7 +53,7 @@ product_data as (
     try_cast(json_extract_scalar(product_json, '$.initialPriceRatio') as int) as initial_price_ratio,
     cast(json_extract_scalar(product_json, '$.isDeprecated') as boolean) as is_deprecated,
     cast(json_extract_scalar(product_json, '$.useFixedPrice') as boolean) as use_fixed_price,
-    json_extract_scalar(product_json, '$.yieldTokenAddress') as yield_token_address,
+    from_hex(json_extract_scalar(product_json, '$.yieldTokenAddress')) as yield_token_address,
     call_product_ipfs_metadata,
     allowed_pools,
     product_ordinality,
@@ -147,4 +147,4 @@ select
   tx_hash
 from products
 where rn = 1
-order by product_id
+--order by product_id
