@@ -164,6 +164,8 @@ covers_v1_migrated as (
 
 covers as (
   select
+    block_time,
+    block_number,
     cover_id,
     cover_start_time,
     cover_end_time,
@@ -181,6 +183,8 @@ covers as (
   from covers_v2
   union all
   select
+    block_time,
+    block_number,
     cover_id,
     cover_start_time,
     cover_end_time,
@@ -199,6 +203,8 @@ covers as (
 )
 
 select
+  block_time,
+  block_number,
   cover_id,
   cover_start_time,
   cover_end_time,

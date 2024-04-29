@@ -1,295 +1,24 @@
 WITH
-  product_info AS (
-    select DISTINCT
-      product_contract_address AS product_address,
-      syndicate AS syndicate,
-      product_name AS product_name,
-      product_type AS product_type,
-      output_0 AS v2_product_id
-    from
-      nexusmutual_ethereum.product_information AS t
-      FULL JOIN nexusmutual_ethereum.ProductsV1_call_getNewProductId AS s ON t.product_contract_address = s.legacyProductId
-    WHERE
-      output_0 IS NOT NULL
-      and call_success
-  ),
-  v1_cover_details AS (
-    select
-      evt_block_time AS cover_start_time,
-      cid AS v1_cover_id,
-      premium * 1E-18 AS premium,
-      premiumNXM * 1E-18 AS premium_nxm,
-      scAdd AS productContract,
-      CAST(sumAssured AS DOUBLE) AS sum_assured,
-      syndicate,
-      product_name,
-      product_type,
-      CASE
-        WHEN b.call_success THEN 'NXM'
-        WHEN curr = 0x45544800 THEN 'ETH'
-        WHEN curr = 0x44414900 THEN 'DAI'
-      END AS premium_asset,
-      case
-        when curr = 0x45544800 then 'ETH'
-        when curr = 0x44414900 then 'DAI'
-      end AS cover_asset,
-      from_unixtime(CAST(expiry AS DOUBLE)) AS cover_end_time,
-      evt_tx_hash AS call_tx_hash
-    from
-      nexusmutual_ethereum.QuotationData_evt_CoverDetailsEvent AS t
-      LEFT JOIN product_info ON product_info.product_address = t.scAdd
-      FULL JOIN nexusmutual_ethereum.Quotation_call_makeCoverUsingNXMTokens AS b ON t.evt_tx_hash = b.call_tx_hash
-    where
-      (
-        b.call_success
-        and b.call_tx_hash is not null
-      )
-      or b.call_tx_hash is null
-  ),
-  v1_migrated_cover AS (
-    SELECT
-      cover_start_time,
-      cover_end_time,
-      premium,
-      premium_nxm,
-      coverIdV2 AS cover_id,
-      sum_assured,
-      syndicate,
-      product_name,
-      product_type,
-      cover_asset,
-      premium_asset,
-      newOwner AS owner,
-      call_tx_hash
-    FROM
-      nexusmutual_ethereum.CoverMigrator_evt_CoverMigrated AS t
-      INNER JOIN v1_cover_details ON v1_cover_details.v1_cover_id = t.coverIdV1
-  ),
-  product_data AS (
-    SELECT DISTINCT
-      call_block_time,
-      productParams
-    FROM
-      nexusmutual_ethereum.Cover_call_setProducts
-    WHERE
-      call_success
-      AND contract_address = 0xcafeac0ff5da0a2777d915531bfa6b29d282ee62
-    ORDER BY
-      call_block_time
-  ),
-  product_set_raw AS (
-    SELECT
-      call_block_time,
-      JSON_QUERY(
-        productParamsOpened,
-        'lax $.productName' OMIT QUOTES
-      ) AS product_name,
-      CAST(
-        JSON_QUERY(
-          JSON_QUERY(productParamsOpened, 'lax $.product' OMIT QUOTES),
-          'lax $.productType'
-        ) AS UINT256
-      ) AS product_type_id,
-      array_position(t.productParams, productParamsOpened) AS array_order
-    FROM
-      product_data AS t
-      CROSS JOIN UNNEST (t.productParams) AS t (productParamsOpened)
-    WHERE
-      CAST(
-        JSON_QUERY(productParamsOpened, 'lax $.productId') AS UINT256
-      ) > CAST(1000000000000 AS UINT256)
-  ),
-  product_set AS (
-    SELECT
-      *,
-      RANK() OVER (
-        ORDER BY
-          call_block_time ASC,
-          array_order ASC
-      ) - 1 AS product_id
-    FROM
-      product_set_raw
-  ),
-  product_type_data AS (
-    SELECT DISTINCT
-      call_block_time,
-      productTypeParams
-    FROM
-      nexusmutual_ethereum.Cover_call_setProductTypes
-    WHERE
-      call_success
-    ORDER BY
-      call_block_time
-  ),
-  raw_product_types AS (
-    SELECT
-      *,
-      CAST(
-        JSON_QUERY(
-          productTypeOpened,
-          'lax $.productTypeName' OMIT QUOTES
-        ) AS VARCHAR
-      ) AS product_type_name,
-      CAST(
-        JSON_QUERY(
-          productTypeOpened,
-          'lax $.productTypeId' OMIT QUOTES
-        ) AS VARCHAR
-      ) AS product_type_id_input,
-      array_position(t.productTypeParams, productTypeOpened) AS array_order
-    FROM
-      product_type_data AS t
-      CROSS JOIN UNNEST (t.productTypeParams) AS t (productTypeOpened)
-  ),
-  product_types AS (
-    SELECT
-      call_block_time,
-      CAST(
-        RANK() OVER (
-          ORDER BY
-            call_block_time ASC,
-            array_order ASC
-        ) - 1 AS UINT256
-      ) AS product_type_id,
-      product_type_name
-    FROM
-      raw_product_types
-    WHERE
-      length(product_type_name) > 0
-      AND CAST(product_type_id_input AS UINT256) > CAST(1000000 AS UINT256)
-  ),
-  v2_products AS (
-    SELECT
-      product_id,
-      product_name,
-      a.product_type_id,
-      product_type_name
-    FROM
-      product_set AS a
-      LEFT JOIN product_types AS b ON a.product_type_id = b.product_type_id
-    ORDER BY
-      product_id
-  ),
-  v2_cover_brought AS (
-    SELECT
-      CAST(t.call_block_time AS TIMESTAMP) AS cover_start_time,
-      CAST(output_coverId AS UINT256) AS cover_id,
-      CAST(coverAmount AS DOUBLE) / 100.0 AS partial_cover_amount_in_nxm,
-      CAST(output_premium AS DOUBLE) * 1E-18 AS premium_pool,
-      CAST(output_premium AS DOUBLE) * 1E-18 AS premium_nxm_pool,
-      (
-        1.0 + (
-          CAST(
-            JSON_QUERY(params, 'lax $.commissionRatio') AS DOUBLE
-          ) / 10000.0
-        )
-      ) * CAST(output_premium AS DOUBLE) * 1E-18 AS premium,
-      (
-        1.0 + (
-          CAST(
-            JSON_QUERY(params, 'lax $.commissionRatio') AS DOUBLE
-          ) / 10000.0
-        )
-      ) * CAST(output_premium AS DOUBLE) * 1E-18 AS premium_nxm,
-      CAST(JSON_QUERY(params, 'lax $.productId') AS UINT256) AS product_id,
-      CASE
-        WHEN CAST(JSON_QUERY(params, 'lax $.coverAsset') AS INT) = 0 THEN 'ETH'
-        WHEN CAST(JSON_QUERY(params, 'lax $.coverAsset') AS INT) = 1 THEN 'DAI'
-        ELSE 'NA'
-      END AS cover_asset,
-      CASE
-        WHEN CAST(JSON_QUERY(params, 'lax $.paymentAsset') AS INT) = 0 THEN 'ETH'
-        WHEN CAST(JSON_QUERY(params, 'lax $.paymentAsset') AS INT) = 1 THEN 'DAI'
-        WHEN CAST(JSON_QUERY(params, 'lax $.paymentAsset') AS INT) = 255 THEN 'NXM'
-        ELSE 'NA'
-      END AS premium_asset,
-      CAST(JSON_QUERY(params, 'lax $.amount') AS DOUBLE) * 1E-18 AS sum_assured,
-      CAST(JSON_QUERY(params, 'lax $.period') AS BIGINT) AS expiry,
-      date_add(
-        'second',
-        CAST(JSON_QUERY(params, 'lax $.period') AS BIGINT),
-        CAST(t.call_block_time AS TIMESTAMP)
-      ) AS cover_end_time,
-      CAST(
-        JSON_QUERY(params, 'lax $.commissionDestination') AS VARBINARY
-      ) AS commission_destination,
-      CAST(
-        JSON_QUERY(params, 'lax $.commissionRatio') AS DOUBLE
-      ) / 10000.0 AS commission_ratio,
-      1.0 + (
-        CAST(
-          JSON_QUERY(params, 'lax $.commissionRatio') AS DOUBLE
-        ) / 10000.0
-      ) AS cover_fee_multiplier,
-      CAST(u.poolId AS VARCHAR) AS pool_id,
-      product_name,
-      product_type_name AS product_type,
-      params,
-      from_hex(
-        trim(
-          '"'
-          FROM
-            CAST(JSON_QUERY(params, 'lax $.owner') AS VARCHAR)
-        )
-      ) AS owner,
-      t.call_tx_hash
-    FROM
-      nexusmutual_ethereum.Cover_call_buyCover AS t
-      LEFT JOIN v2_products AS s ON CAST(s.product_id AS UINT256) = CAST(
-        JSON_QUERY(t.params, 'lax $.productId') AS UINT256
-      )
-      INNER JOIN nexusmutual_ethereum.StakingProducts_call_getPremium AS u ON t.call_tx_hash = u.call_tx_hash
-    WHERE
-      t.call_success
-      AND u.call_success
-      AND u.contract_address = 0xcafea573fbd815b5f59e8049e71e554bde3477e4
-      AND (
-        t.call_trace_address IS NULL
-        OR SLICE(
-          u.call_trace_address,
-          1,
-          cardinality(t.call_trace_address)
-        ) = t.call_trace_address
-      )
-  ),
   covers AS (
     SELECT
+      block_time,
+      date_trunc('day', block_time) as block_date,
+      block_number,
       cover_id,
+      cover_start_time,
+      cover_end_time,
+      staking_pool,
+      product_type,
+      product_name,
       cover_asset,
       premium_asset,
       premium,
       premium_nxm,
-      cover_start_time,
-      cover_end_time,
       sum_assured,
-      partial_cover_amount_in_nxm,
-      pool_id AS syndicate,
-      product_name,
-      product_type,
-      owner,
-      call_tx_hash
-    FROM
-      v2_cover_brought
-    UNION
-    SELECT
-      cover_id,
-      cover_asset,
-      premium_asset,
-      premium,
-      premium_nxm,
-      cover_start_time,
-      cover_end_time,
-      sum_assured,
-      sum_assured AS partial_cover_amount_in_nxm, -- No partial covers in v1 migrated covers
-      syndicate AS staking_pool,
-      product_name,
-      product_type,
-      owner,
-      call_tx_hash
-    FROM
-      v1_migrated_cover
-    ORDER BY
-      cover_id
+      partial_cover_amount, -- in NMX
+      cover_owner,
+      tx_hash
+    FROM query_3678332 -- covers v2
   ),
   eth_daily_transactions_fix AS (
     select distinct
@@ -930,8 +659,8 @@ SELECT DISTINCT
     WHEN cover_asset = 'ETH' THEN sum_assured
     WHEN cover_asset = 'DAI' THEN (sum_assured * dai_price_dollar) / eth_price_dollar
   END AS eth_value,
-  partial_cover_amount_in_nxm,
-  partial_cover_amount_in_nxm * (
+  partial_cover_amount,
+  partial_cover_amount * (
     CASE
       WHEN cover_asset = 'ETH' THEN COALESCE(ramm_nxm_price_in_eth, nxm_token_price_in_eth)
       WHEN cover_asset = 'DAI' THEN COALESCE(
@@ -945,8 +674,8 @@ SELECT DISTINCT
       WHEN cover_asset = 'DAI' THEN sum_assured * dai_price_dollar
     END
   ) AS cover_percentage,
-  partial_cover_amount_in_nxm * COALESCE(ramm_nxm_price_in_eth, nxm_token_price_in_eth) AS partial_cover_amount_in_eth,
-  partial_cover_amount_in_nxm * COALESCE(
+  partial_cover_amount * COALESCE(ramm_nxm_price_in_eth, nxm_token_price_in_eth) AS partial_cover_amount_in_eth,
+  partial_cover_amount * COALESCE(
     ramm_nxm_price_in_eth * eth_price_dollar,
     nxm_token_price_in_dollar
   ) AS partial_cover_amount_in_dollar,
@@ -968,17 +697,15 @@ SELECT DISTINCT
     ramm_nxm_price_in_eth * eth_price_dollar,
     nxm_token_price_in_dollar
   ) AS premium_dollar,
-  syndicate AS staking_pool,
+  staking_pool,
   COALESCE(product_type, 'unknown') AS product_type,
   COALESCE(product_name, 'unknown') AS product_name,
   cover_start_time,
   cover_end_time,
-  owner,
+  cover_owner,
   date_diff('day', cover_start_time, cover_end_time) AS cover_period,
-  t.call_tx_hash
-FROM
-  covers AS t
-  LEFT JOIN nxm_token_price AS f ON f.day = DATE_TRUNC('day', cover_start_time)
-  LEFT JOIN ramm_nxm_queries AS v ON v.call_tx_hash = t.call_tx_hash
-ORDER BY
-  cover_id DESC
+  t.tx_hash
+FROM covers AS t
+  LEFT JOIN nxm_token_price AS f ON t.block_date = f.day
+  LEFT JOIN ramm_nxm_queries AS v ON t.tx_hash = v.call_tx_hash
+ORDER BY cover_id DESC
