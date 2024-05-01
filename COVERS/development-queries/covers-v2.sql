@@ -15,7 +15,7 @@ cover_sales as (
     cast(json_query(c.params, 'lax $.coverAsset') as int) as cover_asset,
     cast(json_query(c.params, 'lax $.paymentAsset') as int) as payment_asset,
     cast(json_query(c.params, 'lax $.maxPremiumInAsset') as uint256) as max_premium_in_asset,
-    cast(json_query(c.params, 'lax $.commissionRatio') as int) as commission_ratio,
+    cast(json_query(c.params, 'lax $.commissionRatio') as double) as commission_ratio,
     from_hex(json_query(c.params, 'lax $.commissionDestination' omit quotes)) as commission_destination,
     cast(json_query(t.pool_allocation, 'lax $.coverAmountInAsset') as uint256) as cover_amount_in_asset,
     cast(json_query(t.pool_allocation, 'lax $.skip') as boolean) as pool_allocation_skip,
@@ -66,7 +66,8 @@ cover_premiums as (
     c.product_id,
     p.cover_amount / 100.0 as partial_cover_amount, -- partial_cover_amount_in_nxm
     p.premium / 1e18 as pool_premium,
-    (1.0 + (c.commission_ratio / 10000.0)) * p.premium / 1e18 as premium,
+    c.commission_ratio / 10000.0 as commission_ratio,
+    (1.0 + (c.commission_ratio / 10000.0)) * (0.5 / (1.0 + (c.commission_ratio / 10000.0))) * p.premium / 1e18 as premium,
     case c.cover_asset
       when 0 then 'ETH'
       when 1 then 'DAI'
@@ -80,8 +81,6 @@ cover_premiums as (
       else 'NA'
     end as premium_asset,
     c.cover_owner,
-    c.commission_ratio / 10000.0 as commission_ratio,
-    1.0 + (c.commission_ratio / 10000.0) as cover_fee_multiplier,
     c.commission_destination,
     c.tx_hash
 
@@ -126,13 +125,12 @@ covers_v2 as (
     p.product_name,
     cp.partial_cover_amount, -- partial_cover_amount_in_nxm
     cp.pool_premium,
+    cp.commission_ratio,
     cp.premium,
     cp.cover_asset,
     cp.sum_assured,
     cp.premium_asset,
     cp.cover_owner,
-    cp.commission_ratio,
-    cp.cover_fee_multiplier,
     cp.commission_destination,
     cp.tx_hash
   from cover_premiums cp
