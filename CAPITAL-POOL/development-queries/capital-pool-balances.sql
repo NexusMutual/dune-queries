@@ -13,6 +13,12 @@ nexusmutual_contracts (contract_address) as (
   (0xcafea92739e411a4D95bbc2275CA61dE6993C9a7)  --MCR, deployed: Nov-21-2023
 ),
 
+day_sequence as (
+  select cast(d.seq_date as date) as block_date
+  from (select sequence(date '2019-01-01', current_date, interval '1' day) as days) as days_s
+    cross join unnest(days) as d(seq_date)
+),
+
 transfer_in as (
   select
     date_trunc('day', block_time) as block_date,
@@ -95,14 +101,68 @@ transfer_combined as (
   from transfer_nxmty_out
 ),
 
-dai_transactions AS (
-    SELECT
-      block_date,
-      SUM(amount) AS dai_net_total
-    FROM transfer_combined
-    WHERE symbol = 'DAI'
-    group by 1
-  )
+steth as (
+  select
+    block_date,
+    sum(amount) as amount
+  from transfer_combined
+  where symbol = 'stETH'
+  group by 1
+),
+
+steth_fill_days as (
+  select
+    ds.block_date,
+    steth.amount,
+    row_number() over (order by ds.block_date) as rn
+  from day_sequence ds
+    left join steth on ds.block_date = steth.block_date
+  where ds.block_date >= (select min(block_date) from steth)
+),
+
+steth_rebase as (
+  select
+    date_trunc('day', evt_block_time) as block_date,
+    evt_block_time,
+    evt_block_number,
+    1.0 + (postTotalPooledEther - preTotalPooledEther) / (cast(preTotalPooledEther as double)) * 0.9 as rebase_rate,
+    (
+      (postTotalPooledEther - preTotalPooledEther) * 365 * 24 * 60 * 60
+    ) / cast((preTotalPooledEther * timeElapsed) as double) * 0.9 as staking_APR
+  from lido_ethereum.LegacyOracle_evt_PostTotalShares
+  where evt_block_time <= cast('2023-05-16 00:00' as timestamp)
+  union all
+  select
+    date_trunc('day', evt_block_time) as block_date,
+    evt_block_time,
+    evt_block_number,
+    1.0 + (post_share_rate - pre_share_rate) / cast((pre_share_rate) as double) as rebase_rate, 
+    (
+      365 * 24 * 60 * 60 * (post_share_rate - pre_share_rate)
+    ) / cast((pre_share_rate * timeElapsed) as double) as staking_APR
+  from (
+      select
+        evt_block_time,
+        evt_block_number,
+        timeElapsed,
+        (preTotalEther * 1e27) / cast(preTotalShares as double) as pre_share_rate,
+        (postTotalEther * 1e27) / cast(postTotalShares as double) as post_share_rate
+      from lido_ethereum.steth_evt_TokenRebased
+    ) t
+),
+
+steth_ext as (
+  select
+    r.block_date,
+    r.rebase_rate,
+    sfd.amount,
+    sfd.rn,
+    --sum(sfd.amount) over (order by r.block_date) * r.rebase_rate as amount_running,
+    --sum(coalesce(s.amount, 0) * r.rebase_rate) over (partition by r.block_date) as amount_rebased,
+    sum(sfd.amount * r.rebase_rate) over (order by r.block_date) * if(sfd.rn=1, 1, power(r.rebase_rate, sfd.rn-2)) as running_total
+  from steth_fill_days sfd
+    inner join steth_rebase r on sfd.block_date = r.block_date
+)
 
 /*
 select
@@ -118,4 +178,10 @@ having abs(sum(amount)) >= 0.0001
 order by 1
 */
 
-select * from dai_transactions order by 1
+--/*
+select * from steth_ext
+--where block_date >= timestamp '2021-05-26'
+order by 1
+--*/
+
+--select * from steth_fill_days order by rn
