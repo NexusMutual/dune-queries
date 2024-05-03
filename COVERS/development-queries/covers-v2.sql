@@ -67,7 +67,8 @@ cover_premiums as (
     p.cover_amount / 100.0 as partial_cover_amount, -- partial_cover_amount_in_nxm
     p.premium / 1e18 as pool_premium,
     c.commission_ratio / 10000.0 as commission_ratio,
-    (1.0 + (c.commission_ratio / 10000.0)) * (0.5 / (1.0 + (c.commission_ratio / 10000.0))) * p.premium / 1e18 as premium,
+    --(1.0 + (c.commission_ratio / 10000.0)) * (0.5 / (1.0 + (c.commission_ratio / 10000.0))) * p.premium / 1e18 as premium,
+    (1.0 + (c.commission_ratio / 10000.0)) * p.premium / 1e18 as premium,
     case c.cover_asset
       when 0 then 'ETH'
       when 1 then 'DAI'
