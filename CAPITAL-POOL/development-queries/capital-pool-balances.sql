@@ -113,14 +113,13 @@ steth as (
 steth_fill_days as (
   select
     ds.block_date,
-    steth.amount,
-    row_number() over (order by ds.block_date) as rn
+    sum(steth.amount) over (order by ds.block_date) as amount
   from day_sequence ds
     left join steth on ds.block_date = steth.block_date
   where ds.block_date >= (select min(block_date) from steth)
 ),
 
-steth_rebase as (
+steth_rebase_test as (
   select
     date_trunc('day', evt_block_time) as block_date,
     evt_block_time,
@@ -151,18 +150,40 @@ steth_rebase as (
     ) t
 ),
 
+steth_rebase as (
+  select
+    date_trunc('day', evt_block_time) as block_date,
+    evt_block_time,
+    evt_block_number,
+    1.0 * postTotalPooledEther / totalShares as rebase_rate
+  from lido_ethereum.LegacyOracle_evt_PostTotalShares
+),
+
 steth_ext as (
   select
     r.block_date,
     r.rebase_rate,
-    sfd.amount,
-    sfd.rn,
-    --sum(sfd.amount) over (order by r.block_date) * r.rebase_rate as amount_running,
-    --sum(coalesce(s.amount, 0) * r.rebase_rate) over (partition by r.block_date) as amount_rebased,
-    sum(sfd.amount * r.rebase_rate) over (order by r.block_date) * if(sfd.rn=1, 1, power(r.rebase_rate, sfd.rn-2)) as running_total
+    sfd.amount * r.rebase_rate as amount
   from steth_fill_days sfd
     inner join steth_rebase r on sfd.block_date = r.block_date
+),
+
+nxmty as (
+  select
+    block_date,
+    sum(amount) as amount
+  from transfer_combined
+  where symbol = 'NXMTY'
+  group by 1
 )
+
+select * from nxmty order by 1
+
+/*
+select *
+from chainlink_ethereum.price_feeds
+where proxy_address = 0xcc72039a141c6e34a779ef93aef5eb4c82a893c7 -- Nexus wETH Reserves
+*/
 
 /*
 select
@@ -178,10 +199,10 @@ having abs(sum(amount)) >= 0.0001
 order by 1
 */
 
---/*
+/*
 select * from steth_ext
 --where block_date >= timestamp '2021-05-26'
-order by 1
+order by 1 desc
 --*/
 
 --select * from steth_fill_days order by rn
