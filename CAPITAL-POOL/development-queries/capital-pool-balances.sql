@@ -21,8 +21,6 @@ transfer_in as (
     symbol,
     contract_address,
     amount,
-    cast(amount_raw as double) as amount_raw,
-    amount_usd,
     tx_hash
   from tokens_ethereum.transfers
   where block_time >= timestamp '2019-01-01'
@@ -37,8 +35,6 @@ transfer_out as (
     symbol,
     contract_address,
     -1 * amount as amount,
-    -1 * cast(amount_raw as double) as amount_raw,
-    -1 * amount_usd as amount_usd,
     tx_hash
   from tokens_ethereum.transfers
   where block_time >= timestamp '2019-01-01'
@@ -52,7 +48,7 @@ transfer_nxmty_in as (
     date_trunc('day', block_time) as block_date,
     'NXMTY' as symbol,
     contract_address,
-    cast(amount_raw as double) as amount_raw,
+    cast(amount_raw as double) / 1e18 as amount,
     tx_hash
   from tokens_ethereum.transfers
   where block_time > timestamp '2019-01-01'
@@ -67,7 +63,7 @@ transfer_nxmty_out as (
     date_trunc('day', block_time) as block_date,
     'NXMTY' as symbol,
     contract_address,
-    -1 * cast(amount_raw as double) as amount_raw,
+    -1 * cast(amount_raw as double) / 1e18 as amount,
     tx_hash
   from tokens_ethereum.transfers
   where block_time > timestamp '2019-01-01'
@@ -76,18 +72,18 @@ transfer_nxmty_out as (
 ),
 
 transfer_combined as (
-  select block_time, block_date, symbol, contract_address, amount, amount_usd
+  select block_time, block_date, symbol, contract_address, amount
   from (
-    select block_time, block_date, symbol, contract_address, amount, amount_usd
+    select block_time, block_date, symbol, contract_address, amount
     from transfer_in
     union all
-    select block_time, block_date, symbol, contract_address, amount, amount_usd
+    select block_time, block_date, symbol, contract_address, amount
     from transfer_out
     union all
-    select block_time, block_date, symbol, contract_address, amount_raw / 1e18 as amount, -1.00 as amount_usd -- dummy usd amount
+    select block_time, block_date, symbol, contract_address, amount
     from transfer_nxmty_in
     union all
-    select block_time, block_date, symbol, contract_address, amount_raw / 1e18 as amount, -1.00 as amount_usd -- dummy usd amount
+    select block_time, block_date, symbol, contract_address, amount
     from transfer_nxmty_out
   ) t
 ),
@@ -118,7 +114,11 @@ steth_net_staking as (
     sd.steth_amount,
     lo.rebase as rebase2
   from lido_oracle lo
-    inner join steth_adjusted_date sd on lo.block_date = sd.block_date
+    inner join (
+      select block_date, sum(steth_amount) as steth_amount
+      from steth_adjusted_date
+      group by 1
+     ) sd on lo.block_date = sd.block_date
 ),
 
 steth_expanded_rebase as (
@@ -163,23 +163,30 @@ nxmty_running_total as (
     ) t on cop.block_date = t.block_date
 ),
 
-combined_running_total as (
+transfer_totals as (
   select
     block_date,
-    sum(case when symbol = 'ETH' then amount end) over (order by block_date) as eth_total,
-    sum(case when symbol = 'DAI' then amount end) over (order by block_date) as dai_total,
-    sum(case when symbol = 'rETH' then amount end) over (order by block_date) as reth_total,
-    sum(case when symbol = 'USDC' then amount end) over (order by block_date) as usdc_total
-  from (
-    select
-      block_date,
-      symbol,
-      sum(amount) as amount,
-      sum(amount_usd) as amount_usd
-    from transfer_combined
-    where symbol in ('ETH', 'DAI', 'rETH', 'USDC')
-    group by 1,2
-  ) t
+    sum(case when symbol = 'ETH' then amount end) as eth_total,
+    sum(case when symbol = 'DAI' then amount end) as dai_total,
+    sum(case when symbol = 'rETH' then amount end) as reth_total,
+    sum(case when symbol = 'USDC' then amount end) as usdc_total
+  from transfer_combined
+  where symbol in ('ETH', 'DAI', 'rETH', 'USDC')
+  group by 1
+),
+
+prices AS (
+  SELECT DISTINCT
+    date_trunc('minute', minute) AS ts,
+    symbol,
+    AVG(price) OVER (
+      PARTITION BY
+        date_trunc('minute', minute)
+    ) AS price_dollar
+  FROM prices.usd
+  WHERE symbol = 'ETH'
+    AND coalesce(blockchain, 'ethereum') = 'ethereum'
+    AND minute > CAST('2023-11-11' AS TIMESTAMP)
 ),
 
 day_sequence as (
@@ -191,15 +198,15 @@ day_sequence as (
 all_running_totals as (
   select
     ds.block_date,
-    coalesce(ct.eth_total, lag(ct.eth_total) over (order by ds.block_date), 0) as eth_running_total,
-    coalesce(ct.dai_total, lag(ct.dai_total) over (order by ds.block_date), 0) as dai_running_total,
-    coalesce(ct.reth_total, lag(ct.reth_total) over (order by ds.block_date), 0) as reth_running_total,
-    coalesce(ct.usdc_total, lag(ct.usdc_total) over (order by ds.block_date), 0) as usdc_running_total,
+    sum(ct.eth_total) over (order by ds.block_date) as eth_running_total,
+    sum(ct.dai_total) over (order by ds.block_date) as dai_running_total,
+    sum(ct.reth_total) over (order by ds.block_date) as reth_running_total,
+    sum(ct.usdc_total) over (order by ds.block_date) as usdc_running_total,
     coalesce(rt.steth_total, lag(rt.steth_total) over (order by ds.block_date), 0) as steth_running_total,
     coalesce(nt.nxmty_total, lag(nt.nxmty_total) over (order by ds.block_date), 0) as nxmty_running_total,
     coalesce(nt.nxmty_in_eth_total, lag(nt.nxmty_in_eth_total) over (order by ds.block_date), 0) as nxmty_in_eth_running_total
   from day_sequence ds
-    left join combined_running_total ct on ds.block_date = ct.block_date
+    left join transfer_totals ct on ds.block_date = ct.block_date
     left join steth_running_total rt on ds.block_date = rt.block_date
     left join nxmty_running_total nt on ds.block_date = nt.block_date
 )
@@ -207,9 +214,13 @@ all_running_totals as (
 select
   block_date,
   eth_running_total,
+  --eth_usd_running_total,
   dai_running_total,
+  --dai_usd_running_total,
   reth_running_total,
+  --reth_usd_running_total,
   usdc_running_total,
+  --usdc_usd_running_total,
   steth_running_total,
   nxmty_running_total,
   nxmty_in_eth_running_total
