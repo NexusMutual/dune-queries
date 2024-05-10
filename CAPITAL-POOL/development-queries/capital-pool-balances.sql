@@ -175,18 +175,25 @@ transfer_totals as (
   group by 1
 ),
 
-prices AS (
-  SELECT DISTINCT
-    date_trunc('minute', minute) AS ts,
+prices as (
+  select
+    date_trunc('day', minute) as block_date,
     symbol,
-    AVG(price) OVER (
-      PARTITION BY
-        date_trunc('minute', minute)
-    ) AS price_dollar
-  FROM prices.usd
-  WHERE symbol = 'ETH'
-    AND coalesce(blockchain, 'ethereum') = 'ethereum'
-    AND minute > CAST('2023-11-11' AS TIMESTAMP)
+    avg(price) as price_usd
+  from prices.usd
+  --where symbol in ('ETH', 'DAI', 'rETH', 'USDC')
+  where symbol = 'ETH'
+    and coalesce(blockchain, 'ethereum') = 'ethereum'
+    and minute >= timestamp '2019-05-01'
+  group by 1,2
+),
+
+prices_eth_ma7 as (
+  select
+    block_date,
+    avg(price_usd) over (order by block_date rows between 6 preceding and current row) as price_ma7_usd
+  from prices
+  where symbol = 'ETH'
 ),
 
 day_sequence as (
@@ -199,6 +206,8 @@ all_running_totals as (
   select
     ds.block_date,
     sum(ct.eth_total) over (order by ds.block_date) as eth_running_total,
+    sum(ct.eth_total) over (order by ds.block_date) * p.price_usd as eth_usd_running_total,
+    sum(ct.eth_total) over (order by ds.block_date) * p_eth.price_ma7_usd as eth_ma_usd_running_total,
     sum(ct.dai_total) over (order by ds.block_date) as dai_running_total,
     sum(ct.reth_total) over (order by ds.block_date) as reth_running_total,
     sum(ct.usdc_total) over (order by ds.block_date) as usdc_running_total,
@@ -206,6 +215,8 @@ all_running_totals as (
     coalesce(nt.nxmty_total, lag(nt.nxmty_total) over (order by ds.block_date), 0) as nxmty_running_total,
     coalesce(nt.nxmty_in_eth_total, lag(nt.nxmty_in_eth_total) over (order by ds.block_date), 0) as nxmty_in_eth_running_total
   from day_sequence ds
+    inner join prices p on ds.block_date = p.block_date
+    inner join prices_eth_ma7 p_eth on ds.block_date = p_eth.block_date
     left join transfer_totals ct on ds.block_date = ct.block_date
     left join steth_running_total rt on ds.block_date = rt.block_date
     left join nxmty_running_total nt on ds.block_date = nt.block_date
@@ -214,7 +225,8 @@ all_running_totals as (
 select
   block_date,
   eth_running_total,
-  --eth_usd_running_total,
+  eth_usd_running_total,
+  eth_ma_usd_running_total,
   dai_running_total,
   --dai_usd_running_total,
   reth_running_total,
