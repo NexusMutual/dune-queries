@@ -23,7 +23,7 @@ transfer_in as (
     amount,
     tx_hash
   from tokens_ethereum.transfers
-  where block_time >= timestamp '2019-01-01'
+  where block_time >= timestamp '2019-05-01'
     and "to" in (select contract_address from nexusmutual_contracts)
 ),
 
@@ -37,7 +37,7 @@ transfer_out as (
     -1 * amount as amount,
     tx_hash
   from tokens_ethereum.transfers
-  where block_time >= timestamp '2019-01-01'
+  where block_time >= timestamp '2019-05-01'
     and "from" in (select contract_address from nexusmutual_contracts)
 ),
 
@@ -51,7 +51,7 @@ transfer_nxmty_in as (
     cast(amount_raw as double) / 1e18 as amount,
     tx_hash
   from tokens_ethereum.transfers
-  where block_time > timestamp '2019-01-01'
+  where block_time >= timestamp '2022-05-27'
     and "to" in (select contract_address from nexusmutual_contracts)
     and contract_address = 0x27f23c710dd3d878fe9393d93465fed1302f2ebd --NXMTY
 ),
@@ -66,7 +66,7 @@ transfer_nxmty_out as (
     -1 * cast(amount_raw as double) / 1e18 as amount,
     tx_hash
   from tokens_ethereum.transfers
-  where block_time > timestamp '2019-01-01'
+  where block_time >= timestamp '2022-05-27'
     and "from" in (select contract_address from nexusmutual_contracts)
     and contract_address = 0x27f23c710dd3d878fe9393d93465fed1302f2ebd --NXMTY
 ),
@@ -175,30 +175,60 @@ transfer_totals as (
   group by 1
 ),
 
-prices as (
+daily_avg_eth_prices as (
   select
     date_trunc('day', minute) as block_date,
-    symbol,
     avg(price) as price_usd
   from prices.usd
-  --where symbol in ('ETH', 'DAI', 'rETH', 'USDC')
   where symbol = 'ETH'
     and coalesce(blockchain, 'ethereum') = 'ethereum'
     and minute >= timestamp '2019-05-01'
-  group by 1,2
+  group by 1
+),
+
+daily_avg_dai_prices as (
+  select
+    date_trunc('day', minute) as block_date,
+    avg(price) as price_usd
+  from prices.usd
+  where symbol = 'DAI'
+    and coalesce(blockchain, 'ethereum') = 'ethereum'
+    and minute >= timestamp '2019-11-13'
+  group by 1
+),
+
+daily_avg_reth_prices as (
+  select
+    date_trunc('day', minute) as block_date,
+    avg(price) as price_usd
+  from prices.usd
+  where symbol = 'rETH'
+    and coalesce(blockchain, 'ethereum') = 'ethereum'
+    and minute >= timestamp '2021-09-30'
+  group by 1
+),
+
+daily_avg_usdc_prices as (
+  select
+    date_trunc('day', minute) as block_date,
+    avg(price) as price_usd
+  from prices.usd
+  where symbol = 'USDC'
+    and coalesce(blockchain, 'ethereum') = 'ethereum'
+    and minute >= timestamp '2019-05-01'
+  group by 1
 ),
 
 prices_eth_ma7 as (
   select
     block_date,
     avg(price_usd) over (order by block_date rows between 6 preceding and current row) as price_ma7_usd
-  from prices
-  where symbol = 'ETH'
+  from daily_avg_eth_prices
 ),
 
 day_sequence as (
-  select cast(d.seq_date as date) as block_date
-  from (select sequence(date '2019-01-01', current_date, interval '1' day) as days) as days_s
+  select cast(d.seq_date as timestamp) as block_date
+  from (select sequence(date '2019-05-01', current_date, interval '1' day) as days) as days_s
     cross join unnest(days) as d(seq_date)
 ),
 
@@ -206,17 +236,24 @@ all_running_totals as (
   select
     ds.block_date,
     sum(ct.eth_total) over (order by ds.block_date) as eth_running_total,
-    sum(ct.eth_total) over (order by ds.block_date) * p.price_usd as eth_usd_running_total,
-    sum(ct.eth_total) over (order by ds.block_date) * p_eth.price_ma7_usd as eth_ma_usd_running_total,
+    sum(ct.eth_total) over (order by ds.block_date) * p_eth.price_usd as eth_usd_running_total,
+    sum(ct.eth_total) over (order by ds.block_date) * p_ma_eth.price_ma7_usd as eth_ma_usd_running_total,
     sum(ct.dai_total) over (order by ds.block_date) as dai_running_total,
+    sum(ct.dai_total) over (order by ds.block_date) * p_dai.price_usd as dai_usd_running_total,
     sum(ct.reth_total) over (order by ds.block_date) as reth_running_total,
+    sum(ct.reth_total) over (order by ds.block_date) * p_reth.price_usd as reth_usd_running_total,
     sum(ct.usdc_total) over (order by ds.block_date) as usdc_running_total,
+    sum(ct.usdc_total) over (order by ds.block_date) * p_usdc.price_usd as usdc_usd_running_total,
     coalesce(rt.steth_total, lag(rt.steth_total) over (order by ds.block_date), 0) as steth_running_total,
     coalesce(nt.nxmty_total, lag(nt.nxmty_total) over (order by ds.block_date), 0) as nxmty_running_total,
-    coalesce(nt.nxmty_in_eth_total, lag(nt.nxmty_in_eth_total) over (order by ds.block_date), 0) as nxmty_in_eth_running_total
+    coalesce(nt.nxmty_in_eth_total, lag(nt.nxmty_in_eth_total) over (order by ds.block_date), 0) as nxmty_eth_running_total,
+    coalesce(nt.nxmty_in_eth_total, lag(nt.nxmty_in_eth_total) over (order by ds.block_date), 0) * p_eth.price_usd as nxmty_usd_running_total
   from day_sequence ds
-    inner join prices p on ds.block_date = p.block_date
-    inner join prices_eth_ma7 p_eth on ds.block_date = p_eth.block_date
+    inner join daily_avg_eth_prices p_eth on ds.block_date = p_eth.block_date
+    inner join prices_eth_ma7 p_ma_eth on ds.block_date = p_ma_eth.block_date
+    left join daily_avg_dai_prices p_dai on ds.block_date = p_dai.block_date
+    left join daily_avg_reth_prices p_reth on ds.block_date = p_reth.block_date
+    left join daily_avg_usdc_prices p_usdc on ds.block_date = p_usdc.block_date
     left join transfer_totals ct on ds.block_date = ct.block_date
     left join steth_running_total rt on ds.block_date = rt.block_date
     left join nxmty_running_total nt on ds.block_date = nt.block_date
@@ -228,14 +265,15 @@ select
   eth_usd_running_total,
   eth_ma_usd_running_total,
   dai_running_total,
-  --dai_usd_running_total,
+  dai_usd_running_total,
   reth_running_total,
-  --reth_usd_running_total,
+  reth_usd_running_total,
   usdc_running_total,
-  --usdc_usd_running_total,
+  usdc_usd_running_total,
   steth_running_total,
   nxmty_running_total,
-  nxmty_in_eth_running_total
+  nxmty_eth_running_total,
+  nxmty_usd_running_total
 from all_running_totals
 --where block_date >= timestamp '2021-10-04' -- 15286.709696721391
 --where block_date >= timestamp '2021-05-26'
