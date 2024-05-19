@@ -18,13 +18,15 @@ transfer_in as (
     block_time,
     block_number,
     date_trunc('day', block_time) as block_date,
+    'in' as transfer_type,
     symbol,
-    contract_address,
     amount,
+    contract_address,
     tx_hash
   from tokens_ethereum.transfers
   where block_time >= timestamp '2019-05-01'
     and "to" in (select contract_address from nexusmutual_contracts)
+    and symbol in ('ETH', 'DAI', 'stETH', 'rETH', 'USDC')
 ),
 
 transfer_out as (
@@ -32,13 +34,15 @@ transfer_out as (
     block_time,
     block_number,
     date_trunc('day', block_time) as block_date,
+    'out' as transfer_type,
     symbol,
-    contract_address,
     -1 * amount as amount,
+    contract_address,
     tx_hash
   from tokens_ethereum.transfers
   where block_time >= timestamp '2019-05-01'
     and "from" in (select contract_address from nexusmutual_contracts)
+    and symbol in ('ETH', 'DAI', 'stETH', 'rETH', 'USDC')
 ),
 
 transfer_nxmty_in as (
@@ -46,9 +50,10 @@ transfer_nxmty_in as (
     block_time,
     block_number,
     date_trunc('day', block_time) as block_date,
+    'in' as transfer_type,
     'NXMTY' as symbol,
-    contract_address,
     cast(amount_raw as double) / 1e18 as amount,
+    contract_address,
     tx_hash
   from tokens_ethereum.transfers
   where block_time >= timestamp '2022-05-27'
@@ -61,9 +66,10 @@ transfer_nxmty_out as (
     block_time,
     block_number,
     date_trunc('day', block_time) as block_date,
+    'out' as transfer_type,
     'NXMTY' as symbol,
-    contract_address,
     -1 * cast(amount_raw as double) / 1e18 as amount,
+    contract_address,
     tx_hash
   from tokens_ethereum.transfers
   where block_time >= timestamp '2022-05-27'
@@ -72,20 +78,17 @@ transfer_nxmty_out as (
 ),
 
 transfer_combined as (
-  select block_time, block_date, symbol, contract_address, amount
-  from (
-    select block_time, block_date, symbol, contract_address, amount
-    from transfer_in
-    union all
-    select block_time, block_date, symbol, contract_address, amount
-    from transfer_out
-    union all
-    select block_time, block_date, symbol, contract_address, amount
-    from transfer_nxmty_in
-    union all
-    select block_time, block_date, symbol, contract_address, amount
-    from transfer_nxmty_out
-  ) t
+  select block_time, block_number, block_date, transfer_type, symbol, amount, contract_address, tx_hash
+  from transfer_in
+  union all
+  select block_time, block_number, block_date, transfer_type, symbol, amount, contract_address, tx_hash
+  from transfer_out
+  union all
+  select block_time, block_number, block_date, transfer_type, symbol, amount, contract_address, tx_hash
+  from transfer_nxmty_in
+  union all
+  select block_time, block_number, block_date, transfer_type, symbol, amount, contract_address, tx_hash
+  from transfer_nxmty_out
 ),
 
 lido_oracle as (
@@ -171,7 +174,6 @@ transfer_totals as (
     sum(case when symbol = 'rETH' then amount end) as reth_total,
     sum(case when symbol = 'USDC' then amount end) as usdc_total
   from transfer_combined
-  where symbol in ('ETH', 'DAI', 'rETH', 'USDC')
   group by 1
 ),
 
@@ -219,11 +221,32 @@ daily_avg_usdc_prices as (
   group by 1
 ),
 
-prices_eth_ma7 as (
+daily_ma7_eth_prices as (
   select
     block_date,
     avg(price_usd) over (order by block_date rows between 6 preceding and current row) as price_ma7_usd
   from daily_avg_eth_prices
+),
+
+daily_ma7_dai_prices as (
+  select
+    block_date,
+    avg(price_usd) over (order by block_date rows between 6 preceding and current row) as price_ma7_usd
+  from daily_avg_dai_prices
+),
+
+daily_ma7_reth_prices as (
+  select
+    block_date,
+    avg(price_usd) over (order by block_date rows between 6 preceding and current row) as price_ma7_usd
+  from daily_avg_reth_prices
+),
+
+daily_ma7_usdc_prices as (
+  select
+    block_date,
+    avg(price_usd) over (order by block_date rows between 6 preceding and current row) as price_ma7_usd
+  from daily_avg_usdc_prices
 ),
 
 day_sequence as (
@@ -232,66 +255,66 @@ day_sequence as (
     cross join unnest(days) as d(seq_date)
 ),
 
-all_running_totals as (
+daily_running_totals as (
   select
     ds.block_date,
-    sum(ct.eth_total) over (order by ds.block_date) as eth_running_total,
-    sum(ct.eth_total) over (order by ds.block_date) * p_eth.price_usd as eth_usd_running_total,
-    sum(ct.eth_total) over (order by ds.block_date) * p_ma_eth.price_ma7_usd as eth_ma_usd_running_total,
-    sum(ct.dai_total) over (order by ds.block_date) as dai_running_total,
-    sum(ct.dai_total) over (order by ds.block_date) * p_dai.price_usd as dai_usd_running_total,
-    sum(ct.reth_total) over (order by ds.block_date) as reth_running_total,
-    sum(ct.reth_total) over (order by ds.block_date) * p_reth.price_usd as reth_usd_running_total,
-    sum(ct.usdc_total) over (order by ds.block_date) as usdc_running_total,
-    sum(ct.usdc_total) over (order by ds.block_date) * p_usdc.price_usd as usdc_usd_running_total,
-    coalesce(rt.steth_total, lag(rt.steth_total) over (order by ds.block_date), 0) as steth_running_total,
-    coalesce(nt.nxmty_total, lag(nt.nxmty_total) over (order by ds.block_date), 0) as nxmty_running_total,
-    coalesce(nt.nxmty_in_eth_total, lag(nt.nxmty_in_eth_total) over (order by ds.block_date), 0) as nxmty_eth_running_total,
-    coalesce(nt.nxmty_in_eth_total, lag(nt.nxmty_in_eth_total) over (order by ds.block_date), 0) * p_eth.price_usd as nxmty_usd_running_total
+    sum(tt.eth_total) over (order by ds.block_date) as eth_total,
+    sum(tt.eth_total) over (order by ds.block_date) * p_avg_eth.price_usd as avg_eth_usd_total,
+    sum(tt.eth_total) over (order by ds.block_date) * p_ma7_eth.price_ma7_usd as ma7_eth_usd_total,
+    sum(tt.dai_total) over (order by ds.block_date) as dai_total,
+    sum(tt.dai_total) over (order by ds.block_date) * p_avg_dai.price_usd as avg_dai_usd_total,
+    sum(tt.dai_total) over (order by ds.block_date) * p_ma7_dai.price_ma7_usd as ma7_dai_usd_total,
+    sum(tt.reth_total) over (order by ds.block_date) as reth_total,
+    sum(tt.reth_total) over (order by ds.block_date) * p_avg_reth.price_usd as avg_reth_usd_total,
+    sum(tt.reth_total) over (order by ds.block_date) * p_ma7_reth.price_ma7_usd as ma7_reth_usd_total,
+    sum(tt.usdc_total) over (order by ds.block_date) as usdc_total,
+    sum(tt.usdc_total) over (order by ds.block_date) * p_avg_usdc.price_usd as avg_usdc_usd_total,
+    sum(tt.usdc_total) over (order by ds.block_date) * p_ma7_usdc.price_ma7_usd as ma7_usdc_usd_total,
+    coalesce(steth_rt.steth_total, lag(steth_rt.steth_total) over (order by ds.block_date), 0) as steth_total,
+    coalesce(steth_rt.steth_total, lag(steth_rt.steth_total) over (order by ds.block_date), 0) * p_avg_eth.price_usd as avg_steth_usd_total,
+    coalesce(steth_rt.steth_total, lag(steth_rt.steth_total) over (order by ds.block_date), 0) * p_ma7_eth.price_ma7_usd as ma7_steth_usd_total,
+    coalesce(nxmty_rt.nxmty_total, lag(nxmty_rt.nxmty_total) over (order by ds.block_date), 0) as nxmty_total,
+    coalesce(nxmty_rt.nxmty_in_eth_total, lag(nxmty_rt.nxmty_in_eth_total) over (order by ds.block_date), 0) as nxmty_eth_total,
+    coalesce(nxmty_rt.nxmty_in_eth_total, lag(nxmty_rt.nxmty_in_eth_total) over (order by ds.block_date), 0) * p_avg_eth.price_usd as avg_nxmty_usd_total,
+    coalesce(nxmty_rt.nxmty_in_eth_total, lag(nxmty_rt.nxmty_in_eth_total) over (order by ds.block_date), 0) * p_ma7_eth.price_ma7_usd as ma7_nxmty_usd_total
   from day_sequence ds
-    inner join daily_avg_eth_prices p_eth on ds.block_date = p_eth.block_date
-    inner join prices_eth_ma7 p_ma_eth on ds.block_date = p_ma_eth.block_date
-    left join daily_avg_dai_prices p_dai on ds.block_date = p_dai.block_date
-    left join daily_avg_reth_prices p_reth on ds.block_date = p_reth.block_date
-    left join daily_avg_usdc_prices p_usdc on ds.block_date = p_usdc.block_date
-    left join transfer_totals ct on ds.block_date = ct.block_date
-    left join steth_running_total rt on ds.block_date = rt.block_date
-    left join nxmty_running_total nt on ds.block_date = nt.block_date
+    inner join daily_avg_eth_prices p_avg_eth on ds.block_date = p_avg_eth.block_date
+    inner join daily_ma7_eth_prices p_ma7_eth on ds.block_date = p_ma7_eth.block_date
+    left join daily_avg_dai_prices p_avg_dai on ds.block_date = p_avg_dai.block_date
+    left join daily_ma7_dai_prices p_ma7_dai on ds.block_date = p_ma7_dai.block_date
+    left join daily_avg_reth_prices p_avg_reth on ds.block_date = p_avg_reth.block_date
+    left join daily_ma7_reth_prices p_ma7_reth on ds.block_date = p_ma7_reth.block_date
+    left join daily_avg_usdc_prices p_avg_usdc on ds.block_date = p_avg_usdc.block_date
+    left join daily_ma7_usdc_prices p_ma7_usdc on ds.block_date = p_ma7_usdc.block_date
+    left join transfer_totals tt on ds.block_date = tt.block_date
+    left join steth_running_total steth_rt on ds.block_date = steth_rt.block_date
+    left join nxmty_running_total nxmty_rt on ds.block_date = nxmty_rt.block_date
 )
 
 select
   block_date,
-  eth_running_total,
-  eth_usd_running_total,
-  eth_ma_usd_running_total,
-  dai_running_total,
-  dai_usd_running_total,
-  reth_running_total,
-  reth_usd_running_total,
-  usdc_running_total,
-  usdc_usd_running_total,
-  steth_running_total,
-  nxmty_running_total,
-  nxmty_eth_running_total,
-  nxmty_usd_running_total
-from all_running_totals
+  eth_total,
+  avg_eth_usd_total,
+  ma7_eth_usd_total,
+  dai_total,
+  avg_dai_usd_total,
+  ma7_dai_usd_total,
+  reth_total,
+  avg_reth_usd_total,
+  ma7_reth_usd_total,
+  usdc_total,
+  avg_usdc_usd_total,
+  ma7_usdc_usd_total,
+  steth_total,
+  avg_steth_usd_total,
+  ma7_steth_usd_total,
+  nxmty_total,
+  nxmty_eth_total,
+  avg_nxmty_usd_total,
+  ma7_nxmty_usd_total
+  --eth_total + 
+from daily_running_totals
 --where block_date >= timestamp '2021-10-04' -- 15286.709696721391
 --where block_date >= timestamp '2021-05-26'
 --where block_date >= timestamp '2022-08-15'
 order by 1 desc
-limit 10
-
-
-/*
-select
-  symbol,
-  contract_address,
-  sum(amount) as amount,
-  sum(amount_usd) as amount_usd
-from transfer_combined
---where symbol <> 'SAI'
-group by 1,2
-having abs(sum(amount)) >= 0.0001
-  and abs(sum(amount_usd)) > 0.99
-order by 1
-*/
