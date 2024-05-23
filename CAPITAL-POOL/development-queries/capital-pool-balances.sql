@@ -10,7 +10,8 @@ nexusmutual_contracts (contract_address) as (
   (0xfd61352232157815cf7b71045557192bf0ce1884), --Pool1, deployed: May-23-2019
   (0x7cbe5682be6b648cc1100c76d4f6c96997f753d6), --Pool2, deployed: May-23-2019
   (0xcafea8321b5109d22c53ac019d7a449c947701fb), --MCR, deployed: May-25-2021
-  (0xcafea92739e411a4D95bbc2275CA61dE6993C9a7)  --MCR, deployed: Nov-21-2023
+  (0xcafea92739e411a4D95bbc2275CA61dE6993C9a7), --MCR, deployed: Nov-21-2023
+  (0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e)  --Advisory Board multisig
 ),
 
 transfer_in as (
@@ -22,11 +23,12 @@ transfer_in as (
     symbol,
     amount,
     contract_address,
+    unique_key,
     tx_hash
   from tokens_ethereum.transfers
   where block_time >= timestamp '2019-05-01'
     and "to" in (select contract_address from nexusmutual_contracts)
-    and symbol in ('ETH', 'DAI', 'stETH', 'rETH', 'USDC')
+    and symbol in ('ETH', 'DAI', 'stETH', 'rETH', 'USDC', 'aEthWETH')
 ),
 
 transfer_out as (
@@ -38,11 +40,12 @@ transfer_out as (
     symbol,
     -1 * amount as amount,
     contract_address,
+    unique_key,
     tx_hash
   from tokens_ethereum.transfers
   where block_time >= timestamp '2019-05-01'
     and "from" in (select contract_address from nexusmutual_contracts)
-    and symbol in ('ETH', 'DAI', 'stETH', 'rETH', 'USDC')
+    and symbol in ('ETH', 'DAI', 'stETH', 'rETH', 'USDC', 'aEthWETH')
 ),
 
 transfer_nxmty_in as (
@@ -54,6 +57,7 @@ transfer_nxmty_in as (
     'NXMTY' as symbol,
     cast(amount_raw as double) / 1e18 as amount,
     contract_address,
+    unique_key,
     tx_hash
   from tokens_ethereum.transfers
   where block_time >= timestamp '2022-05-27'
@@ -70,6 +74,7 @@ transfer_nxmty_out as (
     'NXMTY' as symbol,
     -1 * cast(amount_raw as double) / 1e18 as amount,
     contract_address,
+    unique_key,
     tx_hash
   from tokens_ethereum.transfers
   where block_time >= timestamp '2022-05-27'
@@ -78,16 +83,16 @@ transfer_nxmty_out as (
 ),
 
 transfer_combined as (
-  select block_time, block_number, block_date, transfer_type, symbol, amount, contract_address, tx_hash
+  select block_time, block_number, block_date, transfer_type, symbol, amount, contract_address, unique_key, tx_hash
   from transfer_in
   union all
-  select block_time, block_number, block_date, transfer_type, symbol, amount, contract_address, tx_hash
+  select block_time, block_number, block_date, transfer_type, symbol, amount, contract_address, unique_key, tx_hash
   from transfer_out
   union all
-  select block_time, block_number, block_date, transfer_type, symbol, amount, contract_address, tx_hash
+  select block_time, block_number, block_date, transfer_type, symbol, amount, contract_address, unique_key, tx_hash
   from transfer_nxmty_in
   union all
-  select block_time, block_number, block_date, transfer_type, symbol, amount, contract_address, tx_hash
+  select block_time, block_number, block_date, transfer_type, symbol, amount, contract_address, unique_key, tx_hash
   from transfer_nxmty_out
 ),
 
@@ -321,6 +326,8 @@ select
   -- Capital Pool totals
   eth_total + nxmty_eth_total + steth_total + avg_dai_eth_total + avg_reth_eth_total + avg_usdc_eth_total as avg_capital_pool_eth_total,
   eth_total + nxmty_eth_total + steth_total + ma7_dai_eth_total + ma7_reth_eth_total + ma7_usdc_eth_total as ma7_capital_pool_eth_total,
+  avg_eth_usd_total + avg_nxmty_usd_total + avg_steth_usd_total + avg_dai_usd_total + avg_reth_usd_total + avg_usdc_usd_total as avg_capital_pool_usd_total,
+  ma7_eth_usd_total + ma7_nxmty_usd_total + ma7_steth_usd_total + ma7_dai_usd_total + ma7_reth_usd_total + ma7_usdc_usd_total as ma7_capital_pool_usd_total,
   -- ETH
   eth_total,
   avg_eth_usd_total,
