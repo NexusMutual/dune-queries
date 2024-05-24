@@ -18,7 +18,7 @@ WITH
       ) AS price_dollar
     FROM prices.usd
     WHERE symbol = 'ETH'
-      AND coalesce(blockchain, 'ethereum') = 'ethereum'
+      AND blockchain IS NULL
       AND minute > CAST('2023-11-11' AS TIMESTAMP)
   )
 SELECT

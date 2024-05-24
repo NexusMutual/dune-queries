@@ -38,9 +38,8 @@ WITH
           symbol
       ) AS price_dollar
     FROM prices.usd
-    WHERE symbol = 'ETH'
-      AND coalesce(blockchain, 'ethereum') = 'ethereum'
-      AND minute > CAST('2019-11-06 00:00:00' AS TIMESTAMP)
+    WHERE minute > CAST('2019-05-01' AS TIMESTAMP)
+      and (symbol = 'ETH' and blockchain is null)
   ),
   ethereum_price_ma7 as (
     select

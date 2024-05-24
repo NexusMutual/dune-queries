@@ -376,9 +376,9 @@ WITH
           symbol
       ) AS price_dollar
     FROM prices.usd
-    WHERE symbol IN ('DAI', 'ETH', 'rETH')
-      AND coalesce(blockchain, 'ethereum') = 'ethereum'
-      AND minute > CAST('2019-05-01' AS TIMESTAMP)
+    WHERE minute > CAST('2019-05-01' AS TIMESTAMP)
+      and ((symbol = 'ETH' and blockchain is null)
+        or (symbol in ('DAI', 'rETH') and blockchain = 'ethereum'))
   ),
   eth_day_prices AS (
     SELECT

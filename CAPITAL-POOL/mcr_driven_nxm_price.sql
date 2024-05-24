@@ -226,15 +226,10 @@ WITH
           date_trunc('day', minute),
           symbol
       ) AS price_dollar
-    FROM
-      prices.usd
-    WHERE
-      (
-        symbol = 'DAI'
-        OR symbol = 'ETH'
-        OR symbol = 'rETH'
-      )
-      AND minute > CAST('2019-05-23' AS TIMESTAMP)
+    FROM prices.usd
+    WHERE minute > CAST('2019-05-01' AS TIMESTAMP)
+      and ((symbol = 'ETH' and blockchain is null)
+        or (symbol in ('DAI', 'rETH') and blockchain = 'ethereum'))
   ),
   eth_day_prices AS (
     SELECT

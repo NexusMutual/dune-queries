@@ -10,7 +10,7 @@ WITH
       ) AS dai_price_dollar
     FROM prices.usd
     WHERE symbol = 'DAI'
-      AND coalesce(blockchain, 'ethereum') = 'ethereum'
+      AND blockchain = 'ethereum'
       AND minute > CAST('2019-05-01 00:00:00' AS TIMESTAMP)
   ),
   eth_prices AS (
@@ -24,7 +24,7 @@ WITH
       ) AS eth_price_dollar
     FROM prices.usd
     WHERE symbol = 'ETH'
-      AND coalesce(blockchain, 'ethereum') = 'ethereum'
+      AND blockchain IS NULL
       AND minute > CAST('2019-05-01 00:00:00' AS TIMESTAMP)
   ),
   covers_details_event AS (
