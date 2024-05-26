@@ -2,16 +2,17 @@ with
 
 nexusmutual_contracts (contract_address) as (
   values
-  (0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60), --Pool (active), deployed: Nov-21-2023
-  (0xcafea112Db32436c2390F5EC988f3aDB96870627), --Pool (Pool V2), deployed: Mar-08-2023
-  (0xcafea35ce5a2fc4ced4464da4349f81a122fd12b), --Pool (Pool3), deployed: May-25-2021
-  (0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8), --Pool (old), deployed: Jan-26-2021
-  (0xcafeada4d15bbc7592113d5d5af631b5dcd53dcb), --Pool2 (Pool 4), deployed: Jan-26-2021
-  (0xfd61352232157815cf7b71045557192bf0ce1884), --Pool1, deployed: May-23-2019
-  (0x7cbe5682be6b648cc1100c76d4f6c96997f753d6), --Pool2, deployed: May-23-2019
-  (0xcafea8321b5109d22c53ac019d7a449c947701fb), --MCR, deployed: May-25-2021
-  (0xcafea92739e411a4D95bbc2275CA61dE6993C9a7), --MCR, deployed: Nov-21-2023
-  (0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e)  --Advisory Board multisig
+  --(0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60), --Pool (active), deployed: Nov-21-2023
+  --(0xcafea112Db32436c2390F5EC988f3aDB96870627), --Pool (Pool V2), deployed: Mar-08-2023
+  --(0xcafea35ce5a2fc4ced4464da4349f81a122fd12b), --Pool (Pool3), deployed: May-25-2021
+  --(0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8), --Pool (old), deployed: Jan-26-2021
+  --(0xcafeada4d15bbc7592113d5d5af631b5dcd53dcb), --Pool2 (Pool 4), deployed: Jan-26-2021
+  --(0xfd61352232157815cf7b71045557192bf0ce1884), --Pool1, deployed: May-23-2019
+  --(0x7cbe5682be6b648cc1100c76d4f6c96997f753d6), --Pool2, deployed: May-23-2019
+  --(0xcafea8321b5109d22c53ac019d7a449c947701fb), --MCR, deployed: May-25-2021
+  --(0xcafea92739e411a4D95bbc2275CA61dE6993C9a7), --MCR, deployed: Nov-21-2023
+  (0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e), --Advisory Board multisig
+  (0xcafeaB8B01C74c2239eA9b2B0F6aB2dD409c6c13)  --SafeTrackerNXMIS
 ),
 
 transfer_in as (
@@ -177,7 +178,8 @@ transfer_totals as (
     sum(case when symbol = 'ETH' then amount end) as eth_total,
     sum(case when symbol = 'DAI' then amount end) as dai_total,
     sum(case when symbol = 'rETH' then amount end) as reth_total,
-    sum(case when symbol = 'USDC' then amount end) as usdc_total
+    sum(case when symbol = 'USDC' then amount end) as usdc_total,
+    sum(case when symbol = 'aEthWETH' then amount end) as aethweth_total
   from transfer_combined
   group by 1
 ),
@@ -230,34 +232,6 @@ daily_avg_usdc_prices as (
   group by 1
 ),
 
-daily_ma7_eth_prices as (
-  select
-    block_date,
-    avg(price_usd) over (order by block_date rows between 6 preceding and current row) as price_ma7_usd
-  from daily_avg_eth_prices
-),
-
-daily_ma7_dai_prices as (
-  select
-    block_date,
-    avg(price_usd) over (order by block_date rows between 6 preceding and current row) as price_ma7_usd
-  from daily_avg_dai_prices
-),
-
-daily_ma7_reth_prices as (
-  select
-    block_date,
-    avg(price_usd) over (order by block_date rows between 6 preceding and current row) as price_ma7_usd
-  from daily_avg_reth_prices
-),
-
-daily_ma7_usdc_prices as (
-  select
-    block_date,
-    avg(price_usd) over (order by block_date rows between 6 preceding and current row) as price_ma7_usd
-  from daily_avg_usdc_prices
-),
-
 day_sequence as (
   select cast(d.seq_date as timestamp) as block_date
   from (select sequence(date '2019-05-01', current_date, interval '1' day) as days) as days_s
@@ -271,6 +245,7 @@ daily_running_totals as (
     sum(tt.dai_total) over (order by ds.block_date) as dai_total,
     sum(tt.reth_total) over (order by ds.block_date) as reth_total,
     sum(tt.usdc_total) over (order by ds.block_date) as usdc_total,
+    sum(tt.aethweth_total) over (order by ds.block_date) as aethweth_total,
     coalesce(steth_rt.steth_total, lag(steth_rt.steth_total) over (order by ds.block_date), 0) as steth_total,
     coalesce(nxmty_rt.nxmty_total, lag(nxmty_rt.nxmty_total) over (order by ds.block_date), 0) as nxmty_total,
     coalesce(nxmty_rt.nxmty_in_eth_total, lag(nxmty_rt.nxmty_in_eth_total) over (order by ds.block_date), 0) as nxmty_eth_total
@@ -284,89 +259,69 @@ daily_running_totals_enriched as (
   select
     drt.block_date,
     p_avg_eth.price_usd as avg_eth_usd_price,
-    p_ma7_eth.price_ma7_usd as ma7_eth_usd_price,
     -- ETH
     drt.eth_total,
     drt.eth_total * p_avg_eth.price_usd as avg_eth_usd_total,
-    drt.eth_total * p_ma7_eth.price_ma7_usd as ma7_eth_usd_total,
     -- DAI
     drt.dai_total,
     drt.dai_total * p_avg_dai.price_usd as avg_dai_usd_total,
-    drt.dai_total * p_ma7_dai.price_ma7_usd as ma7_dai_usd_total,
     drt.dai_total * p_avg_dai.price_usd / p_avg_eth.price_usd as avg_dai_eth_total,
-    drt.dai_total * p_ma7_dai.price_ma7_usd / p_ma7_eth.price_ma7_usd as ma7_dai_eth_total,
     -- NXMTY
     drt.nxmty_total,
     drt.nxmty_eth_total,
     drt.nxmty_eth_total * p_avg_eth.price_usd as avg_nxmty_usd_total,
-    drt.nxmty_eth_total * p_ma7_eth.price_ma7_usd as ma7_nxmty_usd_total,
     -- stETH
     drt.steth_total,
     drt.steth_total * p_avg_eth.price_usd as avg_steth_usd_total,
-    drt.steth_total * p_ma7_eth.price_ma7_usd as ma7_steth_usd_total,
     -- rETH
     drt.reth_total,
     drt.reth_total * p_avg_reth.price_usd as avg_reth_usd_total,
-    drt.reth_total * p_ma7_reth.price_ma7_usd as ma7_reth_usd_total,
     drt.reth_total * p_avg_reth.price_usd / p_avg_eth.price_usd as avg_reth_eth_total,
-    drt.reth_total * p_ma7_reth.price_ma7_usd / p_ma7_eth.price_ma7_usd as ma7_reth_eth_total,
     -- USDC
     drt.usdc_total,
     drt.usdc_total * p_avg_usdc.price_usd as avg_usdc_usd_total,
-    drt.usdc_total * p_ma7_usdc.price_ma7_usd as ma7_usdc_usd_total,
     drt.usdc_total * p_avg_usdc.price_usd / p_avg_eth.price_usd as avg_usdc_eth_total,
-    drt.usdc_total * p_ma7_usdc.price_ma7_usd / p_ma7_eth.price_ma7_usd as ma7_usdc_eth_total
+    -- aEthWETH
+    drt.aethweth_total,
+    drt.eth_total * p_avg_eth.price_usd as avg_aethweth_usd_total
   from daily_running_totals drt
     inner join daily_avg_eth_prices p_avg_eth on drt.block_date = p_avg_eth.block_date
-    inner join daily_ma7_eth_prices p_ma7_eth on drt.block_date = p_ma7_eth.block_date
     left join daily_avg_dai_prices p_avg_dai on drt.block_date = p_avg_dai.block_date
-    left join daily_ma7_dai_prices p_ma7_dai on drt.block_date = p_ma7_dai.block_date
     left join daily_avg_reth_prices p_avg_reth on drt.block_date = p_avg_reth.block_date
-    left join daily_ma7_reth_prices p_ma7_reth on drt.block_date = p_ma7_reth.block_date
     left join daily_avg_usdc_prices p_avg_usdc on drt.block_date = p_avg_usdc.block_date
-    left join daily_ma7_usdc_prices p_ma7_usdc on drt.block_date = p_ma7_usdc.block_date
 )
 
 select
   block_date,
   avg_eth_usd_price,
-  ma7_eth_usd_price,
   -- Capital Pool totals
   eth_total + nxmty_eth_total + steth_total + avg_dai_eth_total + avg_reth_eth_total + avg_usdc_eth_total as avg_capital_pool_eth_total,
-  eth_total + nxmty_eth_total + steth_total + ma7_dai_eth_total + ma7_reth_eth_total + ma7_usdc_eth_total as ma7_capital_pool_eth_total,
   avg_eth_usd_total + avg_nxmty_usd_total + avg_steth_usd_total + avg_dai_usd_total + avg_reth_usd_total + avg_usdc_usd_total as avg_capital_pool_usd_total,
-  ma7_eth_usd_total + ma7_nxmty_usd_total + ma7_steth_usd_total + ma7_dai_usd_total + ma7_reth_usd_total + ma7_usdc_usd_total as ma7_capital_pool_usd_total,
   -- ETH
   eth_total,
   avg_eth_usd_total,
-  ma7_eth_usd_total,
   -- DAI
   dai_total,
   avg_dai_usd_total,
-  ma7_dai_usd_total,
   avg_dai_eth_total,
-  ma7_dai_eth_total,
   -- NXMTY
   nxmty_total,
   nxmty_eth_total,
   avg_nxmty_usd_total,
-  ma7_nxmty_usd_total,
   -- stETH
   steth_total,
   avg_steth_usd_total,
-  ma7_steth_usd_total,
   -- rETH
   reth_total,
   avg_reth_usd_total,
-  ma7_reth_usd_total,
   avg_reth_eth_total,
-  ma7_reth_eth_total,
   -- USDC
   usdc_total,
   avg_usdc_usd_total,
-  ma7_usdc_usd_total,
   avg_usdc_eth_total,
-  ma7_usdc_eth_total
+  -- aEthWETH
+  aethweth_total,
+  avg_aethweth_usd_total
 from daily_running_totals_enriched
 --where block_date >= timestamp '2021-10-04' -- 15286.709696721391
 --where block_date >= timestamp '2021-05-26'
