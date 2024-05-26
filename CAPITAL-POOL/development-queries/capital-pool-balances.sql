@@ -184,6 +184,25 @@ transfer_totals as (
   group by 1
 ),
 
+cover_re_usdc_investment as (
+  select
+    block_time,
+    block_date,
+    coalesce(lead(block_date) over (order by block_date), date_add('day', 1, current_date)) as next_block_date,
+    amount,
+    tx_hash
+  from (
+    select
+      evt_block_time as block_time,
+      date_trunc('day', evt_block_time) as block_date,
+      investedUSDC / 1e6 as amount,
+      evt_tx_hash as tx_hash,
+      row_number() over (partition by date_trunc('day', evt_block_time) order by evt_block_time desc) as rn
+    from nexusmutual_ethereum.SafeTrackerNXMIS_evt_CoverReInvestmentUSDCUpdated
+  ) t
+  where t.rn = 1
+),
+
 daily_avg_eth_prices as (
   select
     date_trunc('day', minute) as block_date,
@@ -245,6 +264,7 @@ daily_running_totals as (
     sum(tt.dai_total) over (order by ds.block_date) as dai_total,
     sum(tt.reth_total) over (order by ds.block_date) as reth_total,
     sum(tt.usdc_total) over (order by ds.block_date) as usdc_total,
+    cre.amount as cover_re_usdc_total,
     sum(tt.aethweth_total) over (order by ds.block_date) as aethweth_total,
     coalesce(steth_rt.steth_total, lag(steth_rt.steth_total) over (order by ds.block_date), 0) as steth_total,
     coalesce(nxmty_rt.nxmty_total, lag(nxmty_rt.nxmty_total) over (order by ds.block_date), 0) as nxmty_total,
@@ -253,6 +273,7 @@ daily_running_totals as (
     left join transfer_totals tt on ds.block_date = tt.block_date
     left join steth_running_total steth_rt on ds.block_date = steth_rt.block_date
     left join nxmty_running_total nxmty_rt on ds.block_date = nxmty_rt.block_date
+    left join cover_re_usdc_investment cre on ds.block_date >= cre.block_date and ds.block_date < cre.next_block_date
 ),
 
 daily_running_totals_enriched as (
@@ -281,9 +302,12 @@ daily_running_totals_enriched as (
     drt.usdc_total,
     drt.usdc_total * p_avg_usdc.price_usd as avg_usdc_usd_total,
     drt.usdc_total * p_avg_usdc.price_usd / p_avg_eth.price_usd as avg_usdc_eth_total,
+    -- Cover Re USDC investment
+    drt.cover_re_usdc_total,
+    drt.cover_re_usdc_total * p_avg_usdc.price_usd as avg_cover_re_usdc_usd_total,
     -- aEthWETH
     drt.aethweth_total,
-    drt.eth_total * p_avg_eth.price_usd as avg_aethweth_usd_total
+    drt.aethweth_total * p_avg_eth.price_usd as avg_aethweth_usd_total
   from daily_running_totals drt
     inner join daily_avg_eth_prices p_avg_eth on drt.block_date = p_avg_eth.block_date
     left join daily_avg_dai_prices p_avg_dai on drt.block_date = p_avg_dai.block_date
@@ -319,6 +343,9 @@ select
   usdc_total,
   avg_usdc_usd_total,
   avg_usdc_eth_total,
+  -- Cover Re USDC investment
+  cover_re_usdc_total,
+  avg_cover_re_usdc_usd_total,
   -- aEthWETH
   aethweth_total,
   avg_aethweth_usd_total
@@ -326,4 +353,5 @@ from daily_running_totals_enriched
 --where block_date >= timestamp '2021-10-04' -- 15286.709696721391
 --where block_date >= timestamp '2021-05-26'
 --where block_date >= timestamp '2022-08-15'
+where block_date >= timestamp '2024-05-20'
 order by 1 desc
