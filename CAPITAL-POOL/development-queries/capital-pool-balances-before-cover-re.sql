@@ -329,7 +329,7 @@ daily_running_totals_enriched as (
 select
   block_date,
   avg_eth_usd_price,
-  ma7_eth_usd_price,
+  --ma7_eth_usd_price,
   -- Capital Pool totals
   eth_total + nxmty_eth_total + steth_total + avg_dai_eth_total + avg_reth_eth_total + avg_usdc_eth_total as avg_capital_pool_eth_total,
   --eth_total + nxmty_eth_total + steth_total + ma7_dai_eth_total + ma7_reth_eth_total + ma7_usdc_eth_total as ma7_capital_pool_eth_total,

@@ -2,15 +2,15 @@ with
 
 nexusmutual_contracts (contract_address) as (
   values
-  --(0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60), --Pool (active), deployed: Nov-21-2023
-  --(0xcafea112Db32436c2390F5EC988f3aDB96870627), --Pool (Pool V2), deployed: Mar-08-2023
-  --(0xcafea35ce5a2fc4ced4464da4349f81a122fd12b), --Pool (Pool3), deployed: May-25-2021
-  --(0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8), --Pool (old), deployed: Jan-26-2021
-  --(0xcafeada4d15bbc7592113d5d5af631b5dcd53dcb), --Pool2 (Pool 4), deployed: Jan-26-2021
-  --(0xfd61352232157815cf7b71045557192bf0ce1884), --Pool1, deployed: May-23-2019
-  --(0x7cbe5682be6b648cc1100c76d4f6c96997f753d6), --Pool2, deployed: May-23-2019
-  --(0xcafea8321b5109d22c53ac019d7a449c947701fb), --MCR, deployed: May-25-2021
-  --(0xcafea92739e411a4D95bbc2275CA61dE6993C9a7), --MCR, deployed: Nov-21-2023
+  (0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60), --Pool (active), deployed: Nov-21-2023
+  (0xcafea112Db32436c2390F5EC988f3aDB96870627), --Pool (Pool V2), deployed: Mar-08-2023
+  (0xcafea35ce5a2fc4ced4464da4349f81a122fd12b), --Pool (Pool3), deployed: May-25-2021
+  (0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8), --Pool (old), deployed: Jan-26-2021
+  (0xcafeada4d15bbc7592113d5d5af631b5dcd53dcb), --Pool2 (Pool 4), deployed: Jan-26-2021
+  (0xfd61352232157815cf7b71045557192bf0ce1884), --Pool1, deployed: May-23-2019
+  (0x7cbe5682be6b648cc1100c76d4f6c96997f753d6), --Pool2, deployed: May-23-2019
+  (0xcafea8321b5109d22c53ac019d7a449c947701fb), --MCR, deployed: May-25-2021
+  (0xcafea92739e411a4D95bbc2275CA61dE6993C9a7), --MCR, deployed: Nov-21-2023
   (0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e)  --Advisory Board multisig
 ),
 
@@ -28,7 +28,7 @@ transfer_in as (
   from tokens_ethereum.transfers
   where block_time >= timestamp '2019-05-01'
     and "to" in (select contract_address from nexusmutual_contracts)
-    and symbol in ('ETH', 'DAI', 'stETH', 'rETH', 'USDC', 'aEthWETH')
+    and symbol in ('ETH', 'DAI', 'stETH', 'rETH', 'USDC')
 ),
 
 transfer_out as (
@@ -45,7 +45,7 @@ transfer_out as (
   from tokens_ethereum.transfers
   where block_time >= timestamp '2019-05-01'
     and "from" in (select contract_address from nexusmutual_contracts)
-    and symbol in ('ETH', 'DAI', 'stETH', 'rETH', 'USDC', 'aEthWETH')
+    and symbol in ('ETH', 'DAI', 'stETH', 'rETH', 'USDC')
 ),
 
 transfer_nxmty_in as (
@@ -177,8 +177,7 @@ transfer_totals as (
     sum(case when symbol = 'ETH' then amount end) as eth_total,
     sum(case when symbol = 'DAI' then amount end) as dai_total,
     sum(case when symbol = 'rETH' then amount end) as reth_total,
-    sum(case when symbol = 'USDC' then amount end) as usdc_total,
-    sum(case when symbol = 'aEthWETH' then amount end) as aethweth_total
+    sum(case when symbol = 'USDC' then amount end) as usdc_total
   from transfer_combined
   group by 1
 ),
@@ -200,6 +199,217 @@ cover_re_usdc_investment as (
     from nexusmutual_ethereum.SafeTrackerNXMIS_evt_CoverReInvestmentUSDCUpdated
   ) t
   where t.rn = 1
+),
+
+aave_current_market as (
+  select block_time, block_date, symbol, reserve, liquidity_index, variable_borrow_index
+  from (
+    select
+      r.evt_block_time as block_time,
+      date_trunc('day', r.evt_block_time) as block_date,
+      t.symbol,
+      r.reserve,
+      r.liquidityIndex as liquidity_index,
+      r.variableBorrowIndex as variable_borrow_index,
+      row_number() over (partition by date_trunc('day', r.evt_block_time), r.reserve order by r.evt_block_number desc, r.evt_index desc) as rn
+    from aave_v3_ethereum.Pool_evt_ReserveDataUpdated r
+      inner join tokens.erc20 as t on r.reserve = t.contract_address and t.blockchain = 'ethereum'
+    where r.evt_block_time >= timestamp '2024-05-23'
+      and t.symbol in ('WETH', 'USDC')
+  ) t
+  where rn = 1
+),
+
+aave_supplied as (
+  select
+    block_date,
+    symbol,
+    sum(atoken_amount) as atoken_amount
+  from (
+    select
+      date_trunc('day', s.evt_block_time) as block_date,
+      t.symbol,
+      s.amount / power(10, t.decimals) / u.liquidityIndex * power(10, 27) as atoken_amount
+    from aave_v3_ethereum.Pool_evt_Supply s
+      inner join tokens.erc20 t on t.contract_address = s.reserve and t.blockchain = 'ethereum'
+      inner join aave_v3_ethereum.Pool_evt_ReserveDataUpdated u
+         on u.evt_block_number = s.evt_block_number
+        and u.evt_index < s.evt_index
+        and u.evt_tx_hash = s.evt_tx_hash
+        and u.reserve = s.reserve
+    where s.evt_block_time >= timestamp '2024-05-23'
+      and s.onBehalfOf = 0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e
+  ) t
+  group by 1, 2
+),
+
+aave_supply_withdrawn as (
+  select
+    block_date,
+    symbol,
+    sum(atoken_amount) as atoken_amount
+  from (
+    select
+      date_trunc('day', w.evt_block_time) as block_date,
+      t.symbol,
+      w.amount / power(10, t.decimals) / u.liquidityIndex * power(10, 27) as atoken_amount
+    from aave_v3_ethereum.Pool_evt_Withdraw w
+      inner join tokens.erc20 t on t.contract_address = w.reserve and t.blockchain = 'ethereum'
+      inner join aave_v3_ethereum.Pool_evt_ReserveDataUpdated u
+         on u.evt_block_number = w.evt_block_number
+        and u.evt_index < w.evt_index
+        and u.evt_tx_hash = w.evt_tx_hash
+        and u.reserve = w.reserve
+    where w.evt_block_time >= timestamp '2024-05-23'
+      and w.user = 0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e
+  ) t
+  group by 1, 2
+),
+
+aave_supply_repaid as (
+  select
+    block_date,
+    symbol,
+    sum(atoken_amount) as atoken_amount
+  from (
+    select
+      date_trunc('day', r.evt_block_time) as block_date,
+      t.symbol,
+      r.amount / power(10, t.decimals) / u.liquidityIndex * power(10, 27) as atoken_amount
+    from aave_v3_ethereum.Pool_evt_Repay r
+      inner join tokens.erc20 t on t.contract_address = r.reserve and t.blockchain = 'ethereum'
+      inner join aave_v3_ethereum.Pool_evt_ReserveDataUpdated u
+         on u.evt_block_number = r.evt_block_number
+        and u.evt_index < r.evt_index
+        and u.evt_tx_hash = r.evt_tx_hash
+        and u.reserve = r.reserve
+    where r.evt_block_time >= timestamp '2024-05-23'
+      and r.user = 0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e
+      and r.useATokens
+  ) t
+  group by 1, 2
+),
+
+aave_supply_liquidated as (
+  select
+    block_date,
+    symbol,
+    sum(atoken_amount) as atoken_amount
+  from (
+    select
+      date_trunc('day', l.evt_block_time) as block_date,
+      t.symbol,
+      cast(l.liquidatedCollateralAmount as double) / power(10, t.decimals) / u.liquidityIndex * power(10, 27) as atoken_amount
+    from aave_v3_ethereum.Pool_evt_LiquidationCall l
+      inner join tokens.erc20 t on t.contract_address = l.collateralasset and t.blockchain = 'ethereum'
+      inner join aave_v3_ethereum.Pool_evt_ReserveDataUpdated u
+         on u.evt_block_number = l.evt_block_number
+        and u.evt_index < l.evt_index
+        and u.evt_tx_hash = l.evt_tx_hash
+        and u.reserve = l.collateralAsset
+    where l.evt_block_time >= timestamp '2024-05-23'
+      and l.user = 0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e
+  ) t
+  group by 1, 2
+),
+
+aave_scaled_supplies as (
+  select
+    cm.block_date,
+    cm.symbol,
+    sum(
+      s.atoken_amount - coalesce(sw.atoken_amount, 0) - coalesce(sr.atoken_amount, 0) - coalesce(sl.atoken_amount, 0)
+    ) over (order by cm.block_date) * cm.liquidity_index / power(10, 27) as supplied_amount
+  from aave_current_market cm
+    left join aave_supplied s on cm.block_date = s.block_date and cm.symbol = s.symbol
+    left join aave_supply_withdrawn sw on cm.block_date = sw.block_date and cm.symbol = sw.symbol
+    left join aave_supply_repaid sr on cm.block_date = sr.block_date and cm.symbol = sr.symbol
+    left join aave_supply_liquidated sl on cm.block_date = sl.block_date and cm.symbol = sl.symbol
+  where cm.symbol = 'WETH'
+),
+
+aave_borrowed as (
+  select
+    block_date,
+    symbol,
+    sum(atoken_amount) as atoken_amount
+  from (
+    select
+      date_trunc('day', b.evt_block_time) as block_date,
+      t.symbol,
+      b.amount / power(10, t.decimals) / u.variableBorrowIndex * power(10, 27) as atoken_amount
+    from aave_v3_ethereum.Pool_evt_Borrow b
+      inner join tokens.erc20 t on b.reserve = t.contract_address and t.blockchain = 'ethereum'
+      inner join aave_v3_ethereum.Pool_evt_ReserveDataUpdated u
+         on u.evt_block_number = b.evt_block_number
+        and u.evt_index < b.evt_index
+        and u.evt_tx_hash = b.evt_tx_hash
+        and u.reserve = b.reserve
+    where b.evt_block_time >= timestamp '2024-05-23'
+      and b.onBehalfOf = 0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e
+  ) t
+  group by 1, 2
+),
+
+aave_borrow_repaid as (
+  select
+    block_date,
+    symbol,
+    sum(atoken_amount) as atoken_amount
+  from (
+    select
+      date_trunc('day', r.evt_block_time) as block_date,
+      t.symbol,
+      r.amount / power(10, t.decimals) / u.variableBorrowIndex * power(10, 27) as atoken_amount
+    from aave_v3_ethereum.Pool_evt_Repay r
+      inner join tokens.erc20 t on t.contract_address = r.reserve and t.blockchain = 'ethereum'
+      inner join aave_v3_ethereum.Pool_evt_ReserveDataUpdated u
+         on u.evt_block_number = r.evt_block_number
+        and u.evt_index < r.evt_index
+        and u.evt_tx_hash = r.evt_tx_hash
+        and u.reserve = r.reserve
+    where r.evt_block_time >= timestamp '2024-05-23'
+      and r.user = 0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e
+      and r.useATokens
+  ) t
+  group by 1, 2
+),
+
+aave_borrow_liquidated as (
+  select
+    block_date,
+    symbol,
+    sum(atoken_amount) as atoken_amount
+  from (
+    select
+      date_trunc('day', l.evt_block_time) as block_date,
+      t.symbol,
+      cast(l.debtToCover as double) / power(10, t.decimals) / u.variableBorrowIndex * power(10, 27) as atoken_amount
+    from aave_v3_ethereum.Pool_evt_LiquidationCall l
+      inner join tokens.erc20 t on t.contract_address = l.collateralasset and t.blockchain = 'ethereum'
+      inner join aave_v3_ethereum.Pool_evt_ReserveDataUpdated u
+         on u.evt_block_number = l.evt_block_number
+        and u.evt_index < l.evt_index
+        and u.evt_tx_hash = l.evt_tx_hash
+        and u.reserve = l.collateralAsset
+    where l.evt_block_time >= timestamp '2024-05-23'
+      and l.user = 0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e
+  ) t
+  group by 1, 2
+),
+
+aave_scaled_borrows as (
+  select
+    cm.block_date,
+    cm.symbol,
+    sum(
+      b.atoken_amount - coalesce(br.atoken_amount, 0) - coalesce(bl.atoken_amount, 0)
+    ) over (order by cm.block_date) * cm.variable_borrow_index / power(10, 27) as borrowed_amount
+  from aave_current_market cm
+    left join aave_borrowed b on cm.block_date = b.block_date and cm.symbol = b.symbol
+    left join aave_borrow_repaid br on cm.block_date = br.block_date and cm.symbol = br.symbol
+    left join aave_borrow_liquidated bl on cm.block_date = bl.block_date and cm.symbol = bl.symbol
+  where cm.symbol = 'USDC'
 ),
 
 daily_avg_eth_prices as (
@@ -263,15 +473,18 @@ daily_running_totals as (
     sum(tt.dai_total) over (order by ds.block_date) as dai_total,
     sum(tt.reth_total) over (order by ds.block_date) as reth_total,
     sum(tt.usdc_total) over (order by ds.block_date) as usdc_total,
-    cre.amount as cover_re_usdc_total,
-    sum(tt.aethweth_total) over (order by ds.block_date) as aethweth_total,
     coalesce(steth_rt.steth_total, lag(steth_rt.steth_total) over (order by ds.block_date), 0) as steth_total,
     coalesce(nxmty_rt.nxmty_total, lag(nxmty_rt.nxmty_total) over (order by ds.block_date), 0) as nxmty_total,
-    coalesce(nxmty_rt.nxmty_in_eth_total, lag(nxmty_rt.nxmty_in_eth_total) over (order by ds.block_date), 0) as nxmty_eth_total
+    coalesce(nxmty_rt.nxmty_in_eth_total, lag(nxmty_rt.nxmty_in_eth_total) over (order by ds.block_date), 0) as nxmty_eth_total,
+    cre.amount as cover_re_usdc_total,
+    aave_s.supplied_amount as aave_collateral_weth_total,
+    -1 * aave_b.borrowed_amount as aave_debt_usdc_total
   from day_sequence ds
     left join transfer_totals tt on ds.block_date = tt.block_date
     left join steth_running_total steth_rt on ds.block_date = steth_rt.block_date
     left join nxmty_running_total nxmty_rt on ds.block_date = nxmty_rt.block_date
+    left join aave_scaled_supplies aave_s on ds.block_date = aave_s.block_date
+    left join aave_scaled_borrows aave_b on ds.block_date = aave_b.block_date
     left join cover_re_usdc_investment cre on ds.block_date >= cre.block_date and ds.block_date < cre.next_block_date
 ),
 
@@ -304,9 +517,12 @@ daily_running_totals_enriched as (
     -- Cover Re USDC investment
     drt.cover_re_usdc_total,
     drt.cover_re_usdc_total * p_avg_usdc.price_usd as avg_cover_re_usdc_usd_total,
-    -- aEthWETH
-    drt.aethweth_total,
-    drt.aethweth_total * p_avg_eth.price_usd as avg_aethweth_usd_total
+    -- AAVE positions
+    drt.aave_collateral_weth_total,
+    drt.aave_collateral_weth_total * p_avg_eth.price_usd as avg_aave_collateral_weth_usd_total,
+    drt.aave_debt_usdc_total,
+    drt.aave_debt_usdc_total * p_avg_usdc.price_usd as avg_aave_debt_usdc_usd_total,
+    drt.aave_debt_usdc_total * p_avg_usdc.price_usd / p_avg_eth.price_usd as avg_aave_debt_usdc_eth_total
   from daily_running_totals drt
     inner join daily_avg_eth_prices p_avg_eth on drt.block_date = p_avg_eth.block_date
     left join daily_avg_dai_prices p_avg_dai on drt.block_date = p_avg_dai.block_date
@@ -318,8 +534,10 @@ select
   block_date,
   avg_eth_usd_price,
   -- Capital Pool totals
-  eth_total + nxmty_eth_total + steth_total + avg_dai_eth_total + avg_reth_eth_total + avg_usdc_eth_total as avg_capital_pool_eth_total,
-  avg_eth_usd_total + avg_nxmty_usd_total + avg_steth_usd_total + avg_dai_usd_total + avg_reth_usd_total + avg_usdc_usd_total as avg_capital_pool_usd_total,
+  eth_total + nxmty_eth_total + steth_total + avg_dai_eth_total + avg_reth_eth_total + avg_usdc_eth_total
+    + aave_collateral_weth_total + avg_aave_debt_usdc_eth_total as avg_capital_pool_eth_total,
+  avg_eth_usd_total + avg_nxmty_usd_total + avg_steth_usd_total + avg_dai_usd_total + avg_reth_usd_total
+    + avg_usdc_usd_total + avg_cover_re_usdc_usd_total + avg_aave_debt_usdc_usd_total as avg_capital_pool_usd_total,
   -- ETH
   eth_total,
   avg_eth_usd_total,
@@ -345,12 +563,15 @@ select
   -- Cover Re USDC investment
   cover_re_usdc_total,
   avg_cover_re_usdc_usd_total,
-  -- aEthWETH
-  aethweth_total,
-  avg_aethweth_usd_total
+  -- AAVE positions
+  aave_collateral_weth_total,
+  avg_aave_collateral_weth_usd_total,
+  aave_debt_usdc_total,
+  avg_aave_debt_usdc_usd_total,
+  avg_aave_debt_usdc_eth_total
 from daily_running_totals_enriched
 --where block_date >= timestamp '2021-10-04' -- 15286.709696721391
 --where block_date >= timestamp '2021-05-26'
 --where block_date >= timestamp '2022-08-15'
-where block_date >= timestamp '2024-05-20'
+--where block_date >= timestamp '2024-05-20'
 order by 1 desc

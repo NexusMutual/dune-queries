@@ -1,6 +1,6 @@
 with
 
-current_market as (
+aave_current_market as (
   select block_time, block_date, symbol, reserve, liquidity_index, variable_borrow_index
   from (
     select
@@ -19,7 +19,7 @@ current_market as (
   where rn = 1
 ),
 
-supplied as (
+aave_supplied as (
   select
     block_date,
     symbol,
@@ -42,7 +42,7 @@ supplied as (
   group by 1, 2
 ),
 
-supply_withdrawn as (
+aave_supply_withdrawn as (
   select
     block_date,
     symbol,
@@ -65,7 +65,7 @@ supply_withdrawn as (
   group by 1, 2
 ),
 
-supply_repaid as (
+aave_supply_repaid as (
   select
     block_date,
     symbol,
@@ -89,7 +89,7 @@ supply_repaid as (
   group by 1, 2
 ),
 
-supply_liquidated as (
+aave_supply_liquidated as (
   select
     block_date,
     symbol,
@@ -112,22 +112,22 @@ supply_liquidated as (
   group by 1, 2
 ),
 
-scaled_supplies as (
+aave_scaled_supplies as (
   select
     cm.block_date,
     cm.symbol,
     sum(
       s.atoken_amount - coalesce(sw.atoken_amount, 0) - coalesce(sr.atoken_amount, 0) - coalesce(sl.atoken_amount, 0)
     ) over (order by cm.block_date) * cm.liquidity_index / power(10, 27) as supplied_amount
-  from current_market cm
-    left join supplied s on cm.block_date = s.block_date and cm.symbol = s.symbol
-    left join supply_withdrawn sw on cm.block_date = sw.block_date and cm.symbol = sw.symbol
-    left join supply_repaid sr on cm.block_date = sr.block_date and cm.symbol = sr.symbol
-    left join supply_liquidated sl on cm.block_date = sl.block_date and cm.symbol = sl.symbol
+  from aave_current_market cm
+    left join aave_supplied s on cm.block_date = s.block_date and cm.symbol = s.symbol
+    left join aave_supply_withdrawn sw on cm.block_date = sw.block_date and cm.symbol = sw.symbol
+    left join aave_supply_repaid sr on cm.block_date = sr.block_date and cm.symbol = sr.symbol
+    left join aave_supply_liquidated sl on cm.block_date = sl.block_date and cm.symbol = sl.symbol
   where cm.symbol = 'WETH'
 ),
 
-borrowed as (
+aave_borrowed as (
   select
     block_date,
     symbol,
@@ -150,7 +150,7 @@ borrowed as (
   group by 1, 2
 ),
 
-borrow_repaid as (
+aave_borrow_repaid as (
   select
     block_date,
     symbol,
@@ -174,7 +174,7 @@ borrow_repaid as (
   group by 1, 2
 ),
 
-borrow_liquidated as (
+aave_borrow_liquidated as (
   select
     block_date,
     symbol,
@@ -197,17 +197,17 @@ borrow_liquidated as (
   group by 1, 2
 ),
 
-scaled_borrows as (
+aave_scaled_borrows as (
   select
     cm.block_date,
     cm.symbol,
     sum(
       b.atoken_amount - coalesce(br.atoken_amount, 0) - coalesce(bl.atoken_amount, 0)
     ) over (order by cm.block_date) * cm.variable_borrow_index / power(10, 27) as borrowed_amount
-  from current_market cm
-    left join borrowed b on cm.block_date = b.block_date and cm.symbol = b.symbol
-    left join borrow_repaid br on cm.block_date = br.block_date and cm.symbol = br.symbol
-    left join borrow_liquidated bl on cm.block_date = bl.block_date and cm.symbol = bl.symbol
+  from aave_current_market cm
+    left join aave_borrowed b on cm.block_date = b.block_date and cm.symbol = b.symbol
+    left join aave_borrow_repaid br on cm.block_date = br.block_date and cm.symbol = br.symbol
+    left join aave_borrow_liquidated bl on cm.block_date = bl.block_date and cm.symbol = bl.symbol
   where cm.symbol = 'USDC'
 ),
 
@@ -222,6 +222,6 @@ select
   s.supplied_amount as aave_weth_collateral,
   b.borrowed_amount as aave_usdc_debt
 from day_sequence ds
-  left join scaled_supplies s on ds.block_date = s.block_date
-  left join scaled_borrows b on ds.block_date = b.block_date
+  left join aave_scaled_supplies s on ds.block_date = s.block_date
+  left join aave_scaled_borrows b on ds.block_date = b.block_date
 order by 1
