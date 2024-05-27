@@ -332,40 +332,40 @@ select
   ma7_eth_usd_price,
   -- Capital Pool totals
   eth_total + nxmty_eth_total + steth_total + avg_dai_eth_total + avg_reth_eth_total + avg_usdc_eth_total as avg_capital_pool_eth_total,
-  eth_total + nxmty_eth_total + steth_total + ma7_dai_eth_total + ma7_reth_eth_total + ma7_usdc_eth_total as ma7_capital_pool_eth_total,
+  --eth_total + nxmty_eth_total + steth_total + ma7_dai_eth_total + ma7_reth_eth_total + ma7_usdc_eth_total as ma7_capital_pool_eth_total,
   avg_eth_usd_total + avg_nxmty_usd_total + avg_steth_usd_total + avg_dai_usd_total + avg_reth_usd_total + avg_usdc_usd_total as avg_capital_pool_usd_total,
-  ma7_eth_usd_total + ma7_nxmty_usd_total + ma7_steth_usd_total + ma7_dai_usd_total + ma7_reth_usd_total + ma7_usdc_usd_total as ma7_capital_pool_usd_total,
+  --ma7_eth_usd_total + ma7_nxmty_usd_total + ma7_steth_usd_total + ma7_dai_usd_total + ma7_reth_usd_total + ma7_usdc_usd_total as ma7_capital_pool_usd_total,
   -- ETH
   eth_total,
   avg_eth_usd_total,
-  ma7_eth_usd_total,
+  --ma7_eth_usd_total,
   -- DAI
   dai_total,
   avg_dai_usd_total,
-  ma7_dai_usd_total,
+  --ma7_dai_usd_total,
   avg_dai_eth_total,
-  ma7_dai_eth_total,
+  --ma7_dai_eth_total,
   -- NXMTY
   nxmty_total,
   nxmty_eth_total,
   avg_nxmty_usd_total,
-  ma7_nxmty_usd_total,
+  --ma7_nxmty_usd_total,
   -- stETH
   steth_total,
   avg_steth_usd_total,
-  ma7_steth_usd_total,
+  --ma7_steth_usd_total,
   -- rETH
   reth_total,
   avg_reth_usd_total,
-  ma7_reth_usd_total,
+  --ma7_reth_usd_total,
   avg_reth_eth_total,
-  ma7_reth_eth_total,
+  --ma7_reth_eth_total,
   -- USDC
   usdc_total,
   avg_usdc_usd_total,
-  ma7_usdc_usd_total,
-  avg_usdc_eth_total,
-  ma7_usdc_eth_total
+  --ma7_usdc_usd_total,
+  avg_usdc_eth_total
+  --ma7_usdc_eth_total
 from daily_running_totals_enriched
 --where block_date >= timestamp '2021-10-04' -- 15286.709696721391
 --where block_date >= timestamp '2021-05-26'
