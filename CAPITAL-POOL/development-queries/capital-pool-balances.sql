@@ -476,9 +476,9 @@ daily_running_totals as (
     coalesce(steth_rt.steth_total, lag(steth_rt.steth_total) over (order by ds.block_date), 0) as steth_total,
     coalesce(nxmty_rt.nxmty_total, lag(nxmty_rt.nxmty_total) over (order by ds.block_date), 0) as nxmty_total,
     coalesce(nxmty_rt.nxmty_in_eth_total, lag(nxmty_rt.nxmty_in_eth_total) over (order by ds.block_date), 0) as nxmty_eth_total,
-    cre.amount as cover_re_usdc_total,
-    aave_s.supplied_amount as aave_collateral_weth_total,
-    -1 * aave_b.borrowed_amount as aave_debt_usdc_total
+    coalesce(cre.amount, 0) as cover_re_usdc_total,
+    coalesce(aave_s.supplied_amount, 0) as aave_collateral_weth_total,
+    -1 * coalesce(aave_b.borrowed_amount, 0) as aave_debt_usdc_total
   from day_sequence ds
     left join transfer_totals tt on ds.block_date = tt.block_date
     left join steth_running_total steth_rt on ds.block_date = steth_rt.block_date
