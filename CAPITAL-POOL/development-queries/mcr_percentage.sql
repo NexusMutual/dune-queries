@@ -27,13 +27,22 @@ mcr as (
   group by 1, 2
 ),
 
+mcr_filled_null_cnts as (
+  select
+    block_date,
+    avg_capital_pool_eth_total,
+    mcr_eth,
+    count(mcr_eth) over (order by block_date) as mcr_eth_count
+  from mcr
+),
+
 mcr_percent as (
   select
     block_date,
     avg_capital_pool_eth_total,
     mcr_eth,
-    avg_capital_pool_eth_total * 100 / mcr_eth as mcr_percentage
-  from mcr
+    avg_capital_pool_eth_total * 100 / first_value(mcr_eth) over (partition by mcr_eth_count order by block_date) as mcr_percentage
+  from mcr_filled_null_cnts
 )
 
 select *
