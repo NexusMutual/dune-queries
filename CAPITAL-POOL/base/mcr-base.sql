@@ -3,7 +3,7 @@ with
 daily_avg_eth_prices as (
   select
     date_trunc('day', minute) as block_date,
-    avg(price) as avg_eth_price_usd
+    avg(price) as avg_eth_usd_price
   from prices.usd
   where symbol = 'ETH'
     and blockchain is null
@@ -18,7 +18,7 @@ mcr_events as (
     cast(mcrEtherx100 as double) / 1e18 as mcr_eth,
     cast(7000 as double) as mcr_floor,
     cast(0 as double) as mcr_cover_min
-  from nexusmutual_ethereum.mcr_evt_mcrevent
+  from nexusmutual_ethereum.MCR_evt_MCREvent
   union all
   select
     date_trunc('day', evt_block_time) as block_date,
@@ -31,7 +31,7 @@ mcr_events as (
 mcr_daily_avgs as (
   select
     p.block_date,
-    p.avg_eth_price_usd,
+    p.avg_eth_usd_price,
     avg(me.mcr_eth) as mcr_eth,
     avg(me.mcr_floor) as mcr_floor,
     avg(me.mcr_cover_min) as mcr_cover_min
@@ -43,7 +43,7 @@ mcr_daily_avgs as (
 mcr_filled_null_cnts as (
   select
     block_date,
-    avg_eth_price_usd,
+    avg_eth_usd_price,
     mcr_eth,
     mcr_floor,
     mcr_cover_min,
@@ -56,7 +56,7 @@ mcr_filled_null_cnts as (
 mcr_daily_totals_enriched as (
   select
     block_date,
-    avg_eth_price_usd,
+    avg_eth_usd_price,
     first_value(mcr_eth) over (partition by mcr_eth_count order by block_date) as mcr_eth_total,
     first_value(mcr_floor) over (partition by mcr_floor_count order by block_date) as mcr_floor_total,
     first_value(mcr_cover_min) over (partition by mcr_cover_min_count order by block_date) as mcr_cover_min_total
@@ -65,7 +65,7 @@ mcr_daily_totals_enriched as (
 
 select
   block_date,
-  avg_eth_price_usd,
+  avg_eth_usd_price,
   mcr_eth_total,
   mcr_floor_total,
   mcr_cover_min_total

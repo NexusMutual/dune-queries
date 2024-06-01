@@ -9,7 +9,6 @@ capital_pool as (
 mcr as (
   select
     block_date,
-    avg_eth_price_usd,
     mcr_eth_total
   from query_3787908 -- MCR base (fallback) query
 ),

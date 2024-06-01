@@ -3,11 +3,11 @@ with
 mcr as (
   select
     block_date,
-    avg_eth_price_usd,
+    avg_eth_usd_price,
     mcr_eth_total,
     mcr_floor_total,
     mcr_cover_min_total,
-    if('{{display_currency}}' = 'USD', avg_eth_price_usd, 1.0) as price_display_curr
+    if('{{display_currency}}' = 'USD', avg_eth_usd_price, 1.0) as price_display_curr
   from query_3787908 -- MCR base (fallback) query
 )
 
