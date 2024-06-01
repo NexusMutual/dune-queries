@@ -70,4 +70,4 @@ select
   mcr_floor_total,
   mcr_cover_min_total
 from mcr_daily_totals_enriched
-order by block_date desc
+--order by block_date desc
