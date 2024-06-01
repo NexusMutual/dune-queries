@@ -1,95 +1,63 @@
-WITH
-  dai_prices AS (
-    SELECT DISTINCT
-      DATE_TRUNC('day', minute) AS day,
-      symbol,
-      AVG(price) OVER (
-        PARTITION BY
-          DATE_TRUNC('day', minute),
-          symbol
-      ) AS dai_price_dollar
-    FROM prices.usd
-    WHERE symbol = 'DAI'
-      AND blockchain = 'ethereum'
-      AND minute > CAST('2019-05-01 00:00:00' AS TIMESTAMP)
-  ),
-  eth_prices AS (
-    SELECT DISTINCT
-      DATE_TRUNC('day', minute) AS day,
-      symbol,
-      AVG(price) OVER (
-        PARTITION BY
-          DATE_TRUNC('day', minute),
-          symbol
-      ) AS eth_price_dollar
-    FROM prices.usd
-    WHERE symbol = 'ETH'
-      AND blockchain IS NULL
-      AND minute > CAST('2019-05-01 00:00:00' AS TIMESTAMP)
-  ),
-  covers_details_event AS (
-    SELECT
-      DATE_TRUNC('day', CAST(evt_block_time AS TIMESTAMP)) AS cover_start_time,
-      CASE
-        WHEN curr = 0x45544800 THEN 'ETH'
-        WHEN curr = 0x44414900 THEN 'DAI'
-      END AS cover_asset,
-      CAST(sumAssured AS DOUBLE) AS sum_assured
-    FROM
-      nexusmutual_ethereum.QuotationData_evt_CoverDetailsEvent
-    UNION ALL
-    SELECT
-      DATE_TRUNC('day', CAST(call_block_time AS TIMESTAMP)) AS cover_start_time,
-      CASE
-        WHEN CAST(JSON_QUERY(params, 'lax $.coverAsset') AS INT) = 0 THEN 'ETH'
-        WHEN CAST(JSON_QUERY(params, 'lax $.coverAsset') AS INT) = 1 THEN 'DAI'
-        ELSE 'NA'
-      END AS cover_asset,
-      CAST(JSON_QUERY(params, 'lax $.amount') AS DOUBLE) * 1E-18 AS sum_assured
-    FROM
-      nexusmutual_ethereum.Cover_call_buyCover AS t
-    WHERE
-      t.call_success = TRUE
-  ),
-  total_cover_underwritten AS (
-    SELECT
-      t.cover_start_time,
-      eth_price_dollar,
-      dai_price_dollar,
-      CASE
-        WHEN cover_asset = 'ETH' THEN sum_assured
-        ELSE 0
-      END AS eth_cover_underwritten,
-      CASE
-        WHEN cover_asset = 'DAI' THEN sum_assured
-        ELSE 0
-      END AS dai_cover_underwritten
-    FROM
-      covers_details_event AS t
-      INNER JOIN eth_prices AS e ON e.day = t.cover_start_time
-      INNER JOIN dai_prices AS d ON d.day = t.cover_start_time
-  )
-SELECT DISTINCT
-  SUM(
-    CASE
-      WHEN '{{display_currency}}' = 'USD' THEN eth_cover_underwritten * eth_price_dollar
-      WHEN '{{display_currency}}' = 'ETH' THEN eth_cover_underwritten
-      ELSE -1
-    END
-  ) OVER () AS total_eth_cover_amount,
-  SUM(
-    CASE
-      WHEN '{{display_currency}}' = 'USD' THEN dai_cover_underwritten * dai_price_dollar
-      WHEN '{{display_currency}}' = 'ETH' THEN dai_cover_underwritten * dai_price_dollar / eth_price_dollar
-      ELSE -1
-    END
-  ) OVER () AS total_dai_cover_amount,
-  SUM(
-    CASE
-      WHEN '{{display_currency}}' = 'USD' THEN (eth_cover_underwritten * eth_price_dollar) + (dai_cover_underwritten * dai_price_dollar)
-      WHEN '{{display_currency}}' = 'ETH' THEN eth_cover_underwritten + dai_cover_underwritten * dai_price_dollar / eth_price_dollar
-      ELSE -1
-    END
-  ) OVER () AS total_cover_amount
-FROM
-  total_cover_underwritten AS t
+with
+
+covers as (
+  select
+    date_trunc('day', cover_start_time) as cover_start_time,
+    date_trunc('day', cover_end_time) as cover_end_time,
+    cover_asset,
+    sum_assured
+  from query_3788367 -- covers v1 base (fallback) query
+  union all
+  select
+    date_trunc('day', cover_start_time) as cover_start_time,
+    date_trunc('day', cover_end_time) as cover_end_time,
+    cover_asset,
+    sum_assured
+  from query_3788370 -- covers v2 base (fallback) query
+  where is_migrated = false
+),
+
+daily_avg_eth_prices as (
+  select
+    date_trunc('day', minute) as block_date,
+    avg(price) as price_usd
+  from prices.usd
+  where symbol = 'ETH'
+    and blockchain is null
+    and contract_address is null
+    and minute >= timestamp '2019-05-01'
+  group by 1
+),
+
+daily_avg_dai_prices as (
+  select
+    date_trunc('day', minute) as block_date,
+    avg(price) as price_usd
+  from prices.usd
+  where symbol = 'DAI'
+    and blockchain = 'ethereum'
+    and contract_address = 0x6b175474e89094c44da98b954eedeac495271d0f
+    and minute >= timestamp '2019-07-12'
+  group by 1
+),
+
+total_cover_underwritten as (
+  select
+    c.cover_start_time,
+    c.cover_end_time,
+    p_avg_eth.price_usd as avg_eth_usd_price,
+    p_avg_dai.price_usd as avg_dai_usd_price,
+    coalesce(if(c.cover_asset = 'ETH', c.sum_assured, 0), 0) as eth_cover_amount,
+    coalesce(if(c.cover_asset = 'ETH', c.sum_assured, 0) * p_avg_eth.price_usd, 0) as eth_usd_cover_amount,
+    coalesce(if(c.cover_asset = 'DAI', c.sum_assured, 0) * p_avg_dai.price_usd / p_avg_eth.price_usd, 0) as dai_eth_cover_amount,
+    coalesce(if(c.cover_asset = 'DAI', c.sum_assured, 0) * p_avg_dai.price_usd, 0) as dai_usd_cover_amount
+  from covers c
+    inner join daily_avg_eth_prices p_avg_eth on c.cover_start_time = p_avg_eth.block_date
+    inner join daily_avg_dai_prices p_avg_dai on c.cover_start_time = p_avg_dai.block_date
+)
+
+select
+  sum(if('{{display_currency}}' = 'USD', eth_usd_cover_amount, eth_cover_amount)) as total_eth_cover_amount,
+  sum(if('{{display_currency}}' = 'USD', dai_usd_cover_amount, dai_eth_cover_amount)) as total_dai_cover_amount,
+  sum(if('{{display_currency}}' = 'USD', eth_usd_cover_amount + dai_usd_cover_amount, eth_cover_amount + dai_eth_cover_amount)) as total_cover_amount
+from total_cover_underwritten

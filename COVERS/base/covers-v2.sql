@@ -178,6 +178,7 @@ covers as (
     sum_assured,
     partial_cover_amount, -- in NMX
     cover_owner,
+    false as is_migrated,
     tx_hash
   from covers_v2
   union all
@@ -197,6 +198,7 @@ covers as (
     sum_assured,
     sum_assured as partial_cover_amount, -- No partial covers in v1 migrated covers
     cover_owner,
+    true as is_migrated,
     tx_hash
   from covers_v1_migrated
 )
@@ -217,6 +219,7 @@ select
   sum_assured,
   partial_cover_amount, -- in NMX
   cover_owner,
+  is_migrated,
   tx_hash
 from covers
 --order by cp.cover_id desc
