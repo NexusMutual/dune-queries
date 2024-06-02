@@ -53,7 +53,7 @@ mcr_filled_null_cnts as (
   from mcr_daily_avgs
 ),
 
-mcr_daily_totals_enriched as (
+mcr_daily_totals as (
   select
     block_date,
     avg_eth_usd_price,
@@ -69,5 +69,5 @@ select
   mcr_eth_total,
   mcr_floor_total,
   mcr_cover_min_total
-from mcr_daily_totals_enriched
---order by block_date desc
+from mcr_daily_totals
+--order by 1 desc
