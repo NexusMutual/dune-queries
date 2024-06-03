@@ -205,6 +205,7 @@ covers as (
 
 select
   block_time,
+  date_trunc('day', block_time) as block_date,
   block_number,
   cover_id,
   cover_start_time,

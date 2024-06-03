@@ -1,46 +1,36 @@
 with
 
-covers as (
-  select
-    cover_id,
-    date_trunc('day', cover_start_time) as cover_start_date,
-    date_trunc('day', cover_end_time) as cover_end_date,
-    premium_asset,
-    premium_nxm
-  from query_3788367 -- covers v1 base (fallback) query
-  union all
-  select
-    cover_id,
-    date_trunc('day', cover_start_time) as cover_start_date,
-    date_trunc('day', cover_end_time) as cover_end_date,
-    premium_asset,
-    premium_nxm
-  from query_3788370 -- covers v2 base (fallback) query
-  where is_migrated = false
-),
-
-nxm_prices as (
+daily_avg_prices as (
   select
     block_date,
     avg_eth_usd_price,
+    avg_dai_usd_price,
     avg_nxm_eth_price,
     avg_nxm_usd_price
   from query_3789851 -- NXM prices base (fallback) query
 ),
 
-premiums as (
+covers as (
   select
     c.cover_id,
-    c.cover_start_date,
-    c.cover_end_date,
+    date_trunc('day', c.cover_start_time) as cover_start_date,
+    date_trunc('day', c.cover_end_time) as cover_end_date,
     c.premium_asset,
-    c.premium_nxm,
+    c.premium * if(c.cover_asset = 'DAI', p.avg_dai_usd_price, p.avg_eth_usd_price) as premium_usd,
+    c.premium * if(c.cover_asset = 'DAI', p.avg_dai_usd_price, p.avg_eth_usd_price) / p.avg_eth_usd_price as premium_eth
+  from query_3788367 c -- covers v1 base (fallback) query
+    inner join daily_avg_prices p on c.block_date = p.block_date
+  union all
+  select
+    c.cover_id,
+    date_trunc('day', c.cover_start_time) as cover_start_date,
+    date_trunc('day', c.cover_end_time) as cover_end_date,
+    c.premium_asset,
     c.premium_nxm * p.avg_nxm_usd_price as premium_usd,
     c.premium_nxm * p.avg_nxm_usd_price / p.avg_eth_usd_price as premium_eth
-  from covers c
-    inner join nxm_prices p on c.cover_start_date = p.block_date
-  where c.cover_start_date >= timestamp '{{Start Date}}'
-    and c.cover_start_date < timestamp '{{End Date}}'
+  from query_3788370 c -- covers v2 base (fallback) query
+    inner join daily_avg_prices p on c.block_date = p.block_date
+  where c.is_migrated = false
 ),
 
 premium_aggs as (
@@ -55,7 +45,9 @@ premium_aggs as (
     sum(premium_eth) filter (where premium_asset = 'DAI') as premium_dai_eth,
     sum(premium_usd) filter (where premium_asset = 'NXM') as premium_nxm_usd,
     sum(premium_eth) filter (where premium_asset = 'NXM') as premium_nxm_eth
-  from premiums
+  from covers
+  where cover_start_date >= timestamp '{{Start Date}}'
+    and cover_start_date < timestamp '{{End Date}}'
   group by 1, 2
 )
 

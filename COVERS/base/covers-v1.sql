@@ -34,6 +34,7 @@ cover_details as (
 
 select
   cd.block_time,
+  date_trunc('day', cd.block_time) as block_date,
   cd.block_number,
   cd.cover_id,
   cd.cover_start_time,
