@@ -65,10 +65,10 @@ cover_premiums as (
     c.pool_id,
     c.product_id,
     p.cover_amount / 100.0 as partial_cover_amount, -- partial_cover_amount_in_nxm
-    p.premium / 1e18 as pool_premium,
+    p.premium / 1e18 as premium,
     c.commission_ratio / 10000.0 as commission_ratio,
     --(1.0 + (c.commission_ratio / 10000.0)) * (0.5 / (1.0 + (c.commission_ratio / 10000.0))) * p.premium / 1e18 as premium,
-    (1.0 + (c.commission_ratio / 10000.0)) * p.premium / 1e18 as premium,
+    --(1.0 + (c.commission_ratio / 10000.0)) * p.premium / 1e18 as premium,
     case c.cover_asset
       when 0 then 'ETH'
       when 1 then 'DAI'
@@ -125,12 +125,12 @@ covers_v2 as (
     p.product_type,
     p.product_name,
     cp.partial_cover_amount, -- partial_cover_amount_in_nxm
-    cp.pool_premium,
+    --cp.pool_premium,
     cp.commission_ratio,
-    cp.premium,
     cp.cover_asset,
     cp.sum_assured,
     cp.premium_asset,
+    cp.premium,
     cp.cover_owner,
     cp.commission_destination,
     cp.tx_hash
