@@ -2,7 +2,8 @@ with
 
 capital_pool as (
   select *
-  from query_3773633 -- Capital Pool base (fallback) query
+  --from query_3773633 -- Capital Pool base (fallback) query
+  from nexusmutual_ethereum.capital_pool_totals
   where block_date >= timestamp '2019-11-06'
 ),
 
@@ -10,7 +11,8 @@ mcr as (
   select
     block_date,
     mcr_eth_total
-  from query_3787908 -- MCR base (fallback) query
+  --from query_3787908 -- MCR base (fallback) query
+  from nexusmutual_ethereum.capital_pool_mcr
 ),
 
 mcr_percent as (

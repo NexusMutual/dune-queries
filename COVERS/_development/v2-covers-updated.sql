@@ -24,7 +24,8 @@ covers as (
 
 capital_pool as (
   select * 
-  from query_3773633 -- to be replaced with CP spell
+  --from query_3773633 -- Capital Pool base (fallback) query
+  from nexusmutual_ethereum.capital_pool_totals
 ),
 
   MCR_event AS (

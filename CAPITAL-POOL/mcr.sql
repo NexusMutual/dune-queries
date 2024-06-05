@@ -8,7 +8,8 @@ mcr as (
     mcr_floor_total,
     mcr_cover_min_total,
     if('{{display_currency}}' = 'USD', avg_eth_usd_price, 1.0) as price_display_curr
-  from query_3787908 -- MCR base (fallback) query
+  --from query_3787908 -- MCR base (fallback) query
+  from nexusmutual_ethereum.capital_pool_mcr
 )
 
 select

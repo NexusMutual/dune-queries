@@ -6,7 +6,8 @@ capital_pool as (
     avg_eth_usd_price,
     avg_dai_usd_price,
     avg_capital_pool_eth_total  
-  from query_3773633 -- Capital Pool base (fallback) query
+  --from query_3773633 -- Capital Pool base (fallback) query
+  from nexusmutual_ethereum.capital_pool_totals
   --where block_date >= timestamp '2019-11-06'
 ),
 
@@ -14,7 +15,8 @@ mcr as (
   select
     block_date,
     mcr_eth_total
-  from query_3787908 -- MCR base (fallback) query
+  --from query_3787908 -- MCR base (fallback) query
+  from nexusmutual_ethereum.capital_pool_mcr
 ),
 
 nxm_daily_price_pre_ramm as (

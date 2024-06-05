@@ -1,7 +1,9 @@
 with
 
 capital_pool_latest as (
-  select * from query_3774420 -- to be replaced with CP spell
+  select *
+  --from query_3774420 -- Capital Pool base (fallback) query
+  from nexusmutual_ethereum.capital_pool_totals
 ),
 
 capital_pool_pivot (asset, eth_total) as (

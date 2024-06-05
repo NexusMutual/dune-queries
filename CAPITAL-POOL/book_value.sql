@@ -1,7 +1,9 @@
 with
 
 capital_pool as (
-  select * from query_3773633 -- to be replaced with CP spell
+  select *
+  --from query_3773633 -- Capital Pool base (fallback) query
+  from nexusmutual_ethereum.capital_pool_totals
 ),
 
 display_currency_total as (
