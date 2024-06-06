@@ -473,9 +473,24 @@ daily_running_totals as (
     sum(coalesce(tt.dai_total, 0)) over (order by ds.block_date) as dai_total,
     sum(coalesce(tt.reth_total, 0)) over (order by ds.block_date) as reth_total,
     sum(coalesce(tt.usdc_total, 0)) over (order by ds.block_date) as usdc_total,
-    coalesce(steth_rt.steth_total, lag(steth_rt.steth_total) over (order by ds.block_date), 0) as steth_total,
-    coalesce(nxmty_rt.nxmty_total, lag(nxmty_rt.nxmty_total) over (order by ds.block_date), 0) as nxmty_total,
-    coalesce(nxmty_rt.nxmty_in_eth_total, lag(nxmty_rt.nxmty_in_eth_total) over (order by ds.block_date), 0) as nxmty_eth_total,
+    coalesce(
+      steth_rt.steth_total,
+      lag(steth_rt.steth_total, 1) over (order by ds.block_date),
+      lag(steth_rt.steth_total, 2) over (order by ds.block_date),
+      0
+    ) as steth_total,
+    coalesce(
+      nxmty_rt.nxmty_total,
+      lag(nxmty_rt.nxmty_total, 1) over (order by ds.block_date),
+      lag(nxmty_rt.nxmty_total, 2) over (order by ds.block_date),
+      0
+    ) as nxmty_total,
+    coalesce(
+      nxmty_rt.nxmty_in_eth_total,
+      lag(nxmty_rt.nxmty_in_eth_total, 1) over (order by ds.block_date),
+      lag(nxmty_rt.nxmty_in_eth_total, 2) over (order by ds.block_date),
+      0
+    ) as nxmty_eth_total,
     coalesce(cre.amount, 0) as cover_re_usdc_total,
     coalesce(aave_s.supplied_amount, 0) as aave_collateral_weth_total,
     -1 * coalesce(aave_b.borrowed_amount, 0) as aave_debt_usdc_total
@@ -574,8 +589,4 @@ select
   avg_aave_debt_usdc_usd_total,
   avg_aave_debt_usdc_eth_total
 from daily_running_totals_enriched
---where block_date >= timestamp '2021-10-04' -- 15286.709696721391
---where block_date >= timestamp '2021-05-26'
---where block_date >= timestamp '2022-08-15'
---where block_date >= timestamp '2024-05-20'
 order by 1 desc
