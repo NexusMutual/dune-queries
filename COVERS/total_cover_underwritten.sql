@@ -64,5 +64,5 @@ select
   sum(if('{{display_currency}}' = 'USD', dai_usd_cover_amount, dai_eth_cover_amount)) as total_dai_cover_amount,
   sum(if('{{display_currency}}' = 'USD', eth_usd_cover_amount + dai_usd_cover_amount, eth_cover_amount + dai_eth_cover_amount)) as total_cover_amount
 from total_cover_underwritten
-where cover_start_date >= timestamp '{{Start Date}}'
-  and cover_start_date < timestamp '{{End Date}}'
+where cover_start_date between timestamp '{{Start Date}}' and timestamp '{{End Date}}'
+  or cover_end_date between timestamp '{{Start Date}}' and timestamp '{{End Date}}'

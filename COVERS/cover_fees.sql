@@ -46,8 +46,8 @@ premium_aggs as (
     sum(premium_usd) filter (where premium_asset = 'NXM') as premium_nxm_usd,
     sum(premium_eth) filter (where premium_asset = 'NXM') as premium_nxm_eth
   from covers
-  where cover_start_date >= timestamp '{{Start Date}}'
-    and cover_start_date < timestamp '{{End Date}}'
+  where cover_start_date between timestamp '{{Start Date}}' and timestamp '{{End Date}}'
+    or cover_end_date between timestamp '{{Start Date}}' and timestamp '{{End Date}}'
   group by 1, 2
 )
 
