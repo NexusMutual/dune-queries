@@ -1,25 +1,76 @@
 WITH
+  v1_product_info AS (
+    SELECT
+      product_contract_address AS contract_address,
+      syndicate AS syndicate,
+      product_name AS product_name,
+      product_type AS product_type
+    FROM
+      nexusmutual_ethereum.product_information
+  ),
+  covers_details_event AS (
+    SELECT
+      cid AS cover_id,
+      date_trunc('minute', evt_block_time) AS start_time,
+      from_unixtime(CAST(expiry AS DOUBLE)) AS end_time,
+      scAdd AS productContract,
+      sumAssured AS sum_assured,
+      CASE
+        WHEN b.call_success
+        OR c.payWithNXM THEN 'NXM'
+        WHEN curr = 0x45544800 THEN 'ETH'
+        WHEN curr = 0x44414900 THEN 'DAI'
+      END AS premium_asset,
+      CASE
+        WHEN curr = 0x45544800 THEN 'ETH'
+        WHEN curr = 0x44414900 THEN 'DAI'
+      END AS cover_asset,
+      premiumNXM * 1E-18 AS premiumNxm,
+      premium * 1E-18 AS premium,
+      evt_tx_hash AS evt_hash
+    FROM
+      nexusmutual_ethereum.QuotationData_evt_CoverDetailsEvent as a
+      LEFT JOIN nexusmutual_ethereum.Quotation_call_makeCoverUsingNXMTokens as b ON a.evt_tx_hash = b.call_tx_hash
+      LEFT JOIN nexusmutual_ethereum.Quotation_call_buyCoverWithMetadata as c ON a.evt_tx_hash = c.call_tx_hash
+    where
+      (
+        b.call_success
+        and b.call_tx_hash is not null
+      )
+      or b.call_tx_hash is null
+  ),
+  cover_product_info AS (
+    SELECT
+      cover_id,
+      start_time,
+      date_trunc('day', start_time) AS start_time_trunc,
+      date_trunc('minute', end_time) AS end_time,
+      CAST(sum_assured AS DOUBLE) AS sum_assured,
+      cover_asset,
+      premium_asset,
+      premiumNxm,
+      premium,
+      evt_hash,
+      productContract AS product_address,
+      COALESCE(syndicate, 'v1') AS syndicate,
+      COALESCE(
+        product_name,
+        CAST(v1_product_info.contract_address AS VARCHAR),
+        'unknown'
+      ) as product_name,
+      COALESCE(product_type, 'unknown') AS product_type
+    FROM
+      covers_details_event
+      LEFT JOIN v1_product_info ON v1_product_info.contract_address = covers_details_event.productContract
+  ),
   covers AS (
     SELECT
-      block_time,
-      date_trunc('day', block_time) as block_date,
-      block_number,
-      cover_id,
-      cover_start_time,
-      cover_end_time,
-      product_contract,
-      syndicate,
-      product_name,
-      product_type,
-      sum_assured,
-      premium_asset,
-      premium,
-      cover_asset,
-      premium_nxm,
-      cover_owner,
-      evt_index,
-      tx_hash
-    FROM query_3678366 -- covers v1
+      _userAddress AS user_address,
+      call_tx_hash AS call_tx
+    FROM
+      nexusmutual_ethereum.QuotationData_call_addCover
+    WHERE
+      call_success = true
   ),
   eth_daily_transactions_fix AS (
     select distinct
@@ -569,11 +620,12 @@ WITH
 SELECT
   CAST(cover_id AS UINT256) AS cover_id,
   CASE
-    WHEN cover_end_time >= NOW() THEN 'Active'
-    WHEN cover_end_time < NOW() THEN 'Expired'
+    WHEN end_time >= NOW() THEN 'Active'
+    WHEN end_time < NOW() THEN 'Expired'
   END AS active,
   cover_asset,
   sum_assured,
+  product_address,
   dai_price_dollar,
   eth_price_dollar,
   CASE
@@ -585,7 +637,7 @@ SELECT
     WHEN cover_asset = 'DAI' THEN (sum_assured * dai_price_dollar) / eth_price_dollar
   END as eth_value,
   premium_asset,
-  premium_nxm,
+  premiumNxm,
   premium,
   CASE
     WHEN cover_asset = 'ETH' THEN premium * eth_price_dollar
@@ -594,12 +646,21 @@ SELECT
   syndicate,
   product_type,
   product_name,
-  cover_start_time,
-  cover_end_time,
-  cover_owner,
-  date_diff('day', cover_start_time, cover_end_time) as cover_period,
-  --COUNT(cover_owner) OVER (PARTITION BY cover_owner ORDER BY cover_start_time) AS rank_no_of_purchase,
-  tx_hash
-FROM covers AS a
-  LEFT JOIN nxm_token_price AS b ON a.block_date = b.day
-ORDER BY cover_id DESC
+  product_address,
+  start_time,
+  end_time,
+  user_address,
+  date_diff('day', start_time, end_time) as cover_period,
+  COUNT(user_address) OVER (
+    PARTITION BY
+      user_address
+    ORDER BY
+      start_time
+  ) AS rank_no_of_purchase,
+  call_tx
+FROM
+  cover_product_info AS a
+  LEFT JOIN nxm_token_price AS b ON date_trunc('day', a.start_time_trunc) = b.day
+  LEFT JOIN covers AS c ON a.evt_hash = c.call_tx
+ORDER BY
+  cover_id DESC
