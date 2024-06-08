@@ -9,6 +9,7 @@ covers as (
     cover_end_time,
     cover_start_date,
     cover_end_date,
+    if(cover_end_date <= current_date, cover_end_date, current_date) as cover_end_date_join,
     staking_pool,
     product_type,
     product_name,
@@ -19,7 +20,7 @@ covers as (
     premium_nxm,
     cover_owner,
     tx_hash
-  from query_3788370 -- covers v1 base (fallback) query
+  from query_3788370 -- covers v2 base (fallback) query
 ),
 
 daily_avg_prices as (
@@ -70,5 +71,5 @@ select
   c.tx_hash
 from covers c
   left join daily_avg_prices p_start on c.cover_start_date = p_start.block_date
-  left join daily_avg_prices p_end on c.cover_end_date = p_end.block_date
+  left join daily_avg_prices p_end on c.cover_end_date_join = p_end.block_date
 order by c.cover_id desc
