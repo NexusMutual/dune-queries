@@ -39,6 +39,8 @@ select
   cd.cover_id,
   cd.cover_start_time,
   cd.cover_end_time,
+  date_trunc('day', cd.cover_start_time) as cover_start_date,
+  date_trunc('day', cd.cover_end_time) as cover_end_date,
   cd.product_contract,
   coalesce(pi.syndicate, 'v1') as syndicate,
   coalesce(pi.product_name, 'unknown') as product_name,
