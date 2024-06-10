@@ -9,6 +9,7 @@ covers as (
     cover_end_time,
     cover_start_date,
     cover_end_date,
+    if(cover_end_time < now(), cover_end_date, current_date) as cover_end_date_join,
     staking_pool,
     product_type,
     product_name,
@@ -27,9 +28,10 @@ daily_avg_prices as (
     block_date,
     avg_eth_usd_price,
     avg_dai_usd_price,
+    avg_usdc_usd_price,
     avg_nxm_eth_price,
     avg_nxm_usd_price
-  from query_3789851 -- NXM prices base (fallback) query
+  from query_3789851 -- prices base (fallback) query
 )
 
 select
@@ -40,24 +42,29 @@ select
   case
     when c.cover_asset = 'ETH' then c.sum_assured * p_start.avg_eth_usd_price
     when c.cover_asset = 'DAI' then c.sum_assured * p_start.avg_dai_usd_price
+    when c.cover_asset = 'USDC' then c.sum_assured * p_start.avg_usdc_usd_price
   end as cover_start_usd,
   case
     when c.cover_asset = 'ETH' then c.sum_assured
     when c.cover_asset = 'DAI' then (c.sum_assured * p_start.avg_dai_usd_price) / p_start.avg_eth_usd_price
+    when c.cover_asset = 'USDC' then (c.sum_assured * p_start.avg_usdc_usd_price) / p_start.avg_eth_usd_price
   end as cover_start_eth,
   case
     when c.cover_asset = 'ETH' then c.sum_assured * p_end.avg_eth_usd_price
     when c.cover_asset = 'DAI' then c.sum_assured * p_end.avg_dai_usd_price
+    when c.cover_asset = 'USDC' then c.sum_assured * p_end.avg_usdc_usd_price
   end as cover_end_usd,
   case
     when c.cover_asset = 'ETH' then c.sum_assured
     when c.cover_asset = 'DAI' then (c.sum_assured * p_end.avg_dai_usd_price) / p_end.avg_eth_usd_price
+    when c.cover_asset = 'USDC' then (c.sum_assured * p_end.avg_usdc_usd_price) / p_end.avg_eth_usd_price
   end as cover_end_eth,
   c.premium_asset,
   c.premium_nxm,
   case
     when c.cover_asset = 'ETH' then c.premium_nxm * p_start.avg_nxm_eth_price
     when c.cover_asset = 'DAI' then (c.premium_nxm * p_start.avg_nxm_usd_price) / p_start.avg_dai_usd_price
+    when c.cover_asset = 'USDC' then (c.premium_nxm * p_start.avg_nxm_usd_price) / p_start.avg_usdc_usd_price
   end as premium_native,
   c.premium_nxm * p_start.avg_nxm_usd_price as premium_usd,
   c.staking_pool,
@@ -70,5 +77,5 @@ select
   c.tx_hash
 from covers c
   left join daily_avg_prices p_start on c.cover_start_date = p_start.block_date
-  left join daily_avg_prices p_end on c.cover_end_date = coalesce(p_end.block_date, current_date)
+  left join daily_avg_prices p_end on c.cover_end_date_join = p_end.block_date
 order by c.cover_id desc

@@ -72,9 +72,10 @@ cover_premiums as (
     case c.cover_asset
       when 0 then 'ETH'
       when 1 then 'DAI'
+      when 6 then 'USDC'
       else 'NA'
     end as cover_asset,
-    c.sum_assured / 1e18 as sum_assured,
+    c.sum_assured / if(c.cover_asset = 6, 1e6, 1e18) as sum_assured,
     case c.payment_asset
       when 0 then 'ETH'
       when 1 then 'DAI'
