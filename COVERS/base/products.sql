@@ -7,8 +7,7 @@ product_events as (
     id as product_id,
     ipfsMetadata as evt_product_ipfs_metadata,
     evt_index,
-    evt_tx_hash as tx_hash,
-    row_number() over (partition by evt_block_time, evt_tx_hash order by evt_index) as evt_rn
+    evt_tx_hash as tx_hash
   from nexusmutual_ethereum.Cover_evt_ProductSet
 ),
 
@@ -46,6 +45,10 @@ product_data as (
     block_time,
     block_number,
     product_id,
+    case
+      when product_id > 1000000 then row_number() over (partition by if(product_id < 1000000, 0, 1) order by block_time, product_ordinality) - 1
+      else product_id
+    end as product_id_rn,
     product_name,
     cast(json_extract_scalar(product_json, '$.productType') as int) as product_type_id,
     try_cast(json_extract_scalar(product_json, '$.capacityReductionRatio') as int) as capacity_reduction_ratio,
@@ -57,19 +60,15 @@ product_data as (
     call_product_ipfs_metadata,
     allowed_pools,
     product_ordinality,
-    tx_hash,
-    case
-      when product_id < 1000000 then null
-      else row_number() over (partition by block_time, tx_hash, if(product_id < 1000000, 0, 1) order by product_ordinality)
-    end as call_rn
+    tx_hash
   from product_data_raw
 ),
 
 products_ext as (
   select
-    e.block_time,
-    e.block_number,
-    e.product_id,
+    c.block_time,
+    c.block_number,
+    c.product_id_rn as product_id,
     c.product_name,
     c.product_type_id,
     c.capacity_reduction_ratio,
@@ -80,30 +79,10 @@ products_ext as (
     c.yield_token_address,
     c.allowed_pools,
     coalesce(e.evt_product_ipfs_metadata, c.call_product_ipfs_metadata) as product_ipfs_metadata,
-    e.evt_index,
-    e.tx_hash
-  from product_events e
-    inner join product_data c on e.block_time = c.block_time and e.block_number = c.block_number and e.evt_rn = c.call_rn
-  union all
-  select
-    c.block_time,
-    c.block_number,
-    c.product_id,
-    c.product_name,
-    c.product_type_id,
-    c.capacity_reduction_ratio,
-    c.cover_assets,
-    c.initial_price_ratio,
-    c.is_deprecated,
-    c.use_fixed_price,
-    c.yield_token_address,
-    c.allowed_pools,
-    c.call_product_ipfs_metadata as product_ipfs_metadata,
-    cast(0 as bigint) as evt_index,
+    coalesce(e.evt_index, 0) as evt_index,
     c.tx_hash
   from product_data c
-    left join product_events e on e.block_time = c.block_time and e.block_number = c.block_number and e.evt_rn = c.call_rn
-  where e.block_number is null
+    left join product_events e on e.block_time = c.block_time and e.block_number = c.block_number and e.product_id = c.product_id_rn
 ),
 
 products as (
@@ -114,9 +93,11 @@ products as (
     product_id,
     product_name,
     case cover_assets
-      when 0 then 'ETH/DAI'
+      when 0 then 'ETH, DAI, USDC'
       when 1 then 'ETH'
       when 2 then 'DAI'
+      when 65 then 'ETH, USDC'
+      when 66 then 'DAI, USDC'
       else 'unkown'
     end as cover_assets,
     is_deprecated,

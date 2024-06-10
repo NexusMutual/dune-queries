@@ -108,8 +108,8 @@ products as (
     p.product_name,
     pt.product_type_id,
     pt.product_type_name as product_type
-  from query_3676071 pt -- product types
-    inner join query_3676060 p -- products
+  from query_3788361 pt -- product types
+    inner join query_3788363 p -- products
       on pt.product_type_id = p.product_type_id
 ),
 
