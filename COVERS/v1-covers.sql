@@ -32,7 +32,7 @@ daily_avg_prices as (
     avg_dai_usd_price,
     avg_nxm_eth_price,
     avg_nxm_usd_price
-  from query_3789851 -- NXM prices base (fallback) query
+  from query_3789851 -- prices base (fallback) query
 )
 
 select
