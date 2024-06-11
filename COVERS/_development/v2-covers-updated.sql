@@ -17,7 +17,7 @@ covers as (
     sum_assured,
     premium_asset,
     premium,
-    premium_nxm,
+    premium_incl_commission as premium_nxm,
     cover_owner,
     tx_hash
   from query_3788370 -- covers v2 base (fallback) query

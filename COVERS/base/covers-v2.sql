@@ -68,7 +68,7 @@ cover_premiums as (
     p.premium / 1e18 as premium,
     c.commission_ratio / 10000.0 as commission_ratio,
     --(1.0 + (c.commission_ratio / 10000.0)) * (0.5 / (1.0 + (c.commission_ratio / 10000.0))) * p.premium / 1e18 as premium,
-    --(1.0 + (c.commission_ratio / 10000.0)) * p.premium / 1e18 as premium,
+    (1.0 + (c.commission_ratio / 10000.0)) * p.premium / 1e18 as premium_incl_commission,
     case c.cover_asset
       when 0 then 'ETH'
       when 1 then 'DAI'
@@ -132,6 +132,7 @@ covers_v2 as (
     cp.sum_assured,
     cp.premium_asset,
     cp.premium,
+    cp.premium_incl_commission,
     cp.cover_owner,
     cp.commission_destination,
     cp.tx_hash
@@ -176,6 +177,7 @@ covers as (
     premium_asset,
     premium,
     premium as premium_nxm,
+    premium_incl_commission,
     sum_assured,
     partial_cover_amount, -- in NMX
     cover_owner,
@@ -196,6 +198,7 @@ covers as (
     premium_asset,
     premium,
     premium_nxm,
+    premium_nxm as premium_incl_commission,
     sum_assured,
     sum_assured as partial_cover_amount, -- No partial covers in v1 migrated covers
     cover_owner,
@@ -220,6 +223,7 @@ select
   premium_asset,
   premium,
   premium_nxm,
+  premium_incl_commission,
   sum_assured,
   partial_cover_amount, -- in NMX
   cover_owner,

@@ -32,8 +32,8 @@ nxm_daily_price_pre_ramm as (
       0.01028 + (mcr.mcr_eth_total / 5800000) * power((cp.avg_capital_pool_eth_total / mcr.mcr_eth_total), 4)
     as double) as avg_nxm_eth_price,
     cast(
-      0.01028 + (mcr.mcr_eth_total / 5800000) * power((cp.avg_capital_pool_eth_total / mcr.mcr_eth_total), 4) * cp.avg_eth_usd_price
-    as double) as avg_nxm_usd_price
+      0.01028 + (mcr.mcr_eth_total / 5800000) * power((cp.avg_capital_pool_eth_total / mcr.mcr_eth_total), 4)
+    as double) * cp.avg_eth_usd_price as avg_nxm_usd_price
   from capital_pool cp
     left join mcr on cp.block_date = mcr.block_date
   where cp.block_date < timestamp '2023-11-21'
@@ -101,4 +101,4 @@ select
   coalesce(avg_nxm_eth_price, lag(avg_nxm_eth_price) over (order by block_date)) as avg_nxm_eth_price,
   coalesce(avg_nxm_usd_price, lag(avg_nxm_usd_price) over (order by block_date)) as avg_nxm_usd_price
 from nxm_daily_prices
-order by 1 desc
+--order by 1 desc
