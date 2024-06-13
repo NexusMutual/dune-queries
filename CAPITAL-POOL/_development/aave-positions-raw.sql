@@ -84,7 +84,7 @@ aave_supply_repaid as (
         and u.reserve = r.reserve
     where r.evt_block_time >= timestamp '2024-05-23'
       and r.user = 0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e
-      and r.useATokens
+      --and r.useATokens
   ) t
   group by 1, 2
 ),
@@ -117,7 +117,7 @@ aave_scaled_supplies as (
     cm.block_date,
     cm.symbol,
     sum(
-      s.atoken_amount - coalesce(sw.atoken_amount, 0) - coalesce(sr.atoken_amount, 0) - coalesce(sl.atoken_amount, 0)
+      coalesce(s.atoken_amount, 0) - coalesce(sw.atoken_amount, 0) - coalesce(sr.atoken_amount, 0) - coalesce(sl.atoken_amount, 0)
     ) over (order by cm.block_date) * cm.liquidity_index / power(10, 27) as supplied_amount
   from aave_current_market cm
     left join aave_supplied s on cm.block_date = s.block_date and cm.symbol = s.symbol
@@ -169,7 +169,7 @@ aave_borrow_repaid as (
         and u.reserve = r.reserve
     where r.evt_block_time >= timestamp '2024-05-23'
       and r.user = 0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e
-      and r.useATokens
+      --and r.useATokens
   ) t
   group by 1, 2
 ),
@@ -202,7 +202,7 @@ aave_scaled_borrows as (
     cm.block_date,
     cm.symbol,
     sum(
-      b.atoken_amount - coalesce(br.atoken_amount, 0) - coalesce(bl.atoken_amount, 0)
+      coalesce(b.atoken_amount, 0) - coalesce(br.atoken_amount, 0) - coalesce(bl.atoken_amount, 0)
     ) over (order by cm.block_date) * cm.variable_borrow_index / power(10, 27) as borrowed_amount
   from aave_current_market cm
     left join aave_borrowed b on cm.block_date = b.block_date and cm.symbol = b.symbol
