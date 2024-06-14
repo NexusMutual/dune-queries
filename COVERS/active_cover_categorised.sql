@@ -15,9 +15,13 @@ covers as (
     c.cover_id,
     date_trunc('day', c.cover_start_time) as cover_start_date,
     date_trunc('day', c.cover_end_time) as cover_end_date,
-    c.premium_asset,
-    c.premium * if(c.cover_asset = 'DAI', p.avg_dai_usd_price, p.avg_eth_usd_price) as premium_usd,
-    c.premium * if(c.cover_asset = 'DAI', p.avg_dai_usd_price, p.avg_eth_usd_price) / p.avg_eth_usd_price as premium_eth
+    c.cover_asset,
+    c.sum_assured,
+    coalesce(if(cover_asset = 'ETH', c.sum_assured, 0), 0) as eth_cover_amount,
+    coalesce(if(cover_asset = 'DAI', c.sum_assured, 0), 0) as dai_cover_amount
+    --c.premium_asset,
+    --c.premium * if(c.cover_asset = 'DAI', p.avg_dai_usd_price, p.avg_eth_usd_price) as premium_usd,
+    --c.premium * if(c.cover_asset = 'DAI', p.avg_dai_usd_price, p.avg_eth_usd_price) / p.avg_eth_usd_price as premium_eth
   from query_3788367 c -- covers v1 base (fallback) query
     inner join daily_avg_prices p on c.block_date = p.block_date
   union all
@@ -25,9 +29,13 @@ covers as (
     c.cover_id,
     date_trunc('day', c.cover_start_time) as cover_start_date,
     date_trunc('day', c.cover_end_time) as cover_end_date,
-    c.premium_asset,
-    c.premium_incl_commission * p.avg_nxm_usd_price as premium_usd,
-    c.premium_incl_commission * p.avg_nxm_usd_price / p.avg_eth_usd_price as premium_eth
+    c.cover_asset,
+    c.sum_assured,
+    coalesce(if(cover_asset = 'ETH', c.sum_assured, 0), 0) as eth_cover_amount,
+    coalesce(if(cover_asset = 'DAI', c.sum_assured, 0), 0) as dai_cover_amount
+    --c.premium_asset,
+    --c.premium_incl_commission * p.avg_nxm_usd_price as premium_usd,
+    --c.premium_incl_commission * p.avg_nxm_usd_price / p.avg_eth_usd_price as premium_eth
   from query_3788370 c -- covers v2 base (fallback) query
     inner join daily_avg_prices p on c.block_date = p.block_date
   where c.is_migrated = false
