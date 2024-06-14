@@ -227,7 +227,7 @@ aave_supplied as (
     sum(s.amount / u.liquidityIndex * power(10, 27)) as atoken_amount
   from aave_ethereum.supply s
     inner join aave_v3_ethereum.Pool_evt_ReserveDataUpdated u
-        on u.evt_block_number = s.block_number
+       on u.evt_block_number = s.block_number
       and u.evt_index < s.evt_index
       and u.evt_tx_hash = s.tx_hash
       and u.reserve = s.token_address
@@ -254,7 +254,7 @@ aave_borrowed as (
     sum(b.amount / u.variableBorrowIndex * power(10, 27)) as atoken_amount
   from aave_ethereum.borrow b
     inner join aave_v3_ethereum.Pool_evt_ReserveDataUpdated u
-        on u.evt_block_number = b.block_number
+       on u.evt_block_number = b.block_number
       and u.evt_index < b.evt_index
       and u.evt_tx_hash = b.tx_hash
       and u.reserve = b.token_address

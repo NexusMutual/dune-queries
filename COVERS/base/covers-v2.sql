@@ -79,6 +79,7 @@ cover_premiums as (
     case c.payment_asset
       when 0 then 'ETH'
       when 1 then 'DAI'
+      when 6 then 'USDC'
       when 255 then 'NXM'
       else 'NA'
     end as premium_asset,
@@ -220,12 +221,12 @@ select
   product_type,
   product_name,
   cover_asset,
+  sum_assured,
+  partial_cover_amount, -- in NMX
   premium_asset,
   premium,
   premium_nxm,
   premium_incl_commission,
-  sum_assured,
-  partial_cover_amount, -- in NMX
   cover_owner,
   is_migrated,
   tx_hash
