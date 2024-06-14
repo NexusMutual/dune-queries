@@ -13,6 +13,7 @@ daily_avg_prices as (
 covers as (
   select
     c.cover_id,
+    c.syndicate as staking_pool,
     date_trunc('day', c.cover_start_time) as cover_start_date,
     date_trunc('day', c.cover_end_time) as cover_end_date,
     c.cover_asset,
@@ -27,6 +28,7 @@ covers as (
   union all
   select
     c.cover_id,
+    c.staking_pool,
     date_trunc('day', c.cover_start_time) as cover_start_date,
     date_trunc('day', c.cover_end_time) as cover_end_date,
     c.cover_asset,
