@@ -55,6 +55,8 @@ cover_owners as (
   from covers c
     inner join daily_avg_eth_prices p_avg_eth on c.cover_start_date = p_avg_eth.block_date
     inner join daily_avg_dai_prices p_avg_dai on c.cover_start_date = p_avg_dai.block_date
+  where c.cover_start_date >= timestamp '{{Start Date}}'
+    and c.cover_start_date < timestamp '{{End Date}}'
 )
 
 select

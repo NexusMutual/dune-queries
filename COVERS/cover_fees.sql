@@ -7,7 +7,7 @@ daily_avg_prices as (
     avg_dai_usd_price,
     avg_nxm_eth_price,
     avg_nxm_usd_price
-  from query_3789851 -- NXM prices base (fallback) query
+  from query_3789851 -- prices base (fallback) query
 ),
 
 covers as (
@@ -26,8 +26,8 @@ covers as (
     date_trunc('day', c.cover_start_time) as cover_start_date,
     date_trunc('day', c.cover_end_time) as cover_end_date,
     c.premium_asset,
-    c.premium_nxm * p.avg_nxm_usd_price as premium_usd,
-    c.premium_nxm * p.avg_nxm_usd_price / p.avg_eth_usd_price as premium_eth
+    c.premium_incl_commission * p.avg_nxm_usd_price as premium_usd,
+    c.premium_incl_commission * p.avg_nxm_usd_price / p.avg_eth_usd_price as premium_eth
   from query_3788370 c -- covers v2 base (fallback) query
     inner join daily_avg_prices p on c.block_date = p.block_date
   where c.is_migrated = false
@@ -46,8 +46,8 @@ premium_aggs as (
     sum(premium_usd) filter (where premium_asset = 'NXM') as premium_nxm_usd,
     sum(premium_eth) filter (where premium_asset = 'NXM') as premium_nxm_eth
   from covers
-  where cover_start_date between timestamp '{{Start Date}}' and timestamp '{{End Date}}'
-    or cover_end_date between timestamp '{{Start Date}}' and timestamp '{{End Date}}'
+  where cover_start_date >= timestamp '{{Start Date}}'
+    and cover_start_date < timestamp '{{End Date}}'
   group by 1, 2
 )
 
