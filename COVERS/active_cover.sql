@@ -98,14 +98,14 @@ daily_active_covers_enriched as (
 
 select
   block_date,
-  sum(if('{{display_currency}}' = 'USD', eth_usd_cover_total, eth_cover_total)) as total_eth_cover_total,
-  sum(if('{{display_currency}}' = 'USD', dai_usd_cover_total, dai_eth_cover_total)) as total_dai_cover_total,
-  sum(if('{{display_currency}}' = 'USD', usdc_usd_cover_total, usdc_eth_cover_total)) as total_usdc_cover_total,
+  sum(if('{{display_currency}}' = 'USD', eth_usd_cover_total, eth_cover_total)) as eth_cover_total,
+  sum(if('{{display_currency}}' = 'USD', dai_usd_cover_total, dai_eth_cover_total)) as dai_cover_total,
+  sum(if('{{display_currency}}' = 'USD', usdc_usd_cover_total, usdc_eth_cover_total)) as usdc_cover_total,
   sum(if(
     '{{display_currency}}' = 'USD',
     eth_usd_cover_total + dai_usd_cover_total + usdc_usd_cover_total,
     eth_cover_total + dai_eth_cover_total + usdc_eth_cover_total
-  )) as total_cover_total
+  )) as cover_total
 from daily_active_covers_enriched
 where block_date >= timestamp '{{Start Date}}'
   and block_date < timestamp '{{End Date}}'
