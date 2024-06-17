@@ -8,6 +8,8 @@ staking_pool_names as (
 covers as (
   select
     cover_id,
+    cover_start_time,
+    cover_end_time,
     cover_start_date,
     cover_end_date,
     cast(staking_pool as int) as staking_pool_id,
@@ -24,6 +26,8 @@ covers as (
 covers_ext as (
   select
     cover_id,
+    cover_start_time,
+    cover_end_time,
     cover_start_date,
     cover_end_date,
     staking_pool_id,
@@ -71,6 +75,8 @@ latest_usdc_price as (
 
 select
   c.cover_id,
+  c.cover_start_time,
+  c.cover_end_time,
   c.cover_start_date,
   c.cover_end_date,
   c.product_type,
