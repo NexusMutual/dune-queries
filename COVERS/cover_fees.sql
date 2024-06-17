@@ -5,6 +5,7 @@ daily_avg_prices as (
     block_date,
     avg_eth_usd_price,
     avg_dai_usd_price,
+    avg_usdc_usd_price,
     avg_nxm_eth_price,
     avg_nxm_usd_price
   from query_3789851 -- prices base (fallback) query
@@ -13,8 +14,8 @@ daily_avg_prices as (
 covers as (
   select
     c.cover_id,
-    date_trunc('day', c.cover_start_time) as cover_start_date,
-    date_trunc('day', c.cover_end_time) as cover_end_date,
+    cover_start_date,
+    cover_end_date,
     c.premium_asset,
     c.premium * if(c.cover_asset = 'DAI', p.avg_dai_usd_price, p.avg_eth_usd_price) as premium_usd,
     c.premium * if(c.cover_asset = 'DAI', p.avg_dai_usd_price, p.avg_eth_usd_price) / p.avg_eth_usd_price as premium_eth
@@ -23,8 +24,8 @@ covers as (
   union all
   select
     c.cover_id,
-    date_trunc('day', c.cover_start_time) as cover_start_date,
-    date_trunc('day', c.cover_end_time) as cover_end_date,
+    cover_start_date,
+    cover_end_date,
     c.premium_asset,
     c.premium_incl_commission * p.avg_nxm_usd_price as premium_usd,
     c.premium_incl_commission * p.avg_nxm_usd_price / p.avg_eth_usd_price as premium_eth
@@ -43,6 +44,8 @@ premium_aggs as (
     sum(premium_eth) filter (where premium_asset = 'ETH') as premium_eth_eth,
     sum(premium_usd) filter (where premium_asset = 'DAI') as premium_dai_usd,
     sum(premium_eth) filter (where premium_asset = 'DAI') as premium_dai_eth,
+    sum(premium_usd) filter (where premium_asset = 'USDC') as premium_usdc_usd,
+    sum(premium_eth) filter (where premium_asset = 'USDC') as premium_usdc_eth,
     sum(premium_usd) filter (where premium_asset = 'NXM') as premium_nxm_usd,
     sum(premium_eth) filter (where premium_asset = 'NXM') as premium_nxm_eth
   from covers
@@ -60,6 +63,7 @@ select
   if('{{display_currency}}' = 'USD', sum(premium_usd) over (), sum(premium_eth) over ()) as total_premium,
   if('{{display_currency}}' = 'USD', sum(premium_eth_usd) over (), sum(premium_eth_eth) over ()) as eth_premium,
   if('{{display_currency}}' = 'USD', sum(premium_dai_usd) over (), sum(premium_dai_eth) over ()) as dai_premium,
+  if('{{display_currency}}' = 'USD', sum(premium_usdc_usd) over (), sum(premium_usdc_eth) over ()) as usdc_premium,
   if('{{display_currency}}' = 'USD', sum(premium_nxm_usd) over (), sum(premium_nxm_eth) over ()) as nxm_premium
 from premium_aggs
 order by 1, 2
