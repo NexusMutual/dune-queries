@@ -1,49 +1,63 @@
-with
-
-prices AS (
-  SELECT DISTINCT
-    DATE_TRUNC('day', minute) AS minute,
-    symbol,
-    AVG(price) OVER (
-      PARTITION BY
-        symbol,
-        DATE_TRUNC('day', minute)
-    ) AS price_dollar
-  FROM prices.usd
-  WHERE minute > CAST('2019-05-01' AS TIMESTAMP)
-    and ((symbol = 'ETH' and blockchain is null)
-      or (symbol = 'DAI' and blockchain = 'ethereum'))
-),
-
-covers AS (
-  select
-    cover_id,
-    cover_start_time,
-    cover_end_time,
-    cover_start_date,
-    cover_end_date,
-    product_contract,
-    syndicate,
-    product_name,
-    product_type,
-    cover_asset,
-    sum_assured
-  from query_3788367 -- covers v1 base (fallback) query
-),
-
-claims AS (
-  select
-  cr.claimId as claim_id,
-  cr.coverId as cover_id,
-  cr.userAddress as claimant,
-  from_unixtime(cr.dateSubmit) as date_submit,
-  if(cr.claimId = 102, cast(10.43 as double), cast(cp.requestedPayoutAmount as double)) as partial_claim_amount
-from nexusmutual_ethereum.ClaimsData_evt_ClaimRaise cr
-  left join nexusmutual_ethereum.Claims_call_submitPartialClaim cp on cr.coverId = cp.coverId
-    and cr.evt_tx_hash = cp.call_tx_hash
-    and cp.call_success
-),
-
+WITH
+  prices AS (
+     SELECT DISTINCT
+      DATE_TRUNC('day', minute) AS minute,
+      symbol,
+      AVG(price) OVER (
+        PARTITION BY
+          symbol,
+          DATE_TRUNC('day', minute)
+      ) AS price_dollar
+    FROM prices.usd
+    WHERE minute > CAST('2019-05-01' AS TIMESTAMP)
+      and ((symbol = 'ETH' and blockchain is null)
+        or (symbol = 'DAI' and blockchain = 'ethereum'))
+  ),
+  cover_details AS (
+    SELECT
+      cid AS cover_id,
+      evt_block_time AS cover_start_time,
+      from_unixtime(CAST(expiry AS DOUBLE)) AS cover_end_time,
+      scAdd AS productContract,
+      sumAssured AS sum_assured,
+      CASE
+        WHEN curr = 0x45544800 THEN 'ETH'
+        WHEN curr = 0x44414900 THEN 'DAI'
+      END AS cover_asset,
+      COALESCE(syndicate, 'v1') AS syndicate,
+      COALESCE(product_name, 'unknown') AS product_name,
+      COALESCE(product_type, 'unknown') AS product_type
+    FROM
+      nexusmutual_ethereum.QuotationData_evt_CoverDetailsEvent AS t
+      LEFT JOIN nexusmutual_ethereum.product_information AS s ON s.product_contract_address = t.scAdd
+  ),
+  partial_claim AS (
+    SELECT
+      coverId AS cover_id,
+      requestedPayoutAmount AS partial_claim_amount,
+      call_tx_hash
+    FROM
+      nexusmutual_ethereum.Claims_call_submitPartialClaim
+    WHERE
+      call_success = true
+      AND requestedPayoutAmount > CAST(0 AS UINT256)
+  ),
+  claims AS (
+    SELECT
+      t._claimId AS claim_id,
+      t._coverId AS cover_id,
+      from_unixtime(CAST(_nowtime AS DOUBLE)) AS claim_submit_time,
+      CASE
+        WHEN t._claimId = CAST(102 AS UINT256) THEN CAST(10.43 AS DOUBLE)
+        ELSE CAST(partial_claim_amount AS DOUBLE)
+      END AS partial_claim_amount
+    FROM
+      nexusmutual_ethereum.ClaimsData_call_addClaim AS t
+      LEFT JOIN partial_claim AS s ON s.cover_id = t._coverId
+      AND s.call_tx_hash = t.call_tx_hash
+    WHERE
+      t.call_success = true
+  ),
   claims_status AS (
     SELECT DISTINCT
       s.claim_id,
