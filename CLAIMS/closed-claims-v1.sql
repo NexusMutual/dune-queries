@@ -72,74 +72,71 @@ assessor_rewards as (
 
 -- CA & MV vote calculation
 ca_votes as (
-  select distinct
+  select
     _claimId as claim_id,
-    sum(case when _vote = 1 then 1 else 0 end) over (partition by _claimId) as ca_vote_yes,
-    sum(case when _vote = -1 then 1 else 0 end) over (partition by _claimId) as ca_vote_no,
-    sum(case when _vote = 1 then _tokens / 1e18 else 0 end) over (partition by _claimId) as ca_nxm_vote_yes,
-    sum(case when _vote = -1 then _tokens / 1e18 else 0 end) over (partition by _claimId) as ca_nxm_vote_no,
-    sum(_tokens) over (partition by _claimId) / 1e18 as ca_total_tokens
+    sum(if(_vote = 1, 1, 0)) as ca_vote_yes,
+    sum(if(_vote = -1, 1, 0)) as ca_vote_no,
+    sum(if(_vote = 1, _tokens / 1e18, 0)) as ca_nxm_vote_yes,
+    sum(if(_vote = -1, _tokens / 1e18, 0)) as ca_nxm_vote_no,
+    sum(_tokens) / 1e18 as ca_nxm_vote_total
   from nexusmutual_ethereum.ClaimsData_call_setClaimTokensCA
   where call_success
+  group by 1
 ),
 
 mv_votes as (
-  select distinct
+  select
     _claimId as claim_id,
-    sum(case when _vote = 1 then 1 else 0 end) over (partition by _claimId) as mv_vote_yes,
-    sum(case when _vote = -1 then 1 else 0 end) over (partition by _claimId) as mv_vote_no,
-    sum(case when _vote = 1 then _tokens / 1e18 else 0 end) over (partition by _claimId) as mv_nxm_vote_yes,
-    sum(case when _vote = -1 then _tokens / 1e18 else 0 end) over (partition by _claimId) as mv_nxm_vote_no,
-    sum(_tokens) over (partition by _claimId) / 1e18 as mv_total_tokens
-  from nexusmutual_ethereum.ClaimsData_call_setClaimTokensMV
+    sum(if(_vote = 1, 1, 0)) as mv_vote_yes,
+    sum(if(_vote = -1, 1, 0)) as mv_vote_no,
+    sum(if(_vote = 1, _tokens / 1e18, 0)) as mv_nxm_vote_yes,
+    sum(if(_vote = -1, _tokens / 1e18, 0)) as mv_nxm_vote_no,
+    sum(_tokens) / 1e18 as mv_nxm_vote_total
+  from nexusmutual_ethereum.ClaimsData_call_setClaimTokensCA
   where call_success
+  group by 1
 ),
 
-  votes as (
-    SELECT
-      COALESCE(ca_votes.claim_id, mv_votes.claim_id) as claim_id,
-      ca_vote_yes,
-      ca_vote_no,
-      ca_nxm_vote_yes,
-      ca_nxm_vote_no,
-      ca_total_tokens,
-      mv_vote_yes,
-      mv_vote_no,
-      mv_nxm_vote_yes,
-      mv_nxm_vote_no,
-      mv_total_tokens
-    FROM
-      ca_votes
-      FULL JOIN mv_votes ON ca_votes.claim_id = mv_votes.claim_id
-  ),
-  CA_token /* QUORUM CACULATION */ as (
-    SELECT
-      claimId as claim_id,
-      CASE
-        WHEN CAST(member as INT) = 0 THEN output_tokens
-      END as CA_tokens,
-      call_tx_hash as ca_tx_hash,
-      call_trace_address as ca_call_address
-    FROM
-      nexusmutual_ethereum.Claims_call_getCATokens as t
-    WHERE
-      t.call_success = TRUE
-      AND CAST(member as INT) = 0
-  ),
-  MV_token /* join CA_tokens and MV_tokens to get all token quests */ as (
-    SELECT
-      claimId as claim_id,
-      CASE
-        WHEN CAST(member as INT) = 1 THEN output_tokens
-      END as MV_tokens,
-      call_tx_hash as mv_tx_hash,
-      call_trace_address as mv_call_address
-    FROM
-      nexusmutual_ethereum.Claims_call_getCATokens as t
-    WHERE
-      t.call_success = TRUE
-      AND CAST(member as INT) = 1
-  ),
+votes as (
+  select
+    coalesce(ca_votes.claim_id, mv_votes.claim_id) as claim_id,
+    ca_vote_yes,
+    ca_vote_no,
+    ca_nxm_vote_yes,
+    ca_nxm_vote_no,
+    ca_nxm_vote_total,
+    mv_vote_yes,
+    mv_vote_no,
+    mv_nxm_vote_yes,
+    mv_nxm_vote_no,
+    mv_nxm_vote_total
+  from ca_votes
+    full join mv_votes on ca_votes.claim_id = mv_votes.claim_id
+),
+
+-- quorum caculation
+ca_token as (
+  select
+    claimId as claim_id,
+    output_tokens as ca_tokens,
+    call_tx_hash as ca_tx_hash,
+    call_trace_address as ca_call_address
+  from nexusmutual_ethereum.Claims_call_getCATokens
+  where call_success
+    and member = 0
+),
+
+mv_token as (
+  select
+    claimId as claim_id,
+    output_tokens as ca_nxm_vote_totaltokens,
+    call_tx_hash as ca_nxm_vote_totaltx_hash,
+    call_trace_address as ca_nxm_vote_totalcall_address
+  from nexusmutual_ethereum.Claims_call_getCATokens
+  where call_success
+    and member = 1
+),
+
   mv_quorum as (
     SELECT
       claim_id,
@@ -165,31 +162,29 @@ mv_votes as (
       t.call_success = TRUE
       AND claim_id IS NOT NULL
   ),
+
   ca_quorum as (
     SELECT
       claim_id,
       output_tokenPrice as ca_quorum_price,
       t.call_block_time as ca_ts
-    FROM
-      nexusmutual_ethereum.Pool_call_getTokenPrice as t
+    FROM nexusmutual_ethereum.Pool_call_getTokenPrice as t
       RIGHT JOIN CA_token ON CA_token.ca_tx_hash = t.call_tx_hash
       and contains_sequence(t.call_trace_address, CA_token.ca_call_address)
-    WHERE
-      t.call_success = TRUE
+    WHERE t.call_success = TRUE
       AND claim_id IS NOT NULL
     UNION
     SELECT
       claim_id,
       output_tokenPrice as ca_quorum_price,
       t.call_block_time as ca_ts
-    FROM
-      nexusmutual_ethereum.MCR_call_calculateTokenPrice as t
+    FROM nexusmutual_ethereum.MCR_call_calculateTokenPrice as t
       RIGHT JOIN CA_token ON CA_token.ca_tx_hash = t.call_tx_hash
       and contains_sequence(t.call_trace_address, CA_token.ca_call_address)
-    WHERE
-      t.call_success = TRUE
+    WHERE t.call_success = TRUE
       AND claim_id IS NOT NULL
   ),
+
   quorum as (
     SELECT DISTINCT
       COALESCE(ca_quorum.claim_id, mv_quorum.claim_id) as claim_id,
@@ -197,10 +192,10 @@ mv_votes as (
       ca_ts,
       mv_quorum_price,
       mv_ts
-    FROM
-      ca_quorum
+    FROM ca_quorum
       FULL JOIN mv_quorum ON ca_quorum.claim_id = mv_quorum.claim_id
   ),
+
   votes_quorum as (
     SELECT DISTINCT
       COALESCE(votes.claim_id, quorum.claim_id) as claim_id,
@@ -208,18 +203,18 @@ mv_votes as (
       ca_vote_no,
       ca_nxm_vote_yes,
       ca_nxm_vote_no,
-      ca_total_tokens,
+      ca_nxm_vote_total,
       ca_quorum_price,
       mv_vote_yes,
       mv_vote_no,
       mv_nxm_vote_yes,
       mv_nxm_vote_no,
-      mv_total_tokens,
+      mv_nxm_vote_total,
       mv_quorum_price
-    FROM
-      quorum
+    FROM quorum
       FULL JOIN votes ON votes.claim_id = quorum.claim_id
   ),
+
   claims_status_details as (
     SELECT
       s.cover_id,
@@ -243,18 +238,15 @@ mv_votes as (
       ) as dollar_claim_amount,
       s.sum_assured,
       cover_t.price_dollar * s.sum_assured as dollar_sum_assured
-     FROM
-      claims_status as t
+     FROM claims_status as t
       LEFT JOIN cover_details as s ON s.cover_id = t.cover_id
       LEFT JOIN assessor_rewards ON assessor_rewards.claimId = t.claim_id
-      INNER JOIN prices as claim_t ON claim_t.minute = DATE_TRUNC('day', t.date_submit)
-      AND claim_t.symbol = s.cover_asset
-      INNER JOIN prices as cover_t ON cover_t.minute = DATE_TRUNC('day', s.cover_start_time)
-      AND cover_t.symbol = s.cover_asset
-    WHERE
-      max_status_no IS NOT NULL
+      INNER JOIN prices as claim_t ON claim_t.minute = DATE_TRUNC('day', t.date_submit) AND claim_t.symbol = s.cover_asset
+      INNER JOIN prices as cover_t ON cover_t.minute = DATE_TRUNC('day', s.cover_start_time) AND cover_t.symbol = s.cover_asset
+    WHERE max_status_no IS NOT NULL
       AND CAST(max_status_no as INT) IN (6, 9, 11, 12, 13, 14) -- only get final status's
   ),
+
   claims_status_details_votes as (
     SELECT
       CAST(claims_status_details.claim_id as BIGINT) as claim_id,
@@ -288,7 +280,7 @@ mv_votes as (
       votes_quorum.ca_nxm_vote_yes,
       votes_quorum.ca_nxm_vote_no,
       votes_quorum.ca_vote_yes + votes_quorum.ca_vote_no as ca_total_votes,
-      votes_quorum.ca_total_tokens,
+      votes_quorum.ca_nxm_vote_total,
       claims_status_details.assessor_rewards / (
         votes_quorum.ca_vote_yes + votes_quorum.ca_vote_no
       ) as nxm_assessor_rewards_per_vote,
@@ -298,7 +290,7 @@ mv_votes as (
       votes_quorum.mv_vote_yes + votes_quorum.mv_vote_no as mv_total_votes,
       votes_quorum.mv_nxm_vote_yes,
       votes_quorum.mv_nxm_vote_no,
-      votes_quorum.mv_total_tokens,
+      votes_quorum.mv_nxm_vote_total,
       claims_status_details.sum_assured * 5 * 1E18 / votes_quorum.mv_quorum_price as mv_nxm_quorum,
       claims_status_details.assessor_rewards,
       case
@@ -311,13 +303,10 @@ mv_votes as (
         when mv_vote_yes < mv_vote_no THEN assessor_rewards / mv_vote_no
         ELSE 0
       end as nxm_mv_assessor_rewards_per_vote
-     FROM
-      claims_status_details
+     FROM claims_status_details
       LEFT JOIN votes_quorum ON votes_quorum.claim_id = claims_status_details.claim_id
   )
-SELECT
-  *
-FROM
-  claims_status_details_votes
-ORDER BY
-  claim_id DESC
+
+SELECT *
+FROM claims_status_details_votes
+ORDER BY claim_id DESC
