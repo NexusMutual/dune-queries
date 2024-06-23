@@ -1,20 +1,5 @@
 with
 
-prices as (
-  SELECT DISTINCT
-    DATE_TRUNC('day', minute) as minute,
-    symbol,
-    AVG(price) OVER (
-      PARTITION BY
-        symbol,
-        DATE_TRUNC('day', minute)
-    ) as price_dollar
-  FROM prices.usd
-  WHERE minute > CAST('2019-05-01' as TIMESTAMP)
-    and ((symbol = 'ETH' and blockchain is null)
-      or (symbol = 'DAI' and blockchain = 'ethereum'))
-),
-
 covers as (
   select
     cover_id,
@@ -217,98 +202,110 @@ votes_quorum as (
     full join votes on votes.claim_id = quorum.claim_id
 ),
 
-  claims_status_details as (
-    SELECT
-      s.cover_id,
-      claim_id,
-      date_submit,
-      s.cover_start_time,
-     s.cover_end_time,
-      assessor_rewards.nxm_assessor_rewards as assessor_rewards,
-      s.cover_asset,
-      s.syndicate,
-      s.product_name,
-      s.product_type,
-      max_status_no,
-      COALESCE(
-        CAST(partial_claim_amount as DOUBLE),
-        CAST(sum_assured as DOUBLE)
-      ) as claim_amount,
-      claim_t.price_dollar * COALESCE(
-        CAST(partial_claim_amount as DOUBLE),
-        CAST(sum_assured as DOUBLE)
-      ) as dollar_claim_amount,
-      s.sum_assured,
-      cover_t.price_dollar * s.sum_assured as dollar_sum_assured
-     FROM claims_status as t
-      LEFT JOIN cover_details as s on s.cover_id = t.cover_id
-      LEFT JOIN assessor_rewards on assessor_rewards.claimId = t.claim_id
-      INNER JOIN prices as claim_t on claim_t.minute = DATE_TRUNC('day', t.date_submit) AND claim_t.symbol = s.cover_asset
-      INNER JOIN prices as cover_t on cover_t.minute = DATE_TRUNC('day', s.cover_start_time) AND cover_t.symbol = s.cover_asset
-    WHERE max_status_no IS NOT NULL
-      AND CAST(max_status_no as INT) IN (6, 9, 11, 12, 13, 14) -- only get final status's
-  ),
+prices as (
+  select
+    date_trunc('day', minute) as block_date,
+    symbol,
+    avg(price) as usd_price
+  from prices.usd
+  where minute > timestamp '2019-05-01'
+    and ((symbol = 'ETH' and blockchain is null)
+      or (symbol = 'DAI' and blockchain = 'ethereum'))
+  group by 1, 2
+),
 
-  claims_status_details_votes as (
-    SELECT
-      CAST(claims_status_details.claim_id as BIGINT) as claim_id,
-      claims_status_details.cover_id,
-      case
-      -- clim id 108 is a snapshot vote that was accepted
-        when CAST(max_status_no as INT) IN (12, 13, 14)
-        OR claims_status_details.claim_id = CAST(102 as UINT256) then 'ACCEPTED ✅'
-        ELSE 'DENIED ❌'
-      end as verdict,
-      CONCAT(
-        '<a href="https://app.nexusmutual.io/claim-assessment/view-claim?claimId=',
-        CAST(claims_status_details.claim_id as VARCHAR),
-        '" target="_blank">',
-        'link',
-        '</a>'
-      ) as url_link,
-      claims_status_details.product_name,
-      claims_status_details.product_type,
-      claims_status_details.syndicate as staking_pool,
-      claims_status_details.cover_asset,
-      sum_assured,
-      dollar_sum_assured,
-      claim_amount,
-      dollar_claim_amount,
-      claims_status_details.cover_start_time,
-      claims_status_details.cover_end_time,
-      claims_status_details.date_submit as date_submit,
-      votes_quorum.ca_vote_yes,
-      votes_quorum.ca_vote_no,
-      votes_quorum.ca_nxm_vote_yes,
-      votes_quorum.ca_nxm_vote_no,
-      votes_quorum.ca_vote_yes + votes_quorum.ca_vote_no as ca_total_votes,
-      votes_quorum.ca_nxm_vote_total,
-      claims_status_details.assessor_rewards / (
-        votes_quorum.ca_vote_yes + votes_quorum.ca_vote_no
-      ) as nxm_assessor_rewards_per_vote,
-      claims_status_details.sum_assured * 5 * 1E18 / votes_quorum.ca_quorum_price as ca_nxm_quorum,
-      votes_quorum.mv_vote_yes,
-      votes_quorum.mv_vote_no,
-      votes_quorum.mv_vote_yes + votes_quorum.mv_vote_no as mv_total_votes,
-      votes_quorum.mv_nxm_vote_yes,
-      votes_quorum.mv_nxm_vote_no,
-      votes_quorum.mv_nxm_vote_total,
-      claims_status_details.sum_assured * 5 * 1E18 / votes_quorum.mv_quorum_price as mv_nxm_quorum,
-      claims_status_details.assessor_rewards,
-      case
-        when ca_vote_yes > ca_vote_no THEN assessor_rewards / ca_vote_yes
-        when ca_vote_yes < ca_vote_no THEN assessor_rewards / ca_vote_no
-        ELSE 0
-      end as nxm_ca_assessor_rewards_per_vote,
-      case
-        when mv_vote_yes > mv_vote_no THEN assessor_rewards / mv_vote_yes
-        when mv_vote_yes < mv_vote_no THEN assessor_rewards / mv_vote_no
-        ELSE 0
-      end as nxm_mv_assessor_rewards_per_vote
-     FROM claims_status_details
-      LEFT JOIN votes_quorum on votes_quorum.claim_id = claims_status_details.claim_id
-  )
+claims_status_details as (
+  select
+    s.cover_id,
+    t.claim_id,
+    date_submit,
+    s.cover_start_time,
+    s.cover_end_time,
+    assessor_rewards.nxm_assessor_rewards as assessor_rewards,
+    s.cover_asset,
+    s.syndicate,
+    s.product_name,
+    s.product_type,
+    claim_status,
+    coalesce(
+      cast(partial_claim_amount as double),
+      cast(sum_assured as double)
+    ) as claim_amount,
+    claim_t.usd_price * coalesce(
+      cast(partial_claim_amount as double),
+      cast(sum_assured as double)
+    ) as dollar_claim_amount,
+    s.sum_assured,
+    cover_t.usd_price * s.sum_assured as dollar_sum_assured
+  from claims_status as t
+    left join covers as s on s.cover_id = t.cover_id
+    left join assessor_rewards on assessor_rewards.claim_id = t.claim_id
+    inner join prices as claim_t on claim_t.block_date = date_trunc('day', t.date_submit) and claim_t.symbol = s.cover_asset
+    inner join prices as cover_t on cover_t.block_date = date_trunc('day', s.cover_start_time) and cover_t.symbol = s.cover_asset
+  where claim_status is not null
+    and claim_status in (6, 9, 11, 12, 13, 14) -- only get final status's
+),
 
-SELECT *
-FROM claims_status_details_votes
-ORDER BY claim_id DESC
+claims_status_details_votes as (
+  SELECT
+    CAST(claims_status_details.claim_id as BIGINT) as claim_id,
+    claims_status_details.cover_id,
+    case
+    -- clim id 108 is a snapshot vote that was accepted
+      when CAST(max_status_no as INT) IN (12, 13, 14)
+      OR claims_status_details.claim_id = CAST(102 as UINT256) then 'ACCEPTED ✅'
+      ELSE 'DENIED ❌'
+    end as verdict,
+    CONCAT(
+      '<a href="https://app.nexusmutual.io/claim-assessment/view-claim?claimId=',
+      CAST(claims_status_details.claim_id as VARCHAR),
+      '" target="_blank">',
+      'link',
+      '</a>'
+    ) as url_link,
+    claims_status_details.product_name,
+    claims_status_details.product_type,
+    claims_status_details.syndicate as staking_pool,
+    claims_status_details.cover_asset,
+    sum_assured,
+    dollar_sum_assured,
+    claim_amount,
+    dollar_claim_amount,
+    claims_status_details.cover_start_time,
+    claims_status_details.cover_end_time,
+    claims_status_details.date_submit as date_submit,
+    votes_quorum.ca_vote_yes,
+    votes_quorum.ca_vote_no,
+    votes_quorum.ca_nxm_vote_yes,
+    votes_quorum.ca_nxm_vote_no,
+    votes_quorum.ca_vote_yes + votes_quorum.ca_vote_no as ca_total_votes,
+    votes_quorum.ca_nxm_vote_total,
+    claims_status_details.assessor_rewards / (
+      votes_quorum.ca_vote_yes + votes_quorum.ca_vote_no
+    ) as nxm_assessor_rewards_per_vote,
+    claims_status_details.sum_assured * 5 * 1E18 / votes_quorum.ca_quorum_price as ca_nxm_quorum,
+    votes_quorum.mv_vote_yes,
+    votes_quorum.mv_vote_no,
+    votes_quorum.mv_vote_yes + votes_quorum.mv_vote_no as mv_total_votes,
+    votes_quorum.mv_nxm_vote_yes,
+    votes_quorum.mv_nxm_vote_no,
+    votes_quorum.mv_nxm_vote_total,
+    claims_status_details.sum_assured * 5 * 1E18 / votes_quorum.mv_quorum_price as mv_nxm_quorum,
+    claims_status_details.assessor_rewards,
+    case
+      when ca_vote_yes > ca_vote_no THEN assessor_rewards / ca_vote_yes
+      when ca_vote_yes < ca_vote_no THEN assessor_rewards / ca_vote_no
+      ELSE 0
+    end as nxm_ca_assessor_rewards_per_vote,
+    case
+      when mv_vote_yes > mv_vote_no THEN assessor_rewards / mv_vote_yes
+      when mv_vote_yes < mv_vote_no THEN assessor_rewards / mv_vote_no
+      ELSE 0
+    end as nxm_mv_assessor_rewards_per_vote
+  FROM claims_status_details
+    LEFT JOIN votes_quorum on votes_quorum.claim_id = claims_status_details.claim_id
+)
+
+select *
+from claims_status_details_votes
+order by claim_id desc
