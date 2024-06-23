@@ -21,7 +21,7 @@ claims as (
   cr.claimId as claim_id,
   cr.coverId as cover_id,
   cr.userAddress as claimant,
-  from_unixtime(cr.dateSubmit) as date_submit,
+  from_unixtime(cr.dateSubmit) as submit_time,
   if(cr.claimId = 102, cast(10.43 as double), cast(cp.requestedPayoutAmount as double)) as partial_claim_amount
 from nexusmutual_ethereum.ClaimsData_evt_ClaimRaise cr
   left join nexusmutual_ethereum.Claims_call_submitPartialClaim cp on cr.coverId = cp.coverId
@@ -31,12 +31,13 @@ from nexusmutual_ethereum.ClaimsData_evt_ClaimRaise cr
 ),
 
 claims_status as (
-  select claim_id, cover_id, date_submit, partial_claim_amount, claim_status
+  select claim_id, cover_id, submit_time, submit_date, partial_claim_amount, claim_status
   from (
     select
       c.claim_id,
       c.cover_id,
-      c.date_submit,
+      c.submit_time,
+      date_trunc('day', c.submit_time) as submit_date,
       c.partial_claim_amount,
       cs._stat as claim_status,
       row_number() over (partition by c.claim_id order by cs._stat desc) as rn
@@ -216,34 +217,27 @@ prices as (
 
 claims_status_details as (
   select
-    s.cover_id,
-    t.claim_id,
-    date_submit,
-    s.cover_start_time,
-    s.cover_end_time,
-    assessor_rewards.nxm_assessor_rewards as assessor_rewards,
-    s.cover_asset,
-    s.syndicate,
-    s.product_name,
-    s.product_type,
-    claim_status,
-    coalesce(
-      cast(partial_claim_amount as double),
-      cast(sum_assured as double)
-    ) as claim_amount,
-    claim_t.usd_price * coalesce(
-      cast(partial_claim_amount as double),
-      cast(sum_assured as double)
-    ) as dollar_claim_amount,
-    s.sum_assured,
-    cover_t.usd_price * s.sum_assured as dollar_sum_assured
-  from claims_status as t
-    left join covers as s on s.cover_id = t.cover_id
-    left join assessor_rewards on assessor_rewards.claim_id = t.claim_id
-    inner join prices as claim_t on claim_t.block_date = date_trunc('day', t.date_submit) and claim_t.symbol = s.cover_asset
-    inner join prices as cover_t on cover_t.block_date = date_trunc('day', s.cover_start_time) and cover_t.symbol = s.cover_asset
-  where claim_status is not null
-    and claim_status in (6, 9, 11, 12, 13, 14) -- only get final status's
+    c.cover_id,
+    cs.claim_id,
+    cs.submit_time,
+    c.cover_start_time,
+    c.cover_end_time,
+    ar.nxm_assessor_rewards as assessor_rewards,
+    c.cover_asset,
+    c.syndicate,
+    c.product_name,
+    c.product_type,
+    cs.claim_status,
+    coalesce(cs.partial_claim_amount, c.sum_assured) as claim_amount,
+    coalesce(cs.partial_claim_amount, c.sum_assured) * p_claim.usd_price as dollar_claim_amount,
+    c.sum_assured,
+    c.sum_assured * p_cover.usd_price as dollar_sum_assured
+  from claims_status cs
+    inner join covers c on cs.cover_id = c.cover_id
+    inner join prices p_claim on cs.submit_date = p_claim.block_date and c.cover_asset = p_claim.symbol
+    inner join prices p_cover on c.cover_start_date = p_cover.block_date and c.cover_asset = p_cover.symbol
+    left join assessor_rewards ar on cs.claim_id = ar.claim_id
+  where cs.claim_status in (6, 9, 11, 12, 13, 14) -- only get final status's
 ),
 
 claims_status_details_votes as (
@@ -273,7 +267,7 @@ claims_status_details_votes as (
     dollar_claim_amount,
     claims_status_details.cover_start_time,
     claims_status_details.cover_end_time,
-    claims_status_details.date_submit as date_submit,
+    claims_status_details.submit_time as submit_time,
     votes_quorum.ca_vote_yes,
     votes_quorum.ca_vote_no,
     votes_quorum.ca_nxm_vote_yes,
