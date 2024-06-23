@@ -56,7 +56,7 @@ claims_status as (
       cs._stat as claim_status,
       row_number() over (partition by c.claim_id order by cs._stat desc) as rn
     from nexusmutual_ethereum.ClaimsData_call_setClaimStatus cs
-      inner join claims c ON cs._claimId = c.claim_id
+      inner join claims c on cs._claimId = c.claim_id
     where cs.call_success
   ) t
   where rn = 1
@@ -70,7 +70,7 @@ assessor_rewards as (
   where call_success
 ),
 
--- CA & MV vote calculation
+-- CA & MV votes
 ca_votes as (
   select
     _claimId as claim_id,
@@ -115,105 +115,107 @@ votes as (
 ),
 
 -- quorum caculation
-ca_token as (
+ca_tokens as (
   select
+    call_block_time,
     claimId as claim_id,
-    output_tokens as ca_tokens,
-    call_tx_hash as ca_tx_hash,
-    call_trace_address as ca_call_address
+    output_tokens as tokens,
+    call_tx_hash,
+    call_trace_address
   from nexusmutual_ethereum.Claims_call_getCATokens
   where call_success
     and member = 0
 ),
 
-mv_token as (
+mv_tokens as (
   select
+    call_block_time,
     claimId as claim_id,
-    output_tokens as ca_nxm_vote_totaltokens,
-    call_tx_hash as ca_nxm_vote_totaltx_hash,
-    call_trace_address as ca_nxm_vote_totalcall_address
+    output_tokens as tokens,
+    call_tx_hash,
+    call_trace_address
   from nexusmutual_ethereum.Claims_call_getCATokens
   where call_success
     and member = 1
 ),
 
-  mv_quorum as (
-    SELECT
-      claim_id,
-      output_tokenPrice as mv_quorum_price,
-      t.call_block_time as mv_ts
-    FROM
-      nexusmutual_ethereum.Pool_call_getTokenPrice as t
-      RIGHT JOIN MV_token ON MV_token.mv_tx_hash = t.call_tx_hash
-      and contains_sequence(t.call_trace_address, MV_token.mv_call_address)
-    WHERE
-      t.call_success = TRUE
-      AND claim_id IS NOT NULL
-    UNION
-    SELECT
-      claim_id,
-      output_tokenPrice as mv_quorum_price,
-      t.call_block_time as mv_ts
-    FROM
-      nexusmutual_ethereum.MCR_call_calculateTokenPrice as t
-      RIGHT JOIN MV_token ON MV_token.mv_tx_hash = t.call_tx_hash
-      and contains_sequence(t.call_trace_address, MV_token.mv_call_address)
-    WHERE
-      t.call_success = TRUE
-      AND claim_id IS NOT NULL
-  ),
+ca_quorum as (
+  select
+    t.claim_id,
+    t.tokens,
+    p.output_tokenPrice as ca_quorum_price,
+    t.call_block_time as ca_ts
+  from nexusmutual_ethereum.Pool_call_getTokenPrice p
+    inner join ca_tokens t on p.call_block_time = t.call_block_time
+      and p.call_tx_hash = t.call_tx_hash
+      and contains_sequence(p.call_trace_address, t.call_trace_address)
+  where p.call_success
+  union all
+  select
+    t.claim_id,
+    t.tokens,
+    p.output_tokenPrice as ca_quorum_price,
+    t.call_block_time as ca_ts
+  from nexusmutual_ethereum.MCR_call_calculateTokenPrice p
+    inner join ca_tokens t on p.call_block_time = t.call_block_time
+      and p.call_tx_hash = t.call_tx_hash
+      and contains_sequence(p.call_trace_address, t.call_trace_address)
+  where p.call_success
+),
 
-  ca_quorum as (
-    SELECT
-      claim_id,
-      output_tokenPrice as ca_quorum_price,
-      t.call_block_time as ca_ts
-    FROM nexusmutual_ethereum.Pool_call_getTokenPrice as t
-      RIGHT JOIN CA_token ON CA_token.ca_tx_hash = t.call_tx_hash
-      and contains_sequence(t.call_trace_address, CA_token.ca_call_address)
-    WHERE t.call_success = TRUE
-      AND claim_id IS NOT NULL
-    UNION
-    SELECT
-      claim_id,
-      output_tokenPrice as ca_quorum_price,
-      t.call_block_time as ca_ts
-    FROM nexusmutual_ethereum.MCR_call_calculateTokenPrice as t
-      RIGHT JOIN CA_token ON CA_token.ca_tx_hash = t.call_tx_hash
-      and contains_sequence(t.call_trace_address, CA_token.ca_call_address)
-    WHERE t.call_success = TRUE
-      AND claim_id IS NOT NULL
-  ),
+mv_quorum as (
+  select
+    t.claim_id,
+    t.tokens,
+    p.output_tokenPrice as mv_quorum_price,
+    t.call_block_time as mv_ts
+  from nexusmutual_ethereum.Pool_call_getTokenPrice p
+    inner join mv_tokens t on p.call_block_time = t.call_block_time
+      and p.call_tx_hash = t.call_tx_hash
+      and contains_sequence(p.call_trace_address, t.call_trace_address)
+  where p.call_success
+  union all
+  select
+    t.claim_id,
+    t.tokens,
+    p.output_tokenPrice as mv_quorum_price,
+    t.call_block_time as mv_ts
+  from nexusmutual_ethereum.MCR_call_calculateTokenPrice p
+    inner join mv_tokens t on p.call_block_time = t.call_block_time
+      and p.call_tx_hash = t.call_tx_hash
+      and contains_sequence(p.call_trace_address, t.call_trace_address)
+  where p.call_success
+),
 
-  quorum as (
-    SELECT DISTINCT
-      COALESCE(ca_quorum.claim_id, mv_quorum.claim_id) as claim_id,
-      ca_quorum_price,
-      ca_ts,
-      mv_quorum_price,
-      mv_ts
-    FROM ca_quorum
-      FULL JOIN mv_quorum ON ca_quorum.claim_id = mv_quorum.claim_id
-  ),
+quorum as (
+  select
+    coalesce(ca_quorum.claim_id, mv_quorum.claim_id) as claim_id,
+    ca_quorum_price,
+    ca_ts,
+    mv_quorum_price,
+    mv_ts
+  from ca_quorum
+    full join mv_quorum on ca_quorum.claim_id = mv_quorum.claim_id
+),
 
-  votes_quorum as (
-    SELECT DISTINCT
-      COALESCE(votes.claim_id, quorum.claim_id) as claim_id,
-      ca_vote_yes,
-      ca_vote_no,
-      ca_nxm_vote_yes,
-      ca_nxm_vote_no,
-      ca_nxm_vote_total,
-      ca_quorum_price,
-      mv_vote_yes,
-      mv_vote_no,
-      mv_nxm_vote_yes,
-      mv_nxm_vote_no,
-      mv_nxm_vote_total,
-      mv_quorum_price
-    FROM quorum
-      FULL JOIN votes ON votes.claim_id = quorum.claim_id
-  ),
+votes_quorum as (
+  select
+    coalesce(votes.claim_id, quorum.claim_id) as claim_id,
+    ca_vote_yes,
+    ca_vote_no,
+    ca_nxm_vote_yes,
+    ca_nxm_vote_no,
+    ca_nxm_vote_total,
+    ca_quorum_price,
+    mv_vote_yes,
+    mv_vote_no,
+    mv_nxm_vote_yes,
+    mv_nxm_vote_no,
+    mv_nxm_vote_total,
+    mv_quorum_price
+  from quorum
+    full join votes on votes.claim_id = quorum.claim_id
+),
 
   claims_status_details as (
     SELECT
@@ -239,10 +241,10 @@ mv_token as (
       s.sum_assured,
       cover_t.price_dollar * s.sum_assured as dollar_sum_assured
      FROM claims_status as t
-      LEFT JOIN cover_details as s ON s.cover_id = t.cover_id
-      LEFT JOIN assessor_rewards ON assessor_rewards.claimId = t.claim_id
-      INNER JOIN prices as claim_t ON claim_t.minute = DATE_TRUNC('day', t.date_submit) AND claim_t.symbol = s.cover_asset
-      INNER JOIN prices as cover_t ON cover_t.minute = DATE_TRUNC('day', s.cover_start_time) AND cover_t.symbol = s.cover_asset
+      LEFT JOIN cover_details as s on s.cover_id = t.cover_id
+      LEFT JOIN assessor_rewards on assessor_rewards.claimId = t.claim_id
+      INNER JOIN prices as claim_t on claim_t.minute = DATE_TRUNC('day', t.date_submit) AND claim_t.symbol = s.cover_asset
+      INNER JOIN prices as cover_t on cover_t.minute = DATE_TRUNC('day', s.cover_start_time) AND cover_t.symbol = s.cover_asset
     WHERE max_status_no IS NOT NULL
       AND CAST(max_status_no as INT) IN (6, 9, 11, 12, 13, 14) -- only get final status's
   ),
@@ -304,7 +306,7 @@ mv_token as (
         ELSE 0
       end as nxm_mv_assessor_rewards_per_vote
      FROM claims_status_details
-      LEFT JOIN votes_quorum ON votes_quorum.claim_id = claims_status_details.claim_id
+      LEFT JOIN votes_quorum on votes_quorum.claim_id = claims_status_details.claim_id
   )
 
 SELECT *
