@@ -241,63 +241,60 @@ claims_status_details as (
 ),
 
 claims_status_details_votes as (
-  SELECT
-    CAST(claims_status_details.claim_id as BIGINT) as claim_id,
-    claims_status_details.cover_id,
+  select
+    csd.claim_id,
+    csd.cover_id,
     case
-    -- clim id 108 is a snapshot vote that was accepted
-      when CAST(max_status_no as INT) IN (12, 13, 14)
-      OR claims_status_details.claim_id = CAST(102 as UINT256) then 'ACCEPTED ✅'
-      ELSE 'DENIED ❌'
+      -- clim id 108 is a snapshot vote that was accepted
+      when csd.claim_status in (12, 13, 14) or csd.claim_id = 102 then 'ACCEPTED ✅'
+      else 'DENIED ❌'
     end as verdict,
-    CONCAT(
+    concat(
       '<a href="https://app.nexusmutual.io/claim-assessment/view-claim?claimId=',
-      CAST(claims_status_details.claim_id as VARCHAR),
+      cast(csd.claim_id as varchar),
       '" target="_blank">',
       'link',
       '</a>'
     ) as url_link,
-    claims_status_details.product_name,
-    claims_status_details.product_type,
-    claims_status_details.syndicate as staking_pool,
-    claims_status_details.cover_asset,
-    sum_assured,
-    dollar_sum_assured,
-    claim_amount,
-    dollar_claim_amount,
-    claims_status_details.cover_start_time,
-    claims_status_details.cover_end_time,
-    claims_status_details.submit_time as submit_time,
-    votes_quorum.ca_vote_yes,
-    votes_quorum.ca_vote_no,
-    votes_quorum.ca_nxm_vote_yes,
-    votes_quorum.ca_nxm_vote_no,
-    votes_quorum.ca_vote_yes + votes_quorum.ca_vote_no as ca_total_votes,
-    votes_quorum.ca_nxm_vote_total,
-    claims_status_details.assessor_rewards / (
-      votes_quorum.ca_vote_yes + votes_quorum.ca_vote_no
-    ) as nxm_assessor_rewards_per_vote,
-    claims_status_details.sum_assured * 5 * 1E18 / votes_quorum.ca_quorum_price as ca_nxm_quorum,
-    votes_quorum.mv_vote_yes,
-    votes_quorum.mv_vote_no,
-    votes_quorum.mv_vote_yes + votes_quorum.mv_vote_no as mv_total_votes,
-    votes_quorum.mv_nxm_vote_yes,
-    votes_quorum.mv_nxm_vote_no,
-    votes_quorum.mv_nxm_vote_total,
-    claims_status_details.sum_assured * 5 * 1E18 / votes_quorum.mv_quorum_price as mv_nxm_quorum,
-    claims_status_details.assessor_rewards,
+    csd.product_name,
+    csd.product_type,
+    csd.syndicate as staking_pool,
+    csd.cover_asset,
+    csd.sum_assured,
+    csd.dollar_sum_assured,
+    csd.claim_amount,
+    csd.dollar_claim_amount,
+    csd.cover_start_time,
+    csd.cover_end_time,
+    csd.submit_time,
+    vq.ca_vote_yes,
+    vq.ca_vote_no,
+    vq.ca_nxm_vote_yes,
+    vq.ca_nxm_vote_no,
+    vq.ca_vote_yes + vq.ca_vote_no as ca_total_votes,
+    vq.ca_nxm_vote_total,
+    csd.assessor_rewards / (vq.ca_vote_yes + vq.ca_vote_no) as nxm_assessor_rewards_per_vote,
+    csd.sum_assured * 5 * 1e18 / vq.ca_quorum_price as ca_nxm_quorum,
+    vq.mv_vote_yes,
+    vq.mv_vote_no,
+    vq.mv_vote_yes + vq.mv_vote_no as mv_total_votes,
+    vq.mv_nxm_vote_yes,
+    vq.mv_nxm_vote_no,
+    vq.mv_nxm_vote_total,
+    csd.sum_assured * 5 * 1e18 / vq.mv_quorum_price as mv_nxm_quorum,
+    csd.assessor_rewards,
     case
-      when ca_vote_yes > ca_vote_no THEN assessor_rewards / ca_vote_yes
-      when ca_vote_yes < ca_vote_no THEN assessor_rewards / ca_vote_no
-      ELSE 0
+      when ca_vote_yes > ca_vote_no then assessor_rewards / ca_vote_yes
+      when ca_vote_yes < ca_vote_no then assessor_rewards / ca_vote_no
+      else 0
     end as nxm_ca_assessor_rewards_per_vote,
     case
-      when mv_vote_yes > mv_vote_no THEN assessor_rewards / mv_vote_yes
-      when mv_vote_yes < mv_vote_no THEN assessor_rewards / mv_vote_no
-      ELSE 0
+      when mv_vote_yes > mv_vote_no then assessor_rewards / mv_vote_yes
+      when mv_vote_yes < mv_vote_no then assessor_rewards / mv_vote_no
+      else 0
     end as nxm_mv_assessor_rewards_per_vote
-  FROM claims_status_details
-    LEFT JOIN votes_quorum on votes_quorum.claim_id = claims_status_details.claim_id
+  from claims_status_details csd
+    left join votes_quorum vq on csd.claim_id = vq.claim_id
 )
 
 select *
