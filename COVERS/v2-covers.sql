@@ -18,6 +18,8 @@ covers as (
     premium_asset,
     premium,
     premium_incl_commission as premium_nxm,
+    partial_cover_amount,
+    sum(partial_cover_amount) over (partition by cover_id) as total_cover_amount,
     cover_owner,
     tx_hash
   from query_3788370 -- covers v2 base (fallback) query
@@ -39,6 +41,7 @@ select
   if(c.cover_end_time >= now(), 'Active', 'Expired') as cover_status,
   c.cover_asset,
   c.sum_assured as native_cover_amount,
+  sum_assured * partial_cover_amount / total_cover_amount as staking_pool_cover_amount,
   case
     when c.cover_asset = 'ETH' then c.sum_assured * p_start.avg_eth_usd_price
     when c.cover_asset = 'DAI' then c.sum_assured * p_start.avg_dai_usd_price
