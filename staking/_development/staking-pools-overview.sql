@@ -6,7 +6,8 @@ staking_pool_products as (
     pool_address,
     product_id,
     coalesce(target_weight, initial_weight) as target_weight
-  from nexusmutual_ethereum.staking_pools
+  from query_3859935 -- staking pools base (fallback) query
+  --from nexusmutual_ethereum.staking_pools
 ),
 
 staking_pools as (
@@ -22,7 +23,8 @@ staking_pools as (
     sp.max_management_fee / 100.00 as max_management_fee,
     spp.total_weight / 100.00 as leverage,
     spp.product_count
-  from nexusmutual_ethereum.staking_pools sp
+  from query_3859935 sp -- staking pools base (fallback) query
+  --from nexusmutual_ethereum.staking_pools sp
     inner join (
       select
         pool_id,
