@@ -41,7 +41,6 @@ select
   if(c.cover_end_time >= now(), 'Active', 'Expired') as cover_status,
   c.cover_asset,
   c.sum_assured as native_cover_amount,
-  sum_assured * partial_cover_amount / total_cover_amount as staking_pool_cover_amount,
   case
     when c.cover_asset = 'ETH' then c.sum_assured * p_start.avg_eth_usd_price
     when c.cover_asset = 'DAI' then c.sum_assured * p_start.avg_dai_usd_price
@@ -62,6 +61,8 @@ select
     when c.cover_asset = 'DAI' then (c.sum_assured * p_end.avg_dai_usd_price) / p_end.avg_eth_usd_price
     when c.cover_asset = 'USDC' then (c.sum_assured * p_end.avg_usdc_usd_price) / p_end.avg_eth_usd_price
   end as cover_end_eth,
+  c.staking_pool,
+  c.sum_assured * c.partial_cover_amount / c.total_cover_amount as staking_pool_cover_amount,
   c.premium_asset,
   c.premium_nxm,
   case
@@ -70,7 +71,6 @@ select
     when c.cover_asset = 'USDC' then (c.premium_nxm * p_start.avg_nxm_usd_price) / p_start.avg_usdc_usd_price
   end as premium_native,
   c.premium_nxm * p_start.avg_nxm_usd_price as premium_usd,
-  c.staking_pool,
   coalesce(c.product_type, 'unknown') as product_type,
   coalesce(c.product_name, 'unknown') as product_name,
   c.cover_start_time,
