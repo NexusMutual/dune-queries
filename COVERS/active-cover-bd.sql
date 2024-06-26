@@ -1,5 +1,16 @@
 with
 
+daily_avg_prices as (
+  select
+    block_date,
+    avg_eth_usd_price,
+    avg_dai_usd_price,
+    avg_usdc_usd_price,
+    avg_nxm_eth_price,
+    avg_nxm_usd_price
+  from query_3789851 -- prices base (fallback) query
+),
+
 covers as (
   select
     cover_id,
@@ -10,8 +21,9 @@ covers as (
     product_name,
     cover_asset,
     sum_assured,
-    sum_assured as partial_cover_amount,
-    sum(sum_assured) over (partition by cover_id) as total_cover_amount
+    sum_assured as cover_amount,
+    premium_asset,
+    premium
   from query_3788367 -- covers v1 base (fallback) query
   union all
   select
@@ -23,28 +35,53 @@ covers as (
     product_name,
     cover_asset,
     sum_assured,
-    partial_cover_amount,
-    sum(partial_cover_amount) over (partition by cover_id) as total_cover_amount
+    sum_assured * partial_cover_amount / sum(partial_cover_amount) over (partition by cover_id) as cover_amount,
+    premium_asset,
+    premium_incl_commission as premium
   from query_3788370 -- covers v2 base (fallback) query
   where is_migrated = false
 ),
 
 covers_ext as (
   select
-    cover_id,
-    cover_start_date,
-    cover_end_date,
-    staking_pool,
-    product_type,
-    product_name,
-    cover_asset,
-    sum_assured,
-    partial_cover_amount,
-    total_cover_amount,
-    if(cover_asset = 'ETH', sum_assured * partial_cover_amount / total_cover_amount, 0) as eth_cover_amount,
-    if(cover_asset = 'DAI', sum_assured * partial_cover_amount / total_cover_amount, 0) as dai_cover_amount,
-    if(cover_asset = 'USDC', sum_assured * partial_cover_amount / total_cover_amount, 0) as usdc_cover_amount
-  from covers
+    c.cover_id,
+    c.cover_start_date,
+    c.cover_end_date,
+    c.staking_pool,
+    c.product_type,
+    c.product_name,
+    /*
+    c.cover_asset,
+    c.cover_amount * case c.cover_asset
+        when 'ETH' then 1
+        when 'DAI' then p.avg_dai_usd_price / p.avg_eth_usd_price
+        when 'USDC' then p.avg_usdc_usd_price / p.avg_eth_usd_price
+      end as eth_cover_amount,
+    c.cover_amount * case c.cover_asset
+        when 'ETH' then p.avg_eth_usd_price
+        when 'DAI' then p.avg_dai_usd_price
+        when 'USDC' then p.avg_usdc_usd_price
+      end as usd_cover_amount,
+    c.premium_asset,
+    c.premium * case when c.staking_pool = 'v1'
+        then if(c.cover_asset = 'DAI', p.avg_dai_usd_price, p.avg_eth_usd_price) / p.avg_eth_usd_price
+        else p.avg_nxm_usd_price / p.avg_eth_usd_price
+      end eth_premium_amount,
+    c.premium * case when c.staking_pool = 'v1'
+        then if(c.cover_asset = 'DAI', p.avg_dai_usd_price, p.avg_eth_usd_price)
+        else p.avg_nxm_usd_price
+      end usd_premium_amount,
+    */
+    c.cover_asset,
+    if(c.cover_asset = 'ETH', c.cover_amount, 0) as eth_cover_amount,
+    if(c.cover_asset = 'DAI', c.cover_amount, 0) as dai_cover_amount,
+    if(c.cover_asset = 'USDC', c.cover_amount, 0) as usdc_cover_amount,
+    c.premium_asset,
+    if(c.staking_pool = 'v1' and c.cover_asset = 'ETH', c.premium, 0) as eth_premium_amount,
+    if(c.staking_pool = 'v1' and c.cover_asset = 'DAI', c.premium, 0) as dai_premium_amount,
+    if(c.staking_pool <> 'v1', c.premium, 0) as nxm_premium_amount
+  from covers c
+    --inner join daily_avg_prices p on c.cover_start_date = p.block_date
 ),
 
 day_sequence as (
@@ -60,43 +97,7 @@ daily_active_covers as (
     sum(c.dai_cover_amount) as dai_cover_total,
     sum(c.usdc_cover_amount) as usdc_cover_total
   from day_sequence ds
-    left join covers c on ds.block_date between c.cover_start_date and c.cover_end_date
-  group by 1
-),
-
-daily_avg_eth_prices as (
-  select
-    date_trunc('day', minute) as block_date,
-    avg(price) as price_usd
-  from prices.usd
-  where symbol = 'ETH'
-    and blockchain is null
-    and contract_address is null
-    and minute >= timestamp '2019-07-12'
-  group by 1
-),
-
-daily_avg_dai_prices as (
-  select
-    date_trunc('day', minute) as block_date,
-    avg(price) as price_usd
-  from prices.usd
-  where symbol = 'DAI'
-    and blockchain = 'ethereum'
-    and contract_address = 0x6b175474e89094c44da98b954eedeac495271d0f
-    and minute >= timestamp '2019-07-12'
-  group by 1
-),
-
-daily_avg_usdc_prices as (
-  select
-    date_trunc('day', minute) as block_date,
-    avg(price) as price_usd
-  from prices.usd
-  where symbol = 'USDC'
-    and blockchain = 'ethereum'
-    and contract_address = 0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48
-    and minute >= timestamp '2019-07-12'
+    left join covers_ext c on ds.block_date between c.cover_start_date and c.cover_end_date
   group by 1
 ),
 
@@ -105,17 +106,15 @@ daily_active_covers_enriched as (
     ac.block_date,
     --ETH
     ac.eth_cover_total as eth_eth_cover_total,
-    ac.eth_cover_total * p_avg_eth.price_usd as eth_usd_cover_total,
+    ac.eth_cover_total * p.avg_eth_usd_price as eth_usd_cover_total,
     --DAI
-    ac.dai_cover_total * p_avg_dai.price_usd / p_avg_eth.price_usd as dai_eth_cover_total,
-    ac.dai_cover_total * p_avg_dai.price_usd as dai_usd_cover_total,
+    ac.dai_cover_total * p.avg_dai_usd_price / p.avg_eth_usd_price as dai_eth_cover_total,
+    ac.dai_cover_total * p.avg_dai_usd_price as dai_usd_cover_total,
     --USDC
-    ac.usdc_cover_total * p_avg_usdc.price_usd / p_avg_eth.price_usd as usdc_eth_cover_total,
-    ac.usdc_cover_total * p_avg_usdc.price_usd as usdc_usd_cover_total
+    ac.usdc_cover_total * p.avg_usdc_usd_price / p.avg_eth_usd_price as usdc_eth_cover_total,
+    ac.usdc_cover_total * p.avg_usdc_usd_price as usdc_usd_cover_total
   from daily_active_covers ac
-    inner join daily_avg_eth_prices p_avg_eth on ac.block_date = p_avg_eth.block_date
-    inner join daily_avg_dai_prices p_avg_dai on ac.block_date = p_avg_dai.block_date
-    inner join daily_avg_usdc_prices p_avg_usdc on ac.block_date = p_avg_usdc.block_date
+    inner join daily_avg_prices p on ac.block_date = p.block_date
 )
 
 select
