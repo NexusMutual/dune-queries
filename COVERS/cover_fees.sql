@@ -19,7 +19,8 @@ covers as (
     c.premium_asset,
     c.premium * if(c.cover_asset = 'DAI', p.avg_dai_usd_price, p.avg_eth_usd_price) as premium_usd,
     c.premium * if(c.cover_asset = 'DAI', p.avg_dai_usd_price, p.avg_eth_usd_price) / p.avg_eth_usd_price as premium_eth
-  from query_3788367 c -- covers v1 base (fallback) query
+  --from query_3788367 c -- covers v1 base (fallback) query
+  from nexusmutual_ethereum.covers_v1 c
     inner join daily_avg_prices p on c.block_date = p.block_date
   union all
   select
@@ -29,7 +30,8 @@ covers as (
     c.premium_asset,
     c.premium_incl_commission * p.avg_nxm_usd_price as premium_usd,
     c.premium_incl_commission * p.avg_nxm_usd_price / p.avg_eth_usd_price as premium_eth
-  from query_3788370 c -- covers v2 base (fallback) query
+  --from query_3788370 c -- covers v2 base (fallback) query
+  from nexusmutual_ethereum.covers_v2 c
     inner join daily_avg_prices p on c.block_date = p.block_date
   where c.is_migrated = false
 ),

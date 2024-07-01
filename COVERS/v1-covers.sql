@@ -22,7 +22,8 @@ covers as (
     cover_owner,
     evt_index,
     tx_hash
-  from query_3788367 -- covers v1 base (fallback) query
+  --from query_3788367 -- covers v1 base (fallback) query
+  from nexusmutual_ethereum.covers_v1
 ),
 
 daily_avg_prices as (

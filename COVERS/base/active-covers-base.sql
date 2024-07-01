@@ -20,7 +20,8 @@ covers as (
     sum_assured,
     partial_cover_amount,
     sum(partial_cover_amount) over (partition by cover_id) as total_cover_amount
-  from query_3788370 -- covers v2 base (fallback) query
+  --from query_3788370 -- covers v2 base (fallback) query
+  from nexusmutual_ethereum.covers_v2
   where cover_end_time >= now()
 ),
 

@@ -24,7 +24,8 @@ covers as (
     sum_assured as cover_amount,
     premium_asset,
     premium
-  from query_3788367 -- covers v1 base (fallback) query
+  --from query_3788367 -- covers v1 base (fallback) query
+  from nexusmutual_ethereum.covers_v1
   union all
   select
     cover_id,
@@ -38,7 +39,8 @@ covers as (
     sum_assured * partial_cover_amount / sum(partial_cover_amount) over (partition by cover_id) as cover_amount,
     premium_asset,
     premium_incl_commission as premium
-  from query_3788370 -- covers v2 base (fallback) query
+  --from query_3788370 -- covers v2 base (fallback) query
+  from nexusmutual_ethereum.covers_v2
   where is_migrated = false
 ),
 
@@ -95,7 +97,10 @@ daily_active_covers as (
     ds.block_date,
     sum(c.eth_cover_amount) as eth_cover_total,
     sum(c.dai_cover_amount) as dai_cover_total,
-    sum(c.usdc_cover_amount) as usdc_cover_total
+    sum(c.usdc_cover_amount) as usdc_cover_total,
+    sum(c.eth_premium_amount) as eth_premium_total,
+    sum(c.dai_premium_amount) as dai_premium_total,
+    sum(c.nxm_premium_amount) as nxm_premium_total
   from day_sequence ds
     left join covers_ext c on ds.block_date between c.cover_start_date and c.cover_end_date
   group by 1
@@ -104,6 +109,7 @@ daily_active_covers as (
 daily_active_covers_enriched as (
   select
     ac.block_date,
+    --== covers ==
     --ETH
     ac.eth_cover_total as eth_eth_cover_total,
     ac.eth_cover_total * p.avg_eth_usd_price as eth_usd_cover_total,
@@ -112,7 +118,17 @@ daily_active_covers_enriched as (
     ac.dai_cover_total * p.avg_dai_usd_price as dai_usd_cover_total,
     --USDC
     ac.usdc_cover_total * p.avg_usdc_usd_price / p.avg_eth_usd_price as usdc_eth_cover_total,
-    ac.usdc_cover_total * p.avg_usdc_usd_price as usdc_usd_cover_total
+    ac.usdc_cover_total * p.avg_usdc_usd_price as usdc_usd_cover_total,
+    --== fees ==
+    --ETH
+    ac.eth_premium_total as eth_eth_premium_total,
+    ac.eth_premium_total * p.avg_eth_usd_price as eth_usd_premium_total,
+    --DAI
+    ac.dai_premium_total * p.avg_dai_usd_price / p.avg_eth_usd_price as dai_eth_premium_total,
+    ac.dai_premium_total * p.avg_dai_usd_price as dai_usd_premium_total,
+    --NXM
+    ac.nxm_premium_total * p.avg_nxm_usd_price / p.avg_eth_usd_price as nxm_eth_premium_total,
+    ac.nxm_premium_total * p.avg_nxm_usd_price as nxm_usd_premium_total
   from daily_active_covers ac
     inner join daily_avg_prices p on ac.block_date = p.block_date
 )

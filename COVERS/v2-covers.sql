@@ -22,7 +22,8 @@ covers as (
     sum(partial_cover_amount) over (partition by cover_id) as total_cover_amount,
     cover_owner,
     tx_hash
-  from query_3788370 -- covers v2 base (fallback) query
+  --from query_3788370 -- covers v2 base (fallback) query
+  from nexusmutual_ethereum.covers_v2
 ),
 
 daily_avg_prices as (

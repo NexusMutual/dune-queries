@@ -10,7 +10,8 @@ covers as (
     if(cover_asset = 'ETH', sum_assured, 0) as eth_cover_amount,
     if(cover_asset = 'DAI', sum_assured, 0) as dai_cover_amount,
     if(cover_asset = 'USDC', sum_assured, 0) as usdc_cover_amount
-  from query_3788367 -- covers v1 base (fallback) query
+  --from query_3788367 -- covers v1 base (fallback) query
+  from nexusmutual_ethereum.covers_v1
   union all
   select distinct
     cover_id,
@@ -21,7 +22,8 @@ covers as (
     if(cover_asset = 'ETH', sum_assured, 0) as eth_cover_amount,
     if(cover_asset = 'DAI', sum_assured, 0) as dai_cover_amount,
     if(cover_asset = 'USDC', sum_assured, 0) as usdc_cover_amount
-  from query_3788370 -- covers v2 base (fallback) query
+  --from query_3788370 -- covers v2 base (fallback) query
+  from nexusmutual_ethereum.covers_v2
   where is_migrated = false
 ),
 
