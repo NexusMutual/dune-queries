@@ -72,6 +72,7 @@ day_sequence as (
 daily_cover as (
   select
     ds.block_date,
+    count(distinct c_start.cover_id) as cover_sold,
     sum(c_period.eth_cover_amount) as eth_cover_total,
     sum(c_period.dai_cover_amount) as dai_cover_total,
     sum(c_period.usdc_cover_amount) as usdc_cover_total,
@@ -87,6 +88,7 @@ daily_cover as (
 daily_cover_enriched as (
   select
     dc.block_date,
+    dc.cover_sold,
     --== covers ==
     --ETH
     coalesce(dc.eth_cover_total, 0) as eth_eth_cover_total,
