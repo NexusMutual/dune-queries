@@ -114,6 +114,11 @@ daily_cover_enriched as (
 )
 
 select
-  *
+  block_date,
+  cover_sold,
+  eth_eth_cover_total + dai_eth_cover_total + usdc_eth_cover_total as eth_cover_total,
+  eth_usd_cover_total + dai_usd_cover_total + usdc_usd_cover_total as usd_cover_total,
+  eth_eth_premium_total + dai_eth_premium_total + nxm_eth_premium_total as eth_premium_total,
+  eth_usd_premium_total + dai_usd_premium_total + nxm_usd_premium_total as usd_premium_total
 from daily_cover_enriched
 order by 1 desc
