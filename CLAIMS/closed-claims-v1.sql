@@ -78,7 +78,7 @@ mv_votes as (
     sum(if(_vote = 1, _tokens / 1e18, 0)) as mv_nxm_vote_yes,
     sum(if(_vote = -1, _tokens / 1e18, 0)) as mv_nxm_vote_no,
     sum(_tokens) / 1e18 as mv_nxm_vote_total
-  from nexusmutual_ethereum.ClaimsData_call_setClaimTokensCA
+  from nexusmutual_ethereum.ClaimsData_call_setClaimTokensMV
   where call_success
   group by 1
 ),
