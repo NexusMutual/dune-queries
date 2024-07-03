@@ -13,7 +13,8 @@ covers as (
     product_type,
     cover_asset,
     sum_assured
-  from query_3788367 -- covers v1 base (fallback) query
+  --from query_3788367 -- covers v1 base (fallback) query
+  from nexusmutual_ethereum.covers_v1
 ),
 
 claims as (
@@ -46,14 +47,6 @@ claims_status as (
     where cs.call_success
   ) t
   where rn = 1
-),
-
-assessor_rewards as (
-  select
-    claimid as claim_id,
-    tokens / 1e18 as nxm_assessor_rewards
-  from nexusmutual_ethereum.ClaimsData_call_setClaimRewardDetail
-  where call_success
 ),
 
 -- CA & MV votes
@@ -201,6 +194,14 @@ votes_quorum as (
     mv_quorum_price
   from quorum
     full join votes on votes.claim_id = quorum.claim_id
+),
+
+assessor_rewards as (
+  select
+    claimid as claim_id,
+    tokens / 1e18 as nxm_assessor_rewards
+  from nexusmutual_ethereum.ClaimsData_call_setClaimRewardDetail
+  where call_success
 ),
 
 prices as (
