@@ -49,7 +49,6 @@ claims_status as (
   where rn = 1
 ),
 
--- CA & MV votes
 ca_votes as (
   select
     _claimId as claim_id,
@@ -93,88 +92,34 @@ votes as (
     full join mv_votes on ca_votes.claim_id = mv_votes.claim_id
 ),
 
--- quorum caculation
-ca_tokens as (
-  select
-    call_block_time,
-    claimId as claim_id,
-    output_tokens as tokens,
-    call_tx_hash,
-    call_trace_address
-  from nexusmutual_ethereum.Claims_call_getCATokens
-  where call_success
-    and member = 0
-),
-
-mv_tokens as (
-  select
-    call_block_time,
-    claimId as claim_id,
-    output_tokens as tokens,
-    call_tx_hash,
-    call_trace_address
-  from nexusmutual_ethereum.Claims_call_getCATokens
-  where call_success
-    and member = 1
-),
-
-ca_quorum as (
-  select
-    t.claim_id,
-    t.tokens,
-    p.output_tokenPrice as ca_quorum_price,
-    t.call_block_time as ca_ts
-  from nexusmutual_ethereum.Pool_call_getTokenPrice p
-    inner join ca_tokens t on p.call_block_time = t.call_block_time
-      and p.call_tx_hash = t.call_tx_hash
-      and contains_sequence(p.call_trace_address, t.call_trace_address)
-  where p.call_success
-  union all
-  select
-    t.claim_id,
-    t.tokens,
-    p.output_tokenPrice as ca_quorum_price,
-    t.call_block_time as ca_ts
-  from nexusmutual_ethereum.MCR_call_calculateTokenPrice p
-    inner join ca_tokens t on p.call_block_time = t.call_block_time
-      and p.call_tx_hash = t.call_tx_hash
-      and contains_sequence(p.call_trace_address, t.call_trace_address)
-  where p.call_success
-),
-
-mv_quorum as (
-  select
-    t.claim_id,
-    t.tokens,
-    p.output_tokenPrice as mv_quorum_price,
-    t.call_block_time as mv_ts
-  from nexusmutual_ethereum.Pool_call_getTokenPrice p
-    inner join mv_tokens t on p.call_block_time = t.call_block_time
-      and p.call_tx_hash = t.call_tx_hash
-      and contains_sequence(p.call_trace_address, t.call_trace_address)
-  where p.call_success
-  union all
-  select
-    t.claim_id,
-    t.tokens,
-    p.output_tokenPrice as mv_quorum_price,
-    t.call_block_time as mv_ts
-  from nexusmutual_ethereum.MCR_call_calculateTokenPrice p
-    inner join mv_tokens t on p.call_block_time = t.call_block_time
-      and p.call_tx_hash = t.call_tx_hash
-      and contains_sequence(p.call_trace_address, t.call_trace_address)
-  where p.call_success
-),
-
 quorum as (
   select
-    coalesce(ca_quorum.claim_id, mv_quorum.claim_id) as claim_id,
-    ca_quorum_price,
-    ca_ts,
-    mv_quorum_price,
-    mv_ts
-  from ca_quorum
-    full join mv_quorum on ca_quorum.claim_id = mv_quorum.claim_id
+    t.claimId as claim_id,
+    sum(t.output_tokens) filter (where t.member = 0) as ca_tokens,
+    sum(p.output_tokenPrice) filter (where t.member = 0) as ca_quorum_price,
+    sum(t.output_tokens) filter (where t.member = 1) as mv_tokens,
+    sum(p.output_tokenPrice) filter (where t.member = 1) as mv_quorum_price
+  from nexusmutual_ethereum.Pool_call_getTokenPrice p
+    inner join nexusmutual_ethereum.Claims_call_getCATokens t on p.call_block_time = t.call_block_time
+      and p.call_tx_hash = t.call_tx_hash
+      and contains_sequence(p.call_trace_address, t.call_trace_address)
+  where p.call_success
+    and t.call_success
+  group by 1
+  union all
+  select
+    t.claimId as claim_id,
+    sum(t.output_tokens) filter (where t.member = 0) as ca_tokens,
+    sum(p.output_tokenPrice) filter (where t.member = 0) as ca_quorum_price,
+    sum(t.output_tokens) filter (where t.member = 1) as mv_tokens,
+    sum(p.output_tokenPrice) filter (where t.member = 1) as mv_quorum_price
+  from nexusmutual_ethereum.MCR_call_calculateTokenPrice p
+    inner join nexusmutual_ethereum.Claims_call_getCATokens t on p.call_block_time = t.call_block_time
+      and p.call_tx_hash = t.call_tx_hash
+      and contains_sequence(p.call_trace_address, t.call_trace_address)
+  where p.call_success
+    and t.call_success
+  group by 1
 ),
 
 votes_quorum as (
@@ -285,13 +230,13 @@ claims_status_details_votes as (
     csd.sum_assured * 5 * 1e18 / vq.mv_quorum_price as mv_nxm_quorum,
     csd.assessor_rewards,
     case
-      when ca_vote_yes > ca_vote_no then assessor_rewards / ca_vote_yes
-      when ca_vote_yes < ca_vote_no then assessor_rewards / ca_vote_no
+      when vq.ca_vote_yes > vq.ca_vote_no then csd.assessor_rewards / vq.ca_vote_yes
+      when vq.ca_vote_yes < vq.ca_vote_no then csd.assessor_rewards / vq.ca_vote_no
       else 0
     end as nxm_ca_assessor_rewards_per_vote,
     case
-      when mv_vote_yes > mv_vote_no then assessor_rewards / mv_vote_yes
-      when mv_vote_yes < mv_vote_no then assessor_rewards / mv_vote_no
+      when vq.mv_vote_yes > vq.mv_vote_no then csd.assessor_rewards / vq.mv_vote_yes
+      when vq.mv_vote_yes < vq.mv_vote_no then csd.assessor_rewards / vq.mv_vote_no
       else 0
     end as nxm_mv_assessor_rewards_per_vote
   from claims_status_details csd
