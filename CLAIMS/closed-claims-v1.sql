@@ -19,34 +19,13 @@ covers as (
 
 claims as (
   select
-  cr.claimId as claim_id,
-  cr.coverId as cover_id,
-  cr.userAddress as claimant,
-  from_unixtime(cr.dateSubmit) as submit_time,
-  if(cr.claimId = 102, cast(10.43 as double), cast(cp.requestedPayoutAmount as double)) as partial_claim_amount
-from nexusmutual_ethereum.ClaimsData_evt_ClaimRaise cr
-  left join nexusmutual_ethereum.Claims_call_submitPartialClaim cp on cr.coverId = cp.coverId
-    and cr.evt_tx_hash = cp.call_tx_hash
-    and cp.requestedPayoutAmount > 0
-    and cp.call_success
-),
-
-claims_status as (
-  select claim_id, cover_id, submit_time, submit_date, partial_claim_amount, claim_status
-  from (
-    select
-      c.claim_id,
-      c.cover_id,
-      c.submit_time,
-      date_trunc('day', c.submit_time) as submit_date,
-      c.partial_claim_amount,
-      cs._stat as claim_status,
-      row_number() over (partition by c.claim_id order by cs._stat desc) as rn
-    from nexusmutual_ethereum.ClaimsData_call_setClaimStatus cs
-      inner join claims c on cs._claimId = c.claim_id
-    where cs.call_success
-  ) t
-  where rn = 1
+    claim_id,
+    cover_id,
+    submit_time,
+    submit_date,
+    partial_claim_amount,
+    claim_status
+  from query_3894606 -- claims v1 base (fallback) query
 ),
 
 ca_votes as (
@@ -161,7 +140,7 @@ prices as (
   group by 1, 2
 ),
 
-claims_status_details as (
+claim_status_details as (
   select
     c.cover_id,
     cs.claim_id,
@@ -178,71 +157,66 @@ claims_status_details as (
     coalesce(cs.partial_claim_amount, c.sum_assured) * p_claim.usd_price as dollar_claim_amount,
     c.sum_assured,
     c.sum_assured * p_cover.usd_price as dollar_sum_assured
-  from claims_status cs
+  from claims cs
     inner join covers c on cs.cover_id = c.cover_id
     inner join prices p_claim on cs.submit_date = p_claim.block_date and c.cover_asset = p_claim.symbol
     inner join prices p_cover on c.cover_start_date = p_cover.block_date and c.cover_asset = p_cover.symbol
     left join assessor_rewards ar on cs.claim_id = ar.claim_id
   where cs.claim_status in (6, 9, 11, 12, 13, 14) -- only get final status's
-),
-
-claims_status_details_votes as (
-  select
-    csd.claim_id,
-    csd.cover_id,
-    case
-      -- clim id 108 is a snapshot vote that was accepted
-      when csd.claim_status in (12, 13, 14) or csd.claim_id = 102 then 'ACCEPTED ✅'
-      else 'DENIED ❌'
-    end as verdict,
-    concat(
-      '<a href="https://app.nexusmutual.io/claim-assessment/view-claim?claimId=',
-      cast(csd.claim_id as varchar),
-      '" target="_blank">',
-      'link',
-      '</a>'
-    ) as url_link,
-    csd.product_name,
-    csd.product_type,
-    csd.syndicate as staking_pool,
-    csd.cover_asset,
-    csd.sum_assured,
-    csd.dollar_sum_assured,
-    csd.claim_amount,
-    csd.dollar_claim_amount,
-    csd.cover_start_time,
-    csd.cover_end_time,
-    csd.submit_time,
-    vq.ca_vote_yes,
-    vq.ca_vote_no,
-    vq.ca_nxm_vote_yes,
-    vq.ca_nxm_vote_no,
-    vq.ca_vote_yes + vq.ca_vote_no as ca_total_votes,
-    vq.ca_nxm_vote_total,
-    csd.assessor_rewards / (vq.ca_vote_yes + vq.ca_vote_no) as nxm_assessor_rewards_per_vote,
-    csd.sum_assured * 5 * 1e18 / vq.ca_quorum_price as ca_nxm_quorum,
-    vq.mv_vote_yes,
-    vq.mv_vote_no,
-    vq.mv_vote_yes + vq.mv_vote_no as mv_total_votes,
-    vq.mv_nxm_vote_yes,
-    vq.mv_nxm_vote_no,
-    vq.mv_nxm_vote_total,
-    csd.sum_assured * 5 * 1e18 / vq.mv_quorum_price as mv_nxm_quorum,
-    csd.assessor_rewards,
-    case
-      when vq.ca_vote_yes > vq.ca_vote_no then csd.assessor_rewards / vq.ca_vote_yes
-      when vq.ca_vote_yes < vq.ca_vote_no then csd.assessor_rewards / vq.ca_vote_no
-      else 0
-    end as nxm_ca_assessor_rewards_per_vote,
-    case
-      when vq.mv_vote_yes > vq.mv_vote_no then csd.assessor_rewards / vq.mv_vote_yes
-      when vq.mv_vote_yes < vq.mv_vote_no then csd.assessor_rewards / vq.mv_vote_no
-      else 0
-    end as nxm_mv_assessor_rewards_per_vote
-  from claims_status_details csd
-    left join votes_quorum vq on csd.claim_id = vq.claim_id
 )
 
-select *
-from claims_status_details_votes
-order by claim_id desc
+select
+  csd.claim_id,
+  csd.cover_id,
+  case
+    -- clim id 108 is a snapshot vote that was accepted
+    when csd.claim_status in (12, 13, 14) or csd.claim_id = 102 then 'ACCEPTED ✅'
+    else 'DENIED ❌'
+  end as verdict,
+  concat(
+    '<a href="https://app.nexusmutual.io/claim-assessment/view-claim?claimId=',
+    cast(csd.claim_id as varchar),
+    '" target="_blank">',
+    'link',
+    '</a>'
+  ) as url_link,
+  csd.product_name,
+  csd.product_type,
+  csd.syndicate as staking_pool,
+  csd.cover_asset,
+  csd.sum_assured,
+  csd.dollar_sum_assured,
+  csd.claim_amount,
+  csd.dollar_claim_amount,
+  csd.cover_start_time,
+  csd.cover_end_time,
+  csd.submit_time,
+  vq.ca_vote_yes,
+  vq.ca_vote_no,
+  vq.ca_nxm_vote_yes,
+  vq.ca_nxm_vote_no,
+  vq.ca_vote_yes + vq.ca_vote_no as ca_total_votes,
+  vq.ca_nxm_vote_total,
+  csd.assessor_rewards / (vq.ca_vote_yes + vq.ca_vote_no) as nxm_assessor_rewards_per_vote,
+  csd.sum_assured * 5 * 1e18 / vq.ca_quorum_price as ca_nxm_quorum,
+  vq.mv_vote_yes,
+  vq.mv_vote_no,
+  vq.mv_vote_yes + vq.mv_vote_no as mv_total_votes,
+  vq.mv_nxm_vote_yes,
+  vq.mv_nxm_vote_no,
+  vq.mv_nxm_vote_total,
+  csd.sum_assured * 5 * 1e18 / vq.mv_quorum_price as mv_nxm_quorum,
+  csd.assessor_rewards,
+  case
+    when vq.ca_vote_yes > vq.ca_vote_no then csd.assessor_rewards / vq.ca_vote_yes
+    when vq.ca_vote_yes < vq.ca_vote_no then csd.assessor_rewards / vq.ca_vote_no
+    else 0
+  end as nxm_ca_assessor_rewards_per_vote,
+  case
+    when vq.mv_vote_yes > vq.mv_vote_no then csd.assessor_rewards / vq.mv_vote_yes
+    when vq.mv_vote_yes < vq.mv_vote_no then csd.assessor_rewards / vq.mv_vote_no
+    else 0
+  end as nxm_mv_assessor_rewards_per_vote
+from claim_status_details csd
+  left join votes_quorum vq on csd.claim_id = vq.claim_id
+order by csd.claim_id desc
