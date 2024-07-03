@@ -50,8 +50,13 @@ select
   ce.product_id,
   ce.user,
   cd.assessment_id,
-  cd.cover_asset,
-  cd.requested_amount,
+  case cd.cover_asset
+    when 0 then 'ETH'
+    when 1 then 'DAI'
+    when 6 then 'USDC'
+    else 'NA'
+  end as cover_asset,
+  cd.requested_amount / if(cd.cover_asset = 6, 1e6, 1e18) as requested_amount,
   cd.is_payout_redeemed,
   cd.ipfs_metadata,
   ce.tx_hash
