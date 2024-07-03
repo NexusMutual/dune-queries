@@ -154,13 +154,12 @@ claim_status_details as (
     c.product_type,
     cs.claim_status,
     coalesce(cs.partial_claim_amount, c.sum_assured) as claim_amount,
-    coalesce(cs.partial_claim_amount, c.sum_assured) * p_claim.usd_price as dollar_claim_amount,
+    coalesce(cs.partial_claim_amount, c.sum_assured) * p.usd_price as dollar_claim_amount,
     c.sum_assured,
-    c.sum_assured * p_cover.usd_price as dollar_sum_assured
+    c.sum_assured * p.usd_price as dollar_sum_assured
   from claims cs
     inner join covers c on cs.cover_id = c.cover_id
-    inner join prices p_claim on cs.submit_date = p_claim.block_date and c.cover_asset = p_claim.symbol
-    inner join prices p_cover on c.cover_start_date = p_cover.block_date and c.cover_asset = p_cover.symbol
+    inner join prices p on cs.submit_date = p.block_date and c.cover_asset = p.symbol
     left join assessor_rewards ar on cs.claim_id = ar.claim_id
   where cs.claim_status in (6, 9, 11, 12, 13, 14) -- only get final status's
 )
