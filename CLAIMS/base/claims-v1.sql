@@ -2,11 +2,14 @@ with
 
 claims as (
   select
+    cr.evt_block_time as block_time,
+    cr.evt_block_number as block_number,
     cr.claimId as claim_id,
     cr.coverId as cover_id,
     cr.userAddress as claimant,
     from_unixtime(cr.dateSubmit) as submit_time,
-    if(cr.claimId = 102, cast(10.43 as double), cast(cp.requestedPayoutAmount as double)) as partial_claim_amount
+    if(cr.claimId = 102, cast(10.43 as double), cast(cp.requestedPayoutAmount as double)) as partial_claim_amount,
+    cr.evt_tx_hash as tx_hash
   from nexusmutual_ethereum.ClaimsData_evt_ClaimRaise cr
     left join nexusmutual_ethereum.Claims_call_submitPartialClaim cp on cr.coverId = cp.coverId
       and cr.evt_tx_hash = cp.call_tx_hash
@@ -15,15 +18,20 @@ claims as (
 )
 
 select
+  block_time,
+  block_number,
   claim_id,
   cover_id,
   claimant,
   submit_time,
   submit_date,
   partial_claim_amount,
-  claim_status
+  claim_status,
+  tx_hash
 from (
   select
+    c.block_time,
+    c.block_number,
     c.claim_id,
     c.cover_id,
     c.claimant,
@@ -31,6 +39,7 @@ from (
     date_trunc('day', c.submit_time) as submit_date,
     c.partial_claim_amount,
     cs._stat as claim_status,
+    c.tx_hash,
     row_number() over (partition by c.claim_id order by cs._stat desc) as rn
   from nexusmutual_ethereum.ClaimsData_call_setClaimStatus cs
     inner join claims c on cs._claimId = c.claim_id

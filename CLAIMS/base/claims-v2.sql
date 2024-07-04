@@ -4,6 +4,8 @@ claim_evt as (
   select
     evt_block_time as block_time,
     evt_block_number as block_number,
+    evt_block_time as submit_time,
+    date_trunc('day', evt_block_time) as submit_date,
     claimId as claim_id,
     coverId as cover_id,
     productId as product_id,
@@ -45,6 +47,8 @@ claim_data as (
 select
   ce.block_time,
   ce.block_number,
+  ce.submit_time,
+  ce.submit_date,
   ce.claim_id,
   ce.cover_id,
   ce.product_id,
