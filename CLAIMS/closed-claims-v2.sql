@@ -58,6 +58,7 @@ assessments as (
 completed_claims as (
   select distinct
     c.submit_time,
+    c.submit_date,
     c.cover_id,
     c.assessment_id,
     c.product_id,
@@ -123,7 +124,7 @@ select
   cc.assessor_rewards,
   cc.last_vote
 from covers c
-  inner join completed_claims cc on c.cover_id = cc.cover_id and c.product_id = cc.product_id
+  inner join completed_claims cc on c.cover_id = cc.cover_id and coalesce(c.product_id, cc.product_id) = cc.product_id
   inner join prices p on cc.submit_date = p.block_date and cc.cover_asset = p.symbol
 where date_add('day', 3, cc.submit_time) <= now()
   and (cc.last_vote is null
