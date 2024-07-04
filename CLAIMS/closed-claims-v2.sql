@@ -7,20 +7,24 @@ covers as (
     cover_end_time,
     cover_start_date,
     cover_end_date,
-    syndicate,
+    staking_pool,
+    product_id,
     product_name,
     product_type,
     cover_asset,
     sum_assured
-  --from query_3788370 -- covers v2 base (fallback) query
-  from nexusmutual_ethereum.covers_v2
+  from query_3788370 -- covers v2 base (fallback) query
+  --from nexusmutual_ethereum.covers_v2 -- spell needs updating - add product_id
 ),
 
 claims as (
   select
+    submit_time,
+    submit_date,
     claim_id,
     cover_id,
     product_id,
+    assessment_id,
     cover_asset,
     requested_amount
   from query_3894982 -- claims v2 base (fallback) query
@@ -29,107 +33,99 @@ claims as (
 vote_count as (
   select
     assessmentId as assessment_id,
-    MAX(evt_block_time) as last_vote,
-    SUM(CASE WHEN accepted = true THEN 1 ELSE 0 END) as yes_votes,
-    SUM(CASE WHEN accepted = false THEN 1 ELSE 0 END) as no_votes,
-    SUM(CASE WHEN accepted = true THEN CAST(stakedAmount as DOUBLE) * 1E-18 ELSE 0 END) as yes_nxm_votes,
-    SUM(CASE WHEN accepted = false THEN CAST(stakedAmount as DOUBLE) * 1E-18 ELSE 0 END) as no_nxm_votes
+    max(evt_block_time) as last_vote,
+    sum(if(accepted = true, 1, 0)) as yes_votes,
+    sum(if(accepted = false, 1, 0)) as no_votes,
+    sum(if(accepted = true, stakedAmount / 1e18, 0)) as yes_nxm_votes,
+    sum(if(accepted = false, stakedAmount / 1e18, 0)) as no_nxm_votes
   from nexusmutual_ethereum.Assessment_evt_VoteCast
   group by 1
 ),
 
-v2_assessor_rewards as (
-  SELECT DISTINCT
-    _0 as assessment_id,
-    output_totalRewardInNXM * 1E-18 as assessor_rewards
-  FROM nexusmutual_ethereum.Assessment_call_assessments
-  WHERE call_success
-),
-
-prices as (
-  SELECT DISTINCT
-    DATE_TRUNC('day', minute) as minute,
-    symbol,
-    AVG(price) OVER (
-      PARTITION BY symbol, DATE_TRUNC('day', minute)
-    ) as price_dollar
-  FROM prices.usd
-  WHERE minute > CAST('2019-05-01' as TIMESTAMP)
-    and ((symbol = 'ETH' and blockchain is null)
-      or (symbol = 'DAI' and blockchain = 'ethereum'))
-),
-
-covers_with_price as (
-  SELECT
-    *
-  FROM prices as t
-    INNER JOIN covers ON t.minute = DATE_TRUNC('day', covers.cover_start_time)
-    AND t.symbol = covers.cover_asset
+assessments as (
+  select assessment_id, assessor_rewards
+  from (
+    select
+      _0 as assessment_id,
+      output_totalRewardInNXM / 1e18 as assessor_rewards,
+      row_number() over (partition by call_block_time, call_tx_hash, _0 order by call_trace_address desc) as rn
+    from nexusmutual_ethereum.Assessment_call_assessments
+    where call_success
+  ) t
+  where rn = 1
 ),
 
 completed_claims as (
-  SELECT DISTINCT
-    claim_submit_time,
-    CAST(coverId as UINT256) as cover_id,
-    t.assessment_id as assessment_id,
-    amount_requested,
-    cover_asset,
-    COALESCE(yes_votes, 0) as yes_votes,
-    COALESCE(no_votes, 0) as no_votes,
-    COALESCE(yes_nxm_votes, 0) as yes_nxm_votes,
-    COALESCE(no_nxm_votes, 0) as no_nxm_votes,
-    COALESCE(assessor_rewards, 0) as assessor_rewards,
-    last_vote
-  FROM v2_claims as t
-    LEFT JOIN vote_count ON CAST(vote_count.assessment_id as INT) = CAST(t.assessment_id as INT)
-    LEFT JOIN v2_assessor_rewards ON CAST(v2_assessor_rewards.assessment_id as INT) = t.assessment_id
+  select distinct
+    c.submit_time,
+    c.cover_id,
+    c.assessment_id,
+    c.product_id,
+    c.cover_asset,
+    c.requested_amount,
+    coalesce(vc.yes_votes, 0) as yes_votes,
+    coalesce(vc.no_votes, 0) as no_votes,
+    coalesce(vc.yes_nxm_votes, 0) as yes_nxm_votes,
+    coalesce(vc.no_nxm_votes, 0) as no_nxm_votes,
+    coalesce(a.assessor_rewards, 0) as assessor_rewards,
+    vc.last_vote
+  from claims c
+    left join vote_count vc on c.assessment_id = vc.assessment_id
+    left join assessments a on c.assessment_id = a.assessment_id
+),
+
+prices as (
+  select
+    date_trunc('day', minute) as block_date,
+    symbol,
+    avg(price) as usd_price
+  from prices.usd
+  where minute > timestamp '2019-05-01'
+    and ((symbol = 'ETH' and blockchain is null)
+      or (symbol = 'DAI' and blockchain = 'ethereum'))
+  group by 1, 2
 )
 
-SELECT
-  CAST(assessment_id as BIGINT) as assessment_id,
-  covers_with_price.cover_id,
-  CASE
-    WHEN yes_nxm_votes > no_nxm_votes
-    AND yes_nxm_votes > 0 then 'APPROVED ✅'
-    ELSE 'DENIED ❌'
-  END as verdict,
-  CONCAT(
+select
+  cc.assessment_id,
+  cc.cover_id,
+  case
+    when cc.yes_nxm_votes > cc.no_nxm_votes and cc.yes_nxm_votes > 0 then 'APPROVED ✅'
+    else 'DENIED ❌'
+  end as verdict,
+  concat(
     '<a href="https://app.nexusmutual.io/assessment/view-claim?claimId=',
-    CAST(assessment_id as VARCHAR),
+    cast(cc.assessment_id as varchar),
     '" target="_blank">',
     'link',
     '</a>'
   ) as url_link,
-  product_name,
-  product_type,
-  syndicate,
-  covers_with_price.cover_asset,
-  sum_assured as cover_amount,
-  covers_with_price.price_dollar * sum_assured as dollar_cover_amount,
-  amount_requested as claim_amount,
-  s.price_dollar * amount_requested as dollar_claim_amount,
-  cover_start_time,
-  cover_end_time,
-  claim_submit_time,
-  yes_votes,
-  no_votes,
-  yes_nxm_votes,
-  no_nxm_votes,
-  CASE
-    WHEN yes_nxm_votes > no_nxm_votes
-    AND yes_nxm_votes > 0 THEN assessor_rewards / yes_votes
-    WHEN no_nxm_votes > 0 THEN assessor_rewards / no_votes
-    ELSE 0
-  END as assessor_rewards_per_vote,
-  assessor_rewards,
-  last_vote
-FROM completed_claims
-  INNER JOIN covers_with_price ON covers_with_price.cover_id = completed_claims.cover_id
-  INNER JOIN prices as s ON s.minute = DATE_TRUNC('day', completed_claims.claim_submit_time)
-  AND s.symbol = completed_claims.cover_asset
-WHERE (date_add('day', 3, claim_submit_time) <= NOW())
-  AND (
-    last_vote IS NULL
-    OR date_add('day', 1, last_vote) <= NOW()
-  )
-ORDER BY claim_submit_time DESC
+  c.product_name,
+  c.product_type,
+  c.staking_pool as syndicate,
+  c.cover_asset,
+  c.sum_assured as cover_amount,
+  c.sum_assured * p.usd_price as dollar_cover_amount,
+  cc.requested_amount as claim_amount,
+  cc.requested_amount * p.usd_price as dollar_claim_amount,
+  c.cover_start_time,
+  c.cover_end_time,
+  cc.submit_time as claim_submit_time,
+  cc.yes_votes,
+  cc.no_votes,
+  cc.yes_nxm_votes,
+  cc.no_nxm_votes,
+  case
+    when cc.yes_nxm_votes > cc.no_nxm_votes and cc.yes_nxm_votes > 0 then cc.assessor_rewards / cc.yes_votes
+    when cc.no_nxm_votes > 0 then cc.assessor_rewards / cc.no_votes
+    else 0
+  end as assessor_rewards_per_vote,
+  cc.assessor_rewards,
+  cc.last_vote
+from covers c
+  inner join completed_claims cc on c.cover_id = cc.cover_id and c.product_id = cc.product_id
+  inner join prices p on cc.submit_date = p.block_date and cc.cover_asset = p.symbol
+where date_add('day', 3, cc.submit_time) <= now()
+  and (cc.last_vote is null
+    or date_add('day', 1, cc.last_vote) <= now())
+order by cc.submit_time desc
