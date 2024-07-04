@@ -23,7 +23,7 @@ claim_data as (
     requestedAmount as requested_amount,
     ipfsMetadata as ipfs_metadata,
     call_tx_hash as tx_hash,
-    row_number() over (partition by call_block_time, call_tx_hash order by call_trace_address desc) as rn
+    row_number() over (partition by call_block_time, call_tx_hash, coverId order by call_trace_address desc) as rn
   from nexusmutual_ethereum.IndividualClaims_call_submitClaimFor
   where call_success
   union all
@@ -37,7 +37,7 @@ claim_data as (
     requestedAmount,
     ipfsMetadata,
     call_tx_hash as tx_hash,
-    row_number() over (partition by call_block_time, call_tx_hash order by call_trace_address desc) as rn
+    row_number() over (partition by call_block_time, call_tx_hash, coverId order by call_trace_address desc) as rn
   from nexusmutual_ethereum.IndividualClaims_call_submitClaim
   where call_success
 )
