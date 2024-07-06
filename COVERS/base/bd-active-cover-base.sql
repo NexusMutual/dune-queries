@@ -72,122 +72,167 @@ day_sequence as (
 daily_active_cover as (
   select
     ds.block_date,
-    count(distinct c_period.cover_id) as active_cover_sold,
-    sum(c_period.eth_cover_amount) as eth_active_cover_total,
-    sum(c_period.dai_cover_amount) as dai_active_cover_total,
-    sum(c_period.usdc_cover_amount) as usdc_active_cover_total,
-    sum(c_period.eth_premium_amount) as eth_active_premium_total,
-    sum(c_period.dai_premium_amount) as dai_active_premium_total,
-    sum(c_period.nxm_premium_amount) as nxm_active_premium_total
+    c_period.cover_id,
+    --== cover ==
+    --ETH
+    coalesce(c_period.eth_cover_amount, 0) as eth_eth_active_cover,
+    coalesce(c_period.eth_cover_amount * p.avg_eth_usd_price, 0) as eth_usd_active_cover,
+    --DAI
+    coalesce(c_period.dai_cover_amount * p.avg_dai_usd_price / p.avg_eth_usd_price, 0) as dai_eth_active_cover,
+    coalesce(c_period.dai_cover_amount * p.avg_dai_usd_price, 0) as dai_usd_active_cover,
+    --USDC
+    coalesce(c_period.usdc_cover_amount * p.avg_usdc_usd_price / p.avg_eth_usd_price, 0) as usdc_eth_active_cover,
+    coalesce(c_period.usdc_cover_amount * p.avg_usdc_usd_price, 0) as usdc_usd_active_cover,
+    --== fees ==
+    --ETH
+    coalesce(c_period.eth_premium_amount, 0) as eth_eth_active_premium,
+    coalesce(c_period.eth_premium_amount * p.avg_eth_usd_price, 0) as eth_usd_active_premium,
+    --DAI
+    coalesce(c_period.dai_premium_amount * p.avg_dai_usd_price / p.avg_eth_usd_price, 0) as dai_eth_active_premium,
+    coalesce(c_period.dai_premium_amount * p.avg_dai_usd_price, 0) as dai_usd_active_premium,
+    --NXM
+    coalesce(c_period.nxm_premium_amount * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as nxm_eth_active_premium,
+    coalesce(c_period.nxm_premium_amount * p.avg_nxm_usd_price, 0) as nxm_usd_active_premium
   from day_sequence ds
     left join covers_ext c_period on ds.block_date between c_period.cover_start_date and c_period.cover_end_date
-  group by 1
+    left join daily_avg_prices p on ds.block_date = p.block_date
 ),
 
 daily_cover_sales as (
   select
     ds.block_date,
-    count(distinct c_start.cover_id) as cover_sold,
-    sum(c_start.eth_cover_amount) as eth_cover_total,
-    sum(c_start.dai_cover_amount) as dai_cover_total,
-    sum(c_start.usdc_cover_amount) as usdc_cover_total,
-    sum(c_start.eth_premium_amount) as eth_premium_total,
-    sum(c_start.dai_premium_amount) as dai_premium_total,
-    sum(c_start.nxm_premium_amount) as nxm_premium_total
+    c_start.cover_id,
+    --== cover ==
+    --ETH
+    coalesce(c_start.eth_cover_amount, 0) as eth_eth_cover,
+    coalesce(c_start.eth_cover_amount * p.avg_eth_usd_price, 0) as eth_usd_cover,
+    --DAI
+    coalesce(c_start.dai_cover_amount * p.avg_dai_usd_price / p.avg_eth_usd_price, 0) as dai_eth_cover,
+    coalesce(c_start.dai_cover_amount * p.avg_dai_usd_price, 0) as dai_usd_cover,
+    --USDC
+    coalesce(c_start.usdc_cover_amount * p.avg_usdc_usd_price / p.avg_eth_usd_price, 0) as usdc_eth_cover,
+    coalesce(c_start.usdc_cover_amount * p.avg_usdc_usd_price, 0) as usdc_usd_cover,
+    --== fees ==
+    --ETH
+    coalesce(c_start.eth_premium_amount, 0) as eth_eth_premium,
+    coalesce(c_start.eth_premium_amount * p.avg_eth_usd_price, 0) as eth_usd_premium,
+    --DAI
+    coalesce(c_start.dai_premium_amount * p.avg_dai_usd_price / p.avg_eth_usd_price, 0) as dai_eth_premium,
+    coalesce(c_start.dai_premium_amount * p.avg_dai_usd_price, 0) as dai_usd_premium,
+    --NXM
+    coalesce(c_start.nxm_premium_amount * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as nxm_eth_premium,
+    coalesce(c_start.nxm_premium_amount * p.avg_nxm_usd_price, 0) as nxm_usd_premium
   from day_sequence ds
     left join covers_ext c_start on ds.block_date = c_start.cover_start_date
+    left join daily_avg_prices p on ds.block_date = p.block_date
+),
+
+daily_active_cover_aggs as (
+  select
+    block_date,
+    count(distinct cover_id) as active_cover,
+    --== cover ==
+    sum(eth_eth_active_cover) as eth_eth_active_cover,
+    sum(dai_eth_active_cover) as dai_eth_active_cover,
+    sum(usdc_eth_active_cover) as usdc_eth_active_cover,
+    sum(eth_eth_active_cover) + sum(dai_eth_active_cover) + sum(usdc_eth_active_cover) as eth_active_cover,
+    approx_percentile(eth_eth_active_cover + dai_eth_active_cover + usdc_eth_active_cover, 0.5) as median_eth_active_cover,
+    sum(eth_usd_active_cover) as eth_usd_active_cover,
+    sum(dai_usd_active_cover) as dai_usd_active_cover,
+    sum(usdc_usd_active_cover) as usdc_usd_active_cover,
+    sum(eth_usd_active_cover) + sum(dai_usd_active_cover) + sum(usdc_usd_active_cover) as usd_active_cover,
+    approx_percentile(eth_usd_active_cover + dai_usd_active_cover + usdc_usd_active_cover, 0.5) as median_usd_active_cover,
+    --== fees ==
+    sum(eth_eth_active_premium) as eth_eth_active_premium,
+    sum(dai_eth_active_premium) as dai_eth_active_premium,
+    sum(nxm_eth_active_premium) as nxm_eth_active_premium,
+    sum(eth_eth_active_premium) + sum(dai_eth_active_premium) + sum(nxm_eth_active_premium) as eth_active_premium,
+    approx_percentile(eth_eth_active_premium + dai_eth_active_premium + nxm_eth_active_premium, 0.5) as median_eth_active_premium,
+    sum(eth_usd_active_premium) as eth_usd_active_premium,
+    sum(dai_usd_active_premium) as dai_usd_active_premium,
+    sum(nxm_usd_active_premium) as nxm_usd_active_premium,
+    sum(eth_usd_active_premium) + sum(dai_usd_active_premium) + sum(nxm_usd_active_premium) as usd_active_premium,
+    approx_percentile(eth_usd_active_premium + dai_usd_active_premium + nxm_usd_active_premium, 0.5) as median_usd_active_premium
+  from daily_active_cover
   group by 1
 ),
 
-daily_cover_enriched as (
+daily_cover_sales_aggs as (
   select
-    ac.block_date,
-    --**** ACTIVE COVER ****
-    ac.active_cover_sold,
+    block_date,
+    count(distinct cover_id) as cover_sold,
     --== cover ==
-    --ETH
-    coalesce(ac.eth_active_cover_total, 0) as eth_eth_active_cover,
-    coalesce(ac.eth_active_cover_total * p.avg_eth_usd_price, 0) as eth_usd_active_cover,
-    --DAI
-    coalesce(ac.dai_active_cover_total * p.avg_dai_usd_price / p.avg_eth_usd_price, 0) as dai_eth_active_cover,
-    coalesce(ac.dai_active_cover_total * p.avg_dai_usd_price, 0) as dai_usd_active_cover,
-    --USDC
-    coalesce(ac.usdc_active_cover_total * p.avg_usdc_usd_price / p.avg_eth_usd_price, 0) as usdc_eth_active_cover,
-    coalesce(ac.usdc_active_cover_total * p.avg_usdc_usd_price, 0) as usdc_usd_active_cover,
+    sum(eth_eth_cover) as eth_eth_cover,
+    sum(dai_eth_cover) as dai_eth_cover,
+    sum(usdc_eth_cover) as usdc_eth_cover,
+    sum(eth_eth_cover) + sum(dai_eth_cover) + sum(usdc_eth_cover) as eth_cover,
+    approx_percentile(eth_eth_cover + dai_eth_cover + usdc_eth_cover, 0.5) as median_eth_cover,
+    sum(eth_usd_cover) as eth_usd_cover,
+    sum(dai_usd_cover) as dai_usd_cover,
+    sum(usdc_usd_cover) as usdc_usd_cover,
+    sum(eth_usd_cover) + sum(dai_usd_cover) + sum(usdc_usd_cover) as usd_cover,
+    approx_percentile(eth_usd_cover + dai_usd_cover + usdc_usd_cover, 0.5) as median_usd_cover,
     --== fees ==
-    --ETH
-    coalesce(ac.eth_active_premium_total, 0) as eth_eth_active_premium,
-    coalesce(ac.eth_active_premium_total * p.avg_eth_usd_price, 0) as eth_usd_active_premium,
-    --DAI
-    coalesce(ac.dai_active_premium_total * p.avg_dai_usd_price / p.avg_eth_usd_price, 0) as dai_eth_active_premium,
-    coalesce(ac.dai_active_premium_total * p.avg_dai_usd_price, 0) as dai_usd_active_premium,
-    --NXM
-    coalesce(ac.nxm_active_premium_total * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as nxm_eth_active_premium,
-    coalesce(ac.nxm_active_premium_total * p.avg_nxm_usd_price, 0) as nxm_usd_active_premium,
-    --**** COVER SALES ****
-    cs.cover_sold,
-    --== cover ==
-    --ETH
-    coalesce(cs.eth_cover_total, 0) as eth_eth_cover,
-    coalesce(cs.eth_cover_total * p.avg_eth_usd_price, 0) as eth_usd_cover,
-    --DAI
-    coalesce(cs.dai_cover_total * p.avg_dai_usd_price / p.avg_eth_usd_price, 0) as dai_eth_cover,
-    coalesce(cs.dai_cover_total * p.avg_dai_usd_price, 0) as dai_usd_cover,
-    --USDC
-    coalesce(cs.usdc_cover_total * p.avg_usdc_usd_price / p.avg_eth_usd_price, 0) as usdc_eth_cover,
-    coalesce(cs.usdc_cover_total * p.avg_usdc_usd_price, 0) as usdc_usd_cover,
-    --== fees ==
-    --ETH
-    coalesce(cs.eth_premium_total, 0) as eth_eth_premium,
-    coalesce(cs.eth_premium_total * p.avg_eth_usd_price, 0) as eth_usd_premium,
-    --DAI
-    coalesce(cs.dai_premium_total * p.avg_dai_usd_price / p.avg_eth_usd_price, 0) as dai_eth_premium,
-    coalesce(cs.dai_premium_total * p.avg_dai_usd_price, 0) as dai_usd_premium,
-    --NXM
-    coalesce(cs.nxm_premium_total * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as nxm_eth_premium,
-    coalesce(cs.nxm_premium_total * p.avg_nxm_usd_price, 0) as nxm_usd_premium
-  from daily_active_cover ac
-    inner join daily_cover_sales cs on ac.block_date = cs.block_date
-    inner join daily_avg_prices p on ac.block_date = p.block_date
+    sum(eth_eth_premium) as eth_eth_premium,
+    sum(dai_eth_premium) as dai_eth_premium,
+    sum(nxm_eth_premium) as nxm_eth_premium,
+    sum(eth_eth_premium) + sum(dai_eth_premium) + sum(nxm_eth_premium) as eth_premium,
+    approx_percentile(eth_eth_premium + dai_eth_premium + nxm_eth_premium, 0.5) as median_eth_premium,
+    sum(eth_usd_premium) as eth_usd_premium,
+    sum(dai_usd_premium) as dai_usd_premium,
+    sum(nxm_usd_premium) as nxm_usd_premium,
+    sum(eth_usd_premium) + sum(dai_usd_premium) + sum(nxm_usd_premium) as usd_premium,
+    approx_percentile(eth_usd_premium + dai_usd_premium + nxm_usd_premium, 0.5) as median_usd_premium
+  from daily_cover_sales
+  group by 1
 )
 
 select
-  block_date,
+  ac.block_date,
   --**** ACTIVE COVER ****
-  active_cover_sold,
-  eth_eth_active_cover + dai_eth_active_cover + usdc_eth_active_cover as eth_active_cover,
-  eth_eth_active_cover,
-  dai_eth_active_cover,
-  usdc_eth_active_cover,
-  eth_usd_active_cover + dai_usd_active_cover + usdc_usd_active_cover as usd_active_cover,
-  eth_usd_active_cover,
-  dai_usd_active_cover,
-  usdc_usd_active_cover,
-  eth_eth_active_premium + dai_eth_active_premium + nxm_eth_active_premium as eth_active_premium,
-  eth_eth_active_premium,
-  dai_eth_active_premium,
-  nxm_eth_active_premium,
-  eth_usd_active_premium + dai_usd_active_premium + nxm_usd_active_premium as usd_active_premium,
-  eth_usd_active_premium,
-  dai_usd_active_premium,
-  nxm_usd_active_premium,
+  ac.active_cover,
+  ac.eth_eth_active_cover,
+  ac.dai_eth_active_cover,
+  ac.usdc_eth_active_cover,
+  ac.eth_active_cover,
+  ac.median_eth_active_cover,
+  ac.eth_usd_active_cover,
+  ac.dai_usd_active_cover,
+  ac.usdc_usd_active_cover,
+  ac.usd_active_cover,
+  ac.median_usd_active_cover,
+  ac.eth_eth_active_premium,
+  ac.dai_eth_active_premium,
+  ac.nxm_eth_active_premium,
+  ac.eth_active_premium,
+  ac.median_eth_active_premium,
+  ac.eth_usd_active_premium,
+  ac.dai_usd_active_premium,
+  ac.nxm_usd_active_premium,
+  ac.usd_active_premium,
+  ac.median_usd_active_premium,
   --**** COVER SALES ****
-  cover_sold,
-  eth_eth_cover + dai_eth_cover + usdc_eth_cover as eth_cover,
-  eth_eth_cover,
-  dai_eth_cover,
-  usdc_eth_cover,
-  eth_usd_cover + dai_usd_cover + usdc_usd_cover as usd_cover,
-  eth_usd_cover,
-  dai_usd_cover,
-  usdc_usd_cover,
-  eth_eth_premium + dai_eth_premium + nxm_eth_premium as eth_premium,
-  eth_eth_premium,
-  dai_eth_premium,
-  nxm_eth_premium,
-  eth_usd_premium + dai_usd_premium + nxm_usd_premium as usd_premium,
-  eth_usd_premium,
-  dai_usd_premium,
-  nxm_usd_premium
-from daily_cover_enriched
+  cs.cover_sold,
+  cs.eth_eth_cover,
+  cs.dai_eth_cover,
+  cs.usdc_eth_cover,
+  cs.eth_cover,
+  cs.median_eth_cover,
+  cs.eth_usd_cover,
+  cs.dai_usd_cover,
+  cs.usdc_usd_cover,
+  cs.usd_cover,
+  cs.median_usd_cover,
+  cs.eth_eth_premium,
+  cs.dai_eth_premium,
+  cs.nxm_eth_premium,
+  cs.eth_premium,
+  cs.median_eth_premium,
+  cs.eth_usd_premium,
+  cs.dai_usd_premium,
+  cs.nxm_usd_premium,
+  cs.usd_premium,
+  cs.median_usd_premium
+from daily_active_cover_aggs ac
+  inner join daily_cover_sales_aggs cs on ac.block_date = cs.block_date
 --order by 1 desc
