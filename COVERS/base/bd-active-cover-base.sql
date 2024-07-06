@@ -85,19 +85,19 @@ daily_active_cover as (
     --USDC
     coalesce(c_period.usdc_cover_amount * p.avg_usdc_usd_price / p.avg_eth_usd_price, 0) as usdc_eth_active_cover,
     coalesce(c_period.usdc_cover_amount * p.avg_usdc_usd_price, 0) as usdc_usd_active_cover,
-    --== fees ==
+    --== active premium in force ==
     --ETH
-    coalesce(c_period.eth_premium_amount, 0) as eth_eth_active_premium,
-    coalesce(c_period.eth_premium_amount * p.avg_eth_usd_price, 0) as eth_usd_active_premium,
+    coalesce(c_period.eth_premium_amount * 365 / c_period.cover_period, 0) as eth_eth_active_premium,
+    coalesce(c_period.eth_premium_amount * 365 / c_period.cover_period * p.avg_eth_usd_price, 0) as eth_usd_active_premium,
     --DAI
-    coalesce(c_period.dai_premium_amount * p.avg_dai_usd_price / p.avg_eth_usd_price, 0) as dai_eth_active_premium,
-    coalesce(c_period.dai_premium_amount * p.avg_dai_usd_price, 0) as dai_usd_active_premium,
+    coalesce(c_period.dai_premium_amount * 365 / c_period.cover_period * p.avg_dai_usd_price / p.avg_eth_usd_price, 0) as dai_eth_active_premium,
+    coalesce(c_period.dai_premium_amount * 365 / c_period.cover_period * p.avg_dai_usd_price, 0) as dai_usd_active_premium,
     --NXM
-    coalesce(c_period.nxm_premium_amount * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as nxm_eth_active_premium,
-    coalesce(c_period.nxm_premium_amount * p.avg_nxm_usd_price, 0) as nxm_usd_active_premium
+    coalesce(c_period.nxm_premium_amount * 365 / c_period.cover_period * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as nxm_eth_active_premium,
+    coalesce(c_period.nxm_premium_amount * 365 / c_period.cover_period * p.avg_nxm_usd_price, 0) as nxm_usd_active_premium
   from day_sequence ds
+    inner join daily_avg_prices p on ds.block_date = p.block_date
     left join covers_ext c_period on ds.block_date between c_period.cover_start_date and c_period.cover_end_date
-    left join daily_avg_prices p on ds.block_date = p.block_date
 ),
 
 daily_cover_sales as (
@@ -126,8 +126,8 @@ daily_cover_sales as (
     coalesce(c_start.nxm_premium_amount * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as nxm_eth_premium,
     coalesce(c_start.nxm_premium_amount * p.avg_nxm_usd_price, 0) as nxm_usd_premium
   from day_sequence ds
+    inner join daily_avg_prices p on ds.block_date = p.block_date
     left join covers_ext c_start on ds.block_date = c_start.cover_start_date
-    left join daily_avg_prices p on ds.block_date = p.block_date
 ),
 
 daily_active_cover_aggs as (
@@ -146,26 +146,16 @@ daily_active_cover_aggs as (
     sum(eth_usd_active_cover) + sum(dai_usd_active_cover) + sum(usdc_usd_active_cover) as usd_active_cover,
     approx_percentile(eth_usd_active_cover + dai_usd_active_cover + usdc_usd_active_cover, 0.5) as median_usd_active_cover,
     --== fees ==
-    sum(eth_eth_active_premium * 365 / cover_period) as eth_eth_active_premium,
-    sum(dai_eth_active_premium * 365 / cover_period) as dai_eth_active_premium,
-    sum(nxm_eth_active_premium * 365 / cover_period) as nxm_eth_active_premium,
-    sum(eth_eth_active_premium * 365 / cover_period)
-      + sum(dai_eth_active_premium * 365 / cover_period)
-      + sum(nxm_eth_active_premium * 365 / cover_period) as eth_active_premium,
-    approx_percentile(
-      (eth_eth_active_premium * 365 / cover_period)
-      + (dai_eth_active_premium * 365 / cover_period)
-      + (nxm_eth_active_premium * 365 / cover_period), 0.5) as median_eth_active_premium,
-    sum(eth_usd_active_premium * 365 / cover_period) as eth_usd_active_premium,
-    sum(dai_usd_active_premium * 365 / cover_period) as dai_usd_active_premium,
-    sum(nxm_usd_active_premium * 365 / cover_period) as nxm_usd_active_premium,
-    sum(eth_usd_active_premium * 365 / cover_period)
-      + sum(dai_usd_active_premium * 365 / cover_period)
-      + sum(nxm_usd_active_premium * 365 / cover_period) as usd_active_premium,
-    approx_percentile(
-      (eth_usd_active_premium * 365 / cover_period)
-      + (dai_usd_active_premium * 365 / cover_period)
-      + (nxm_usd_active_premium * 365 / cover_period), 0.5) as median_usd_active_premium
+    sum(eth_eth_active_premium) as eth_eth_active_premium,
+    sum(dai_eth_active_premium) as dai_eth_active_premium,
+    sum(nxm_eth_active_premium) as nxm_eth_active_premium,
+    sum(eth_eth_active_premium) + sum(dai_eth_active_premium) + sum(nxm_eth_active_premium) as eth_active_premium,
+    approx_percentile(eth_eth_active_premium + dai_eth_active_premium + nxm_eth_active_premium, 0.5) as median_eth_active_premium,
+    sum(eth_usd_active_premium) as eth_usd_active_premium,
+    sum(dai_usd_active_premium) as dai_usd_active_premium,
+    sum(nxm_usd_active_premium) as nxm_usd_active_premium,
+    sum(eth_usd_active_premium) + sum(dai_usd_active_premium) + sum(nxm_usd_active_premium) as usd_active_premium,
+    approx_percentile(eth_usd_active_premium + dai_usd_active_premium + nxm_usd_active_premium, 0.5) as median_usd_active_premium
   from daily_active_cover
   group by 1
 ),
