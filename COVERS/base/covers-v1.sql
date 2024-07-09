@@ -42,7 +42,7 @@ select
   date_trunc('day', cd.cover_start_time) as cover_start_date,
   date_trunc('day', cd.cover_end_time) as cover_end_date,
   cd.product_contract,
-  coalesce(pi.syndicate, 'v1') as syndicate,
+  'v1' as syndicate,
   coalesce(pi.product_name, 'unknown') as product_name,
   coalesce(pi.product_type, 'unknown') as product_type,
   cd.sum_assured,
@@ -54,5 +54,5 @@ select
   cd.evt_index,
   cd.tx_hash
 from cover_details cd
-  left join nexusmutual_ethereum.product_information pi on cd.product_contract = pi.product_contract_address
+  left join nexusmutual_ethereum.products_v1 pi on cd.product_contract = pi.product_contract_address
 --order by cd.cover_id desc
