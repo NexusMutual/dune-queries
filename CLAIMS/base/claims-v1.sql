@@ -7,7 +7,7 @@ claims as (
     cr.claimId as claim_id,
     cr.coverId as cover_id,
     cr.userAddress as claimant,
-    from_unixtime(cr.dateSubmit) as submit_time,
+    if(cr.claimId = 102, timestamp '2021-11-05', from_unixtime(cr.dateSubmit)) as submit_time,
     if(cr.claimId = 102, cast(10.43 as double), cast(cp.requestedPayoutAmount as double)) as partial_claim_amount,
     cr.evt_tx_hash as tx_hash
   from nexusmutual_ethereum.ClaimsData_evt_ClaimRaise cr
