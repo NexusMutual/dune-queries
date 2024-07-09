@@ -95,15 +95,15 @@ claims_paid_enriched as (
 
 select
   claim_date,
-  sum(if('{{display_currency}}' = 'USD', eth_usd_claim_amount, eth_claim_amount)) over (order by claim_date) as eth_claim_total,
+  sum(if('{{display_currency}}' = 'USD', eth_usd_claim_amount, eth_eth_claim_amount)) over (order by claim_date) as eth_claim_total,
   sum(if('{{display_currency}}' = 'USD', dai_usd_claim_amount, dai_eth_claim_amount)) over (order by claim_date) as dai_claim_total,
   sum(if('{{display_currency}}' = 'USD', usdc_usd_claim_amount, usdc_eth_claim_amount)) over (order by claim_date) as usdc_claim_total,
   sum(if(
     '{{display_currency}}' = 'USD',
     eth_usd_claim_amount + dai_usd_claim_amount + usdc_usd_claim_amount,
-    eth_claim_amount + dai_eth_claim_amount + usdc_eth_claim_amount
+    eth_eth_claim_amount + dai_eth_claim_amount + usdc_eth_claim_amount
   )) over (order by claim_date) as claim_total
 from claims_paid_enriched
-where block_date >= timestamp '{{Start Date}}'
-  and block_date < timestamp '{{End Date}}'
+where claim_date >= timestamp '{{Start Date}}'
+  and claim_date < timestamp '{{End Date}}'
 order by 1 desc
