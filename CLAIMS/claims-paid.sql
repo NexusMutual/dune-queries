@@ -1,165 +1,103 @@
-WITH
-  v1_claims AS (
-    SELECT
-      _claimId AS claim_id,
-      _coverId AS cover_id,
-      from_unixtime(CAST(_nowTime AS DOUBLE)) AS claim_submit_time,
-      requestedPayoutAmount AS partial_claim_amount
-    FROM
-      nexusmutual_ethereum.ClaimsData_call_addClaim AS t
-      LEFT JOIN nexusmutual_ethereum.Claims_call_submitPartialClaim AS v ON v.coverId = t._coverId
-  ),
-  status AS (
-    SELECT
-      claim_id,
-      cover_id,
-      call_block_time AS status_date,
-      claim_submit_time,
-      _stat AS status,
-      partial_claim_amount
-    FROM
-      v1_claims AS t
-      INNER JOIN nexusmutual_ethereum.ClaimsData_call_setClaimStatus AS s ON s._claimId = t.claim_id
-    WHERE
-      CAST(s._stat AS INT) = 14
-  ),
-  v1_claims_paid AS (
-    SELECT
-      claim_submit_time,
-      status_date,
-      COALESCE(
-        CAST(partial_claim_amount AS DOUBLE),
-        CAST(sumAssured AS DOUBLE)
-      ) AS claim_amount,
-      CASE
-        WHEN curr = 0x45544800 THEN 'ETH'
-        WHEN curr = 0x44414900 THEN 'DAI'
-        ELSE 'NA'
-      END AS cover_asset
-    FROM
-      nexusmutual_ethereum.QuotationData_evt_CoverDetailsEvent AS t
-      INNER JOIN status ON t.cid = status.cover_id
-  ),
-  v2_claims AS (
-    SELECT
-      call_block_time AS claim_submit_time,
-      coverId,
-      ipfsMetadata,
-      CAST(
-        JSON_QUERY(output_claim, 'lax $.assessmentId') AS INT
-      ) AS assessment_id,
-      CAST(
-        JSON_QUERY(output_claim, 'lax $.amount') AS DOUBLE
-      ) * 1E-18 AS amount,
-      CASE
-        WHEN CAST(
-          JSON_QUERY(output_claim, 'lax $.coverAsset') AS INT
-        ) = 0 THEN 'ETH'
-        WHEN CAST(
-          JSON_QUERY(output_claim, 'lax $.coverAsset') AS INT
-        ) = 1 THEN 'DAI'
-        ELSE 'NA'
-      END AS cover_asset,
-      owner
-    FROM
-      nexusmutual_ethereum.IndividualClaims_call_submitClaimFor
-    UNION
-    SELECT
-      call_block_time AS claim_submit_time,
-      coverId,
-      ipfsMetadata,
-      CAST(
-        JSON_QUERY(output_claim, 'lax $.assessmentId') AS INT
-      ) AS assessment_id,
-      CAST(
-        JSON_QUERY(output_claim, 'lax $.amount') AS DOUBLE
-      ) * 1E-18 AS amount,
-      CASE
-        WHEN CAST(
-          JSON_QUERY(output_claim, 'lax $.coverAsset') AS INT
-        ) = 0 THEN 'ETH'
-        WHEN CAST(
-          JSON_QUERY(output_claim, 'lax $.coverAsset') AS INT
-        ) = 1 THEN 'DAI'
-        ELSE 'NA'
-      END AS cover_asset,
-      CAST(NULL AS varbinary) AS owner
-    FROM
-      nexusmutual_ethereum.IndividualClaims_call_submitClaim
-  ),
-  v2_claims_paid AS (
-    SELECT DISTINCT
-      claim_submit_time,
-      v2_claims.assessment_id,
-      amount,
-      cover_asset
-    FROM
-      nexusmutual_ethereum.IndividualClaims_call_redeemClaimPayout AS t
-      INNER JOIN v2_claims ON CAST(t.claimId AS INT) = v2_claims.assessment_id
-    WHERE
-      t.call_success = true
-  ),
-  claims_paid AS (
-    SELECT
-      DATE_TRUNC('day', claim_submit_time) AS claim_time,
-      amount,
-      cover_asset
-    FROM
-      v2_claims_paid
-    UNION
-    SELECT
-      DATE_TRUNC('day', claim_submit_time) AS claim_time,
-      claim_amount AS amount,
-      cover_asset
-    FROM
-      v1_claims_paid
-    UNION
-    SELECT
-      CAST('2021-11-05 00:00' AS TIMESTAMP) AS claim_time,
-      10.43 AS amount,
-      'ETH' AS cover_asset
-  ),
-  day_prices AS (
-    SELECT DISTINCT
-      date_trunc('day', minute) AS time,
-      symbol,
-      AVG(price) OVER (
-        PARTITION BY
-          date_trunc('day', minute),
-          symbol
-      ) AS price_dollar
-    FROM prices.usd
-    WHERE minute > CAST('2019-05-01' AS TIMESTAMP)
-      and ((symbol = 'ETH' and blockchain is null)
-        or (symbol = 'DAI' and blockchain = 'ethereum'))
-  ),
-  eth_prices AS (
-    SELECT
-      time,
-      price_dollar AS eth_price_dollar
-    FROM
-      day_prices
-    WHERE
-      symbol = 'ETH'
-  ),
-  dai_prices AS (
-    SELECT
-      time,
-      price_dollar AS dai_price_dollar
-    FROM
-      day_prices
-    WHERE
-      symbol = 'DAI'
-  ),
-  prices AS (
-    select
-      eth_prices.time,
-      eth_price_dollar,
-      dai_price_dollar
-    from
-      eth_prices
-      INNER JOIN dai_prices ON eth_prices.time = dai_prices.time
-  ),
+with
+
+covers_v1 as (
+  select
+    cover_id,
+    cover_asset,
+    sum_assured
+  --from query_3788367 -- covers v1 base (fallback) query
+  from nexusmutual_ethereum.covers_v1
+),
+
+claims_v1 as (
+  select
+    claim_id,
+    cover_id,
+    submit_time,
+    submit_date,
+    partial_claim_amount,
+    claim_status
+  from query_3894606 -- claims v1 base (fallback) query
+  where claim_status = 14 -- ??
+),
+
+claims_paid_v1 as (
+  select
+    cl.claim_id,
+    cl.submit_date as claim_date,
+    c.cover_asset,
+    coalesce(cl.partial_claim_amount, c.sum_assured) as claim_amount
+  from covers_v1 c
+    inner join claims_v1 cl on c.cover_id = cl.cover_id
+),
+
+covers_v2 as (
+  select distinct
+    cover_id,
+    cover_asset,
+    sum_assured
+  from query_3788370 -- covers v2 base (fallback) query
+  --from nexusmutual_ethereum.covers_v2 -- spell needs updating - add product_id
+),
+
+claims_v2 as (
+  select
+    submit_time,
+    submit_date,
+    claim_id,
+    cover_id,
+    product_id,
+    assessment_id,
+    cover_asset,
+    requested_amount
+  from query_3894982 -- claims v2 base (fallback) query
+),
+
+claims_paid_v2 as (
+  select
+    cl.claim_id,
+    cl.submit_date as claim_date,
+    c.cover_asset,
+    cl.requested_amount as claim_amount
+  from covers_v2 c
+    inner join claims_v2 cl on c.cover_id = cl.cover_id
+    inner join nexusmutual_ethereum.IndividualClaims_call_redeemClaimPayout cp on cl.claim_id = cp.claimId
+  where cp.call_success
+),
+
+claims_paid AS (
+  select
+    claim_date,
+    cover_asset,
+    claim_amount
+  from claims_paid_v1
+  union all
+  select
+    claim_date,
+    cover_asset,
+    claim_amount
+  from claims_paid_v2
+  --UNION
+  --SELECT
+  --  CAST('2021-11-05 00:00' AS TIMESTAMP) AS claim_time,
+  --  10.43 AS amount,
+  --  'ETH' AS cover_asset
+)
+
+select * from claims_paid
+
+prices as (
+  select
+    date_trunc('day', minute) as block_date,
+    symbol,
+    avg(price) as usd_price
+  from prices.usd
+  where minute > timestamp '2019-05-01'
+    and ((symbol = 'ETH' and blockchain is null)
+      or (symbol = 'DAI' and blockchain = 'ethereum'))
+  group by 1, 2
+),
+
   total_claims AS (
     SELECT
       claim_time,
@@ -203,16 +141,13 @@ WITH
         ORDER BY
           claim_time
       ) AS running_total_claimed
-    FROM
-      claims_paid
-      INNER JOIN prices ON claims_paid.claim_time = prices.time
+    from claims_paid
+      inner join prices on claims_paid.claim_time = prices.time
   )
-SELECT
+
+select
   *
-FROM
-  total_claims
-WHERE
-  claim_time >= CAST('{{Start Date}}' AS TIMESTAMP)
-  AND claim_time <= CAST('{{End Date}}' AS TIMESTAMP)
-ORDER BY
-  claim_time DESC
+from total_claims
+where claim_time >= timestamp '{{Start Date}}'
+  and claim_time <= timestamp '{{End Date}}'
+order by claim_time desc
