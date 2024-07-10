@@ -112,6 +112,6 @@ select
   oc.yes_nxm_votes,
   oc.no_nxm_votes
 from covers c
-  inner join open_claims oc on c.cover_id = oc.cover_id and coalesce(c.product_id, cc.product_id) = oc.product_id
-  inner join latest_prices p on oc.submit_date = p.block_date and oc.cover_asset = p.symbol
+  inner join open_claims oc on c.cover_id = oc.cover_id and coalesce(c.product_id, oc.product_id) = oc.product_id
+  inner join latest_prices p on oc.cover_asset = p.symbol
 order by oc.submit_time desc
