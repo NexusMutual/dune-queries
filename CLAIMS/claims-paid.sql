@@ -44,6 +44,7 @@ claims_paid as (
     cl.version,
     cl.claim_id,
     cl.claim_date,
+    cp.claim_payout_date,
     c.cover_asset,
     coalesce(cl.claim_amount, c.sum_assured) as claim_amount,
     if(c.cover_asset = 'ETH', coalesce(cl.claim_amount, c.sum_assured), 0) as eth_claim_amount,
@@ -54,6 +55,7 @@ claims_paid as (
     left join (
         select
           claimId as claim_id,
+          date_trunc('day', call_block_time) as claim_payout_date,
           row_number() over (partition by call_block_time, call_tx_hash, claimId order by call_trace_address desc) as rn
         from nexusmutual_ethereum.IndividualClaims_call_redeemClaimPayout
         where call_success
@@ -90,7 +92,7 @@ claims_paid_enriched as (
     cp.usdc_claim_amount * p.avg_price_usd / p.avg_price_usd as usdc_eth_claim_amount,
     cp.usdc_claim_amount * p.avg_price_usd as usdc_usd_claim_amount
   from claims_paid cp
-    inner join prices p on cp.claim_date = p.block_date and cp.cover_asset = p.symbol
+    inner join prices p on coalesce(cp.claim_payout_date, cp.claim_date) = p.block_date and cp.cover_asset = p.symbol
 )
 
 select
