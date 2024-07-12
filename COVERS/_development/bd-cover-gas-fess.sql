@@ -12,7 +12,9 @@ cover_tx_gas as (
     t.transaction_type,
     t.tx_hash
   from gas_ethereum.fees t
-    inner join nexusmutual_ethereum.covers_v1 c on t.block_number = c.block_number
+    --inner join query_3788367 c -- covers v1 base (fallback) query
+    inner join nexusmutual_ethereum.covers_v1 c
+      on t.block_number = c.block_number
       and t.block_time = c.block_time
       and t.tx_hash = c.tx_hash
   where t.block_time >= timestamp '2019-07-12'
@@ -28,7 +30,9 @@ cover_tx_gas as (
     t.transaction_type,
     t.tx_hash
   from gas_ethereum.fees t
-    inner join nexusmutual_ethereum.covers_v2 c on t.block_number = c.block_number
+    --inner join query_3788370 c -- covers v2 base (fallback) query
+    inner join nexusmutual_ethereum.covers_v2 c
+      on t.block_number = c.block_number
       and t.block_time = c.block_time
       and t.tx_hash = c.tx_hash
   where t.block_time >= timestamp '2023-03-16'
