@@ -99,7 +99,7 @@ cover_sales as (
     coalesce(c_start.nxm_premium_amount * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as nxm_eth_premium,
     coalesce(c_start.nxm_premium_amount * p.avg_nxm_usd_price, 0) as nxm_usd_premium
   from daily_avg_prices p
-    inner join covers_ext c_start on ds.block_date = c_start.cover_start_date
+    inner join covers_ext c_start on p.block_date = c_start.cover_start_date
 )
 
 select
