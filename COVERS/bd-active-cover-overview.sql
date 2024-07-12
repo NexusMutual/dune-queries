@@ -1,9 +1,9 @@
 select
   block_date,
   -- active cover
+  active_cover,
   eth_active_cover,
   usd_active_cover,
-  active_cover,
   eth_active_cover / active_cover as mean_eth_active_cover,
   median_eth_active_cover,
   usd_active_cover / active_cover as mean_usd_active_cover,
