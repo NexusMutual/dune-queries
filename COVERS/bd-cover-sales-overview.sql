@@ -1,5 +1,33 @@
 with
 
+claims_paid as (
+  select
+    version,
+    cover_id,
+    claim_id,
+    claim_date,
+    claim_payout_date,
+    --ETH
+    eth_eth_claim_amount,
+    eth_usd_claim_amount,
+    --DAI
+    dai_eth_claim_amount,
+    dai_usd_claim_amount,
+    --USDC
+    usdc_eth_claim_amount,
+    usdc_usd_claim_amount
+  from query_3911051 -- claims paid base (fallback) query
+),
+
+claims_paid_agg as (
+  select
+    coalesce(claim_payout_date, claim_date) as claim_payout_date,
+    sum(eth_eth_claim_amount + dai_eth_claim_amount + usdc_eth_claim_amount) as eth_claim_amount,
+    sum(eth_usd_claim_amount + dai_usd_claim_amount + usdc_usd_claim_amount) as usd_claim_amount
+  from claims_paid
+  group by 1
+),
+
 cover_tx_gas as (
   select
     c.block_date,
@@ -41,8 +69,8 @@ cover_tx_gas as (
 cover_tx_gas_agg as (
   select
     block_date,
-    sum(tx_fee_eth) as total_tx_fee_eth,
-    sum(tx_fee_usd) as total_tx_fee_usd
+    sum(tx_fee_eth) as eth_tx_fee_total,
+    sum(tx_fee_usd) as usd_tx_fee_total
   from cover_tx_gas
   group by 1
 )
@@ -64,11 +92,15 @@ select
   ac.median_eth_premium,
   coalesce(ac.usd_premium / nullif(ac.cover_sold, 0), 0) as mean_usd_premium,
   ac.median_usd_premium,
+  -- claims paid
+  coalesce(cp.eth_claim_amount, 0) as eth_claim_amount,
+  coalesce(cp.usd_claim_amount, 0) as usd_claim_amount,
   -- tx gas fees
-  coalesce(ctg.total_tx_fee_eth, 0) as total_tx_fee_eth,
-  coalesce(ctg.total_tx_fee_eth / ac.eth_premium, 0) as pct_premium_tx_fee_eth,
-  coalesce(ctg.total_tx_fee_usd, 0) as total_tx_fee_usd,
-  coalesce(ctg.total_tx_fee_usd / ac.usd_premium, 0) as pct_premium_tx_fee_usd
+  coalesce(ctg.eth_tx_fee_total, 0) as eth_tx_fee_total,
+  coalesce(ctg.eth_tx_fee_total / ac.eth_premium, 0) as pct_eth_premium_tx_fee,
+  coalesce(ctg.usd_tx_fee_total, 0) as usd_tx_fee_total,
+  coalesce(ctg.usd_tx_fee_total / ac.usd_premium, 0) as pct_usd_premium_tx_fee
 from query_3889661 ac -- BD active cover base
   left join cover_tx_gas_agg ctg on ac.block_date = ctg.block_date
+  left join claims_paid_agg cp on ac.block_date = cp.block_date
 order by 1 desc
