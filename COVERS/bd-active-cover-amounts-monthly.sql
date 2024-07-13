@@ -29,7 +29,7 @@ select
   sum(eth_usd_premium) as eth_usd_premium,
   sum(dai_usd_premium) as dai_usd_premium,
   sum(nxm_usd_premium) as nxm_usd_premium
-from query_3889661
+from query_3889661 -- BD active cover base
 where block_date >= now() - interval '3' year
 group by 1
 order by 1 desc
