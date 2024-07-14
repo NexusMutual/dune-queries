@@ -24,10 +24,12 @@ select
   sum(eth_premium) as eth_premium,
   sum(eth_eth_premium) as eth_eth_premium,
   sum(dai_eth_premium) as dai_eth_premium,
+  sum(usdc_eth_premium) as usdc_eth_premium,
   sum(nxm_eth_premium) as nxm_eth_premium,
   sum(usd_premium) as usd_premium,
   sum(eth_usd_premium) as eth_usd_premium,
   sum(dai_usd_premium) as dai_usd_premium,
+  sum(usdc_usd_premium) as usdc_usd_premium,
   sum(nxm_usd_premium) as nxm_usd_premium
 from query_3889661 -- BD active cover base
 where block_date >= now() - interval '3' year
