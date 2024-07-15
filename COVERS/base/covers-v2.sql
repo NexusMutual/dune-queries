@@ -221,7 +221,7 @@ select
   date_trunc('day', cover_start_time) as cover_start_date,
   date_trunc('day', cover_end_time) as cover_end_date,
   staking_pool,
-  product_id,
+  cast(product_id as int) as product_id,
   product_type,
   product_name,
   cover_asset,

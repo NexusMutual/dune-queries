@@ -43,6 +43,7 @@ select
   date_trunc('day', cd.cover_end_time) as cover_end_date,
   cd.product_contract,
   'v1' as syndicate,
+  cast(null as int) as product_id,
   coalesce(pi.product_name, 'unknown') as product_name,
   coalesce(pi.product_type, 'unknown') as product_type,
   cd.sum_assured,
