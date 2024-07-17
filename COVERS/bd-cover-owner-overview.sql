@@ -12,6 +12,8 @@ select
   cover_sold,
   product_sold,
   mean_product_sold,
+  first_cover_buy,
+  last_cover_buy,
   --== cover ==
   eth_cover,
   mean_eth_cover,
