@@ -67,6 +67,7 @@ cover_premiums as (
     p.cover_amount / 100.0 as partial_cover_amount, -- partial_cover_amount_in_nxm
     p.premium / 1e18 as premium,
     c.commission_ratio / 10000.0 as commission_ratio,
+    (c.commission_ratio / 10000.0) * p.premium / 1e18 as commission,
     --(1.0 + (c.commission_ratio / 10000.0)) * (0.5 / (1.0 + (c.commission_ratio / 10000.0))) * p.premium / 1e18 as premium,
     (1.0 + (c.commission_ratio / 10000.0)) * p.premium / 1e18 as premium_incl_commission,
     case c.cover_asset
@@ -135,6 +136,7 @@ covers_v2 as (
     cp.premium,
     cp.premium_incl_commission,
     cp.cover_owner,
+    cp.commission,
     cp.commission_destination,
     cp.tx_hash
   from cover_premiums cp
@@ -158,6 +160,8 @@ covers_v1_migrated as (
     cv1.cover_asset,
     cv1.premium_asset,
     cm.newOwner as cover_owner,
+    cast(null as double) as commission,
+    cast(null as varbinary) as commission_destination,
     cm.evt_index,
     cm.evt_tx_hash as tx_hash
   from nexusmutual_ethereum.CoverMigrator_evt_CoverMigrated cm
@@ -184,6 +188,8 @@ covers as (
     sum_assured,
     partial_cover_amount, -- in NMX
     cover_owner,
+    commission,
+    commission_destination,
     false as is_migrated,
     tx_hash
   from covers_v2
@@ -206,6 +212,8 @@ covers as (
     sum_assured,
     sum_assured as partial_cover_amount, -- No partial covers in v1 migrated covers
     cover_owner,
+    commission,
+    commission_destination,
     true as is_migrated,
     tx_hash
   from covers_v1_migrated
@@ -232,6 +240,8 @@ select
   premium_nxm,
   premium_incl_commission,
   cover_owner,
+  commission,
+  commission_destination,
   is_migrated,
   tx_hash
 from covers
