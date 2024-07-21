@@ -7,7 +7,7 @@ cover_sales_per_owner as (
 
 bins as (
   select
-    floor(log(3, eth_cover)) as bin_floor,
+    floor(log(2, eth_cover)) as bin_floor,
     count(distinct cover_owner) as cover_owner_count
   from cover_sales_per_owner
   group by 1
@@ -15,7 +15,7 @@ bins as (
 
 select
   bin_floor,
-  format_number(power(3, cast(bin_floor as integer))) || ' - ' || format_number(power(3, cast(bin_floor + 1 as integer))) as bin_range,
+  format_number(power(2, cast(bin_floor as integer))) || ' - ' || format_number(power(2, cast(bin_floor + 1 as integer))) as bin_range,
   cover_owner_count
 from bins
 order by 1
