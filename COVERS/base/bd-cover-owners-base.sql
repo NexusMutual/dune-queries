@@ -68,9 +68,8 @@ covers_ext as (
     cover_owner
   from covers
   where cover_owner not in (
-    0x181aea6936b407514ebfc0754a37704eb8d98f91,
-    0x1337def1e9c7645352d93baf0b789d04562b4185
-  ) -- Ricky's test request
+    0x181aea6936b407514ebfc0754a37704eb8d98f91
+  )
 ),
 
 cover_sales_per_owner as (
