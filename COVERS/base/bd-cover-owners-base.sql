@@ -67,9 +67,6 @@ covers_ext as (
     if(staking_pool <> 'v1', premium, 0) as nxm_premium_amount,
     cover_owner
   from covers
-  where cover_owner not in (
-    0x181aea6936b407514ebfc0754a37704eb8d98f91
-  )
 ),
 
 cover_sales_per_owner as (

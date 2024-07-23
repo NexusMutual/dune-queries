@@ -4,6 +4,7 @@ cover_sales_per_owner as (
   select *
   from query_3913267 -- BD cover owners base
   where last_cover_buy >= now() - interval '12' month
+    and cover_owner <> 0x181aea6936b407514ebfc0754a37704eb8d98f91
 ),
 
 bins as (
