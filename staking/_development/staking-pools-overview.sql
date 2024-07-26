@@ -210,6 +210,7 @@ staked_nxm_per_pool as (
       select
         pool_address,
         sum(total_amount) as amount
+      --from query_3619534 -- staking pools - deposit extensions base query -- can't be used bc of Error: This query has too many stages and is too complex to execute at once
       from nexusmutual_ethereum.staking_deposit_extensions
       where is_active
       group by 1
@@ -217,7 +218,8 @@ staked_nxm_per_pool as (
       select
         pool_address,
         sum(amount) as amount
-      from nexusmutual_ethereum.staking_events
+      from query_3609519 -- staking pools - history base query
+      --from nexusmutual_ethereum.staking_events
       where is_active
         --and flow_type in ('withdraw', 'stake burn')
         and flow_type = 'withdraw' -- burn TBD
