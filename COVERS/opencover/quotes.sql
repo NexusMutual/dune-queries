@@ -150,6 +150,48 @@ quotes_settled as (
       and qe.evt_tx_hash = qc.call_tx_hash
       and qe.quoteId = qc.quoteId
   where qc.call_success
+),
+
+quotes_refunded as (
+  select
+    'arbitrum' as blockchain,
+    evt_block_time as block_time,
+    evt_block_number as block_number,
+    quoteId as quote_id,
+    sender,
+    withdrawTo as withdraw_to,
+    evt_tx_hash as tx_hash
+  from opencover_arbitrum.Quote_evt_QuoteRefunded
+  union all
+  select
+    'base' as blockchain,
+    evt_block_time as block_time,
+    evt_block_number as block_number,
+    quoteId as quote_id,
+    sender,
+    withdrawTo as withdraw_to,
+    evt_tx_hash as tx_hash
+  from opencover_base.Quote_evt_QuoteRefunded
+  union all
+  select
+    'optimism' as blockchain,
+    evt_block_time as block_time,
+    evt_block_number as block_number,
+    quoteId as quote_id,
+    sender,
+    withdrawTo as withdraw_to,
+    evt_tx_hash as tx_hash
+  from opencover_optimism.Quote_evt_QuoteRefunded
+  union all
+  select
+    'polygon' as blockchain,
+    evt_block_time as block_time,
+    evt_block_number as block_number,
+    quoteId as quote_id,
+    sender,
+    withdrawTo as withdraw_to,
+    evt_tx_hash as tx_hash
+  from opencover_polygon.Quote_evt_QuoteRefunded
 )
 
 select
@@ -173,6 +215,12 @@ select
   st.sender as quote_settled_sender,
   st.cover_expires_at,
   st.mainnet_tx_hash,
-  st.tx_hash as quote_settled_tx_hash
+  st.tx_hash as quote_settled_tx_hash,
+  r.block_time as quote_refunded_block_time,
+  r.block_number as quote_refunded_block_number,
+  r.sender as quote_refunded_sender,
+  r.withdraw_to as quote_refunded_withdraw_to,
+  r.tx_hash as quote_refunded_tx_hash
 from quotes_submitted sb
   left join quotes_settled st on sb.blockchain = st.blockchain and sb.quote_id = st.quote_id
+  left join quotes_refunded r on sb.blockchain = r.blockchain and sb.quote_id = r.quote_id
