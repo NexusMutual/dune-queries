@@ -15,6 +15,7 @@ product_api as (
   from unnest(cast(json_parse(http_get('https://sdk.nexusmutual.io/data/products.json')) as array(json))) t(product_data)
 )
 
+-- check against query
 select p.product_id, p.product_type_id, p.product_name, p.cover_assets, p_api.cover_assets as api_cover_assets
 from product_api p_api
   left join query_3788363 p -- products
@@ -23,3 +24,12 @@ where coalesce(p_api.product_type_id, 0) <> coalesce(p.product_type_id, 0)
   or coalesce(p_api.product_name, '') <> coalesce(p.product_name, '')
   or coalesce(p_api.cover_assets, '') <> coalesce(p.cover_assets, '')
 order by 1
+
+/*
+-- alternative check against spell
+select product_id, product_type_id, product_name, cover_assets
+from products_api
+except
+select product_id, product_type_id, product_name, cover_assets
+from nexusmutual_ethereum.products_v2
+*/
