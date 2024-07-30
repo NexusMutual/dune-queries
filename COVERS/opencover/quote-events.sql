@@ -192,16 +192,6 @@ quotes_refunded as (
     withdrawTo as withdraw_to,
     evt_tx_hash as tx_hash
   from opencover_polygon.Quote_evt_QuoteRefunded
-),
-
-products as (
-  select
-    p.product_id,
-    p.product_name,
-    pt.product_type_id,
-    pt.product_type_name as product_type
-  from nexusmutual_ethereum.product_types_v2 pt
-    inner join nexusmutual_ethereum.products_v2 p on pt.product_type_id = p.product_type_id
 )
 
 select
@@ -213,8 +203,6 @@ select
   sb.sender as quote_submitted_sender,
   sb.provider_id,
   sb.product_id,
-  p.product_type,
-  p.product_name,
   sb.cover_asset_id,
   case sb.cover_asset_id
     when 0 then 'ETH'
@@ -240,6 +228,8 @@ select
   st.block_number as quote_settled_block_number,
   st.sender as quote_settled_sender,
   st.cover_expires_at,
+  date_add('day', -1 * sb.cover_expiry, from_unixtime(st.cover_expires_at)) as cover_start_time,
+  from_unixtime(st.cover_expires_at) as cover_end_time,
   st.mainnet_tx_hash,
   st.tx_hash as quote_settled_tx_hash,
   r.block_time as quote_refunded_block_time,
@@ -251,4 +241,3 @@ select
 from quotes_submitted sb
   left join quotes_settled st on sb.blockchain = st.blockchain and sb.quote_id = st.quote_id
   left join quotes_refunded r on sb.blockchain = r.blockchain and sb.quote_id = r.quote_id
-  left join products p on sb.product_id = p.product_id
