@@ -15,7 +15,7 @@ quotes_submitted as (
     cast(json_query(qc.quote, 'lax $.premiumAmount') as uint256) as premium_amount,
     cast(json_query(qc.quote, 'lax $.feeAmount') as uint256) as fee_amount,
     cast(json_query(qc.quote, 'lax $.coverExpiry') as int) as cover_expiry,
-    cast(json_query(qc.quote, 'lax $.validUntil') as bigint) as valid_until,
+    cast(json_query(qc.quote, 'lax $.validUntil') as bigint) as quote_valid_until,
     qe.evt_tx_hash as tx_hash
   from opencover_arbitrum.Quote_evt_QuoteSubmitted qe
     inner join opencover_arbitrum.Quote_call_submitQuote qc on qe.evt_block_time = qc.call_block_time
@@ -37,7 +37,7 @@ quotes_submitted as (
     cast(json_query(qc.quote, 'lax $.premiumAmount') as uint256) as premium_amount,
     cast(json_query(qc.quote, 'lax $.feeAmount') as uint256) as fee_amount,
     cast(json_query(qc.quote, 'lax $.coverExpiry') as int) as cover_expiry,
-    cast(json_query(qc.quote, 'lax $.validUntil') as bigint) as valid_until,
+    cast(json_query(qc.quote, 'lax $.validUntil') as bigint) as quote_valid_until,
     qe.evt_tx_hash as tx_hash
   from opencover_base.Quote_evt_QuoteSubmitted qe
     inner join opencover_base.Quote_call_submitQuote qc on qe.evt_block_time = qc.call_block_time
@@ -59,7 +59,7 @@ quotes_submitted as (
     cast(json_query(qc.quote, 'lax $.premiumAmount') as uint256) as premium_amount,
     cast(json_query(qc.quote, 'lax $.feeAmount') as uint256) as fee_amount,
     cast(json_query(qc.quote, 'lax $.coverExpiry') as int) as cover_expiry,
-    cast(json_query(qc.quote, 'lax $.validUntil') as bigint) as valid_until,
+    cast(json_query(qc.quote, 'lax $.validUntil') as bigint) as quote_valid_until,
     qe.evt_tx_hash as tx_hash
   from opencover_optimism.Quote_evt_QuoteSubmitted qe
     inner join opencover_optimism.Quote_call_submitQuote qc on qe.evt_block_time = qc.call_block_time
@@ -81,7 +81,7 @@ quotes_submitted as (
     cast(json_query(qc.quote, 'lax $.premiumAmount') as uint256) as premium_amount,
     cast(json_query(qc.quote, 'lax $.feeAmount') as uint256) as fee_amount,
     cast(json_query(qc.quote, 'lax $.coverExpiry') as int) as cover_expiry,
-    cast(json_query(qc.quote, 'lax $.validUntil') as bigint) as valid_until,
+    cast(json_query(qc.quote, 'lax $.validUntil') as bigint) as quote_valid_until,
     qe.evt_tx_hash as tx_hash
   from opencover_polygon.Quote_evt_QuoteSubmitted qe
     inner join opencover_polygon.Quote_call_submitQuote qc on qe.evt_block_time = qc.call_block_time
@@ -233,7 +233,7 @@ select
   sb.premium_amount,
   sb.fee_amount,
   sb.cover_expiry,
-  sb.valid_until,
+  sb.quote_valid_until,
   sb.tx_hash as quote_submitted_tx_hash,
   st.block_time as quote_settled_block_time,
   date_trunc('day', st.block_time) as quote_settled_block_date,
