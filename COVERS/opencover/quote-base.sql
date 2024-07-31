@@ -52,6 +52,8 @@ select
   ocq.cover_expiry,
   date_add('day', -1 * ocq.cover_expiry, from_unixtime(ocq.cover_expires_at)) as cover_start_time,
   from_unixtime(ocq.cover_expires_at) as cover_end_time,
+  date_trunc('day', date_add('day', -1 * ocq.cover_expiry, from_unixtime(ocq.cover_expires_at))) as cover_start_date,
+  date_trunc('day', from_unixtime(ocq.cover_expires_at)) as cover_end_date,
   ocq.provider_id,
   ocq.product_id,
   p.product_type,
