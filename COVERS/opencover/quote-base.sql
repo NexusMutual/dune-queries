@@ -46,7 +46,7 @@ products as (
 select
   ocq.blockchain,
   ocq.quote_id as cover_id,
-  ocq.quote_submitted_sender,
+  ocq.quote_submitted_sender as cover_owner,
   ocq.quote_submitted_block_time,
   ocq.quote_settled_block_time,
   ocq.cover_expiry,
