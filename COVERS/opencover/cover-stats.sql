@@ -18,11 +18,20 @@ new_cover_buyers as (
   where cover_owner in (
     select cover_owner from covers where is_within_period and first_seen = 1
   )
+),
+
+returning_cover_buyers as (
+  select distinct cover_id, cover_owner
+  from covers
+  where cover_owner in (
+    select cover_owner from covers where first_seen > 1
+  )
 )
 
 select
   count(*) as cover_sold,
   count(distinct cover_owner) as unique_cover_owners,
+  count(distinct cover_owner) filter (where cover_id in (select cover_id from returning_cover_buyers)) as returning_cover_buyers,
   sum(usd_cover_amount) as usd_cover_total,
   sum(usd_premium_amount) as usd_premium_total,
   coalesce(sum(usd_cover_amount) filter (where is_within_period), 0) as usd_cover_7day,
