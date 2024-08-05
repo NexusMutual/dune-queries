@@ -25,7 +25,8 @@ claims as (
     submit_date,
     partial_claim_amount,
     claim_status
-  from query_3894606 -- claims v1 base (fallback) query
+  --from query_3894606 -- claims v1 base (fallback) query
+  from nexusmutual_ethereum.claims_v1
 ),
 
 ca_votes as (

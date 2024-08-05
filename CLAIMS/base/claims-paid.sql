@@ -22,8 +22,8 @@ covers as (
     product_name,
     cover_asset,
     sum_assured
-  from query_3788370 -- covers v2 base (fallback) query
-  --from nexusmutual_ethereum.covers_v2 -- spell needs updating - add product_id
+  --from query_3788370 -- covers v2 base (fallback) query
+  from nexusmutual_ethereum.covers_v2
   --where is_migrated = false
 ),
 
@@ -35,7 +35,8 @@ claims as (
     cast(null as int) as product_id,
     submit_date as claim_date,
     partial_claim_amount as claim_amount
-  from query_3894606 -- claims v1 base (fallback) query
+  --from query_3894606 -- claims v1 base (fallback) query
+  from nexusmutual_ethereum.claims_v1
   where claim_status = 14
     or claim_id = 102
   union all
@@ -46,7 +47,8 @@ claims as (
     cast(product_id as int) as product_id,
     submit_date as claim_date,
     requested_amount as claim_amount
-  from query_3894982 -- claims v2 base (fallback) query
+  --from query_3894982 -- claims v2 base (fallback) query
+  from nexusmutual_ethereum.claims_v2
 ),
 
 claims_paid as (
