@@ -27,6 +27,7 @@ select
   nxm_usd_active_premium,
   usd_active_premium / active_cover as mean_usd_active_premium,
   median_usd_active_premium
-from query_3889661 -- BD active cover base
+--from query_3889661 -- BD active cover base
+from nexusmutual_ethereum.covers_daily_agg
 where block_date >= now() - interval '6' month
 order by 1 desc

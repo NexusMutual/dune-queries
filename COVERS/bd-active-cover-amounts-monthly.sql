@@ -31,7 +31,8 @@ select
   sum(dai_usd_premium) as dai_usd_premium,
   sum(usdc_usd_premium) as usdc_usd_premium,
   sum(nxm_usd_premium) as nxm_usd_premium
-from query_3889661 -- BD active cover base
+--from query_3889661 -- BD active cover base
+from nexusmutual_ethereum.covers_daily_agg
 where block_date >= now() - interval '3' year
 group by 1
 order by 1 desc
