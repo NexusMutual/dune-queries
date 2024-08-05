@@ -111,8 +111,10 @@ products as (
     p.product_name,
     pt.product_type_id,
     pt.product_type_name as product_type
-  from query_3788361 pt -- product types
-    inner join query_3788363 p -- products
+  --from query_3788361 pt -- product types
+  --  inner join query_3788363 p -- products
+  from nexusmutual_ethereum.product_types_v2 pt
+    inner join nexusmutual_ethereum.products_v2 p
       on pt.product_type_id = p.product_type_id
 ),
 
