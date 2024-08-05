@@ -1,10 +1,5 @@
 with
 
-staking_pool_names as (
-  select pool_id, pool_name
-  from query_3833996 -- staking pool names base (fallback) query
-),
-
 covers as (
   select
     cover_id,
@@ -84,7 +79,6 @@ select
   c.cover_end_date,
   c.cover_owner,
   c.staking_pool_id,
-  spn.pool_name as staking_pool,
   c.product_type,
   c.product_name,
   c.cover_asset,
@@ -104,4 +98,3 @@ from covers_ext c
   cross join latest_eth_price p_eth
   cross join latest_dai_price p_dai
   cross join latest_usdc_price p_usdc
-  left join staking_pool_names spn on c.staking_pool_id = spn.pool_id

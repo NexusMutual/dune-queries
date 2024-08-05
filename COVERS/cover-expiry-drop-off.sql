@@ -5,7 +5,6 @@ active_covers as (
     cover_id,
     cover_start_date,
     cover_end_date,
-    cover_asset,
     --ETH
     eth_cover_amount,
     eth_usd_cover_amount,
@@ -15,7 +14,8 @@ active_covers as (
     --USDC
     usdc_eth_cover_amount,
     usdc_usd_cover_amount
-  from query_3834200 -- active covers base (fallback) query
+  --from query_3834200 -- active covers base (fallback) query
+  from nexusmutual_ethereum.active_covers
 ),
 
 day_sequence as (
