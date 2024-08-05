@@ -9,6 +9,7 @@ daily_avg_prices as (
     avg_nxm_eth_price,
     avg_nxm_usd_price
   from query_3789851 -- prices base (fallback) query
+  --from nexusmutual_ethereum.capital_pool_prices
 ),
 
 commissions_ext as (
@@ -29,7 +30,9 @@ commissions_ext as (
     if(c.premium_asset = 'NXM', c.commission * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as nxm_eth_commission,
     if(c.premium_asset = 'NXM', c.commission * p.avg_nxm_usd_price, 0) as nxm_usd_commission
   from daily_avg_prices p
-    inner join query_3788370 c on p.block_date = c.block_date
+    inner join nexusmutual_ethereum.covers_v2 c
+    --inner join query_3788370 c -- covers v2 base (fallback) query
+      on p.block_date = c.block_date
   where c.commission > 0
 ),
 
