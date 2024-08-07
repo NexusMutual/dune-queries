@@ -16,7 +16,7 @@ product_api as (
 )
 
 -- check against query
-select p.product_id, p.product_type_id, p.product_name, p.cover_assets, p_api.cover_assets as api_cover_assets
+select p_api.product_id, p_api.product_type_id, p_api.product_name, p_api.cover_assets
 from product_api p_api
   left join query_3788363 p -- products
     on p_api.product_id = p.product_id
