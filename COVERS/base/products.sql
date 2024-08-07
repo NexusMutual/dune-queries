@@ -9,6 +9,15 @@ product_events as (
     evt_index,
     evt_tx_hash as tx_hash
   from nexusmutual_ethereum.Cover_evt_ProductSet
+  union all
+  select
+    evt_block_time as block_time,
+    evt_block_number as block_number,
+    id as product_id,
+    cast(null as varchar) as evt_product_ipfs_metadata,
+    evt_index,
+    evt_tx_hash as tx_hash
+  from nexusmutual_ethereum.CoverProducts_evt_ProductSet
 ),
 
 product_calls as (
@@ -21,6 +30,15 @@ product_calls as (
   from nexusmutual_ethereum.Cover_call_setProducts
   where call_success
     and contract_address = 0xcafeac0ff5da0a2777d915531bfa6b29d282ee62
+  union all
+  select
+    call_block_time as block_time,
+    call_block_number as block_number,
+    productParams,
+    call_tx_hash as tx_hash,
+    row_number() over (partition by call_block_time, call_tx_hash order by call_trace_address desc) as tx_call_rn
+  from nexusmutual_ethereum.CoverProducts_call_setProducts
+  where call_success
 ),
 
 product_data_raw as (
