@@ -8,11 +8,6 @@ order by 1
 
 with
 
-staking_pool_names as (
-  select pool_id, pool_name
-  from query_3833996 -- staking pool names base (fallback) query
-),
-
 staking_pools_created as (
   select
     call_block_time as block_time,
@@ -149,7 +144,6 @@ staking_pool_fee_updates as (
 select
   sp.pool_id,
   sp.pool_address,
-  spn.pool_name,
   spm.manager_address,
   spm.manager_ens,
   spm.manager,
@@ -166,7 +160,6 @@ select
   if(spc.is_product_added, spc.updated_time, sp.block_time) as product_added_time
 from staking_pools_created as sp
   inner join staking_pool_products_combined as spc on sp.pool_id = spc.pool_id
-  left join staking_pool_names as spn on sp.pool_id = spn.pool_id
   left join staking_pool_managers spm on sp.pool_id = spm.pool_id
   left join staking_pool_fee_updates spf on sp.pool_address = spf.pool_address
 --order by sp.pool_id, spc.product_id
