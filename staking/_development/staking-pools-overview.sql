@@ -118,81 +118,36 @@ staking_nft_mints as (
 
 covers as (
   select
-    c.call_block_time as block_time,
-    c.call_block_number as block_number,
-    c.output_coverId as cover_id,
-    c.call_block_time as cover_start_time,
-    date_add('second', cast(json_query(c.params, 'lax $.period') as bigint), c.call_block_time) as cover_end_time,
-    cast(json_query(c.params, 'lax $.period') as bigint) as cover_period_seconds,
-    cast(json_query(t.pool_allocation, 'lax $.poolId') as uint256) as pool_id,
-    cast(json_query(c.params, 'lax $.productId') as uint256) as product_id,
-    json_query(c.params, 'lax $.owner' omit quotes) as owner,
-    cast(json_query(c.params, 'lax $.amount') as uint256) as cover_amount,
-    cast(json_query(c.params, 'lax $.coverAsset') as int) as cover_asset,
-    cast(json_query(c.params, 'lax $.paymentAsset') as int) as payment_asset,
-    cast(json_query(c.params, 'lax $.maxPremiumInAsset') as uint256) as max_premium_in_asset,
-    cast(json_query(c.params, 'lax $.commissionRatio') as int) as commission_ratio,
-    json_query(c.params, 'lax $.commissionDestination' omit quotes) as commission_destination,
-    cast(json_query(t.pool_allocation, 'lax $.coverAmountInAsset') as uint256) as cover_amount_in_asset,
-    cast(json_query(t.pool_allocation, 'lax $.skip') as boolean) as pool_allocation_skip,
-    c.call_trace_address,
-    c.call_tx_hash as tx_hash
-  from nexusmutual_ethereum.Cover_call_buyCover c
-    cross join unnest(c.poolAllocationRequests) as t(pool_allocation)
-  where c.call_success
-),
-
-staking_product_premiums as (
-  select
-    call_block_time as premium_start_time,
-    call_block_number as block_number,
-    poolId as pool_id,
-    productId as product_id,
-    output_premium as premium,
-    coverAmount as cover_amount,
-    initialCapacityUsed as initial_capacity_used,
-    totalCapacity as total_capacity,
-    globalMinPrice as global_min_price,
-    useFixedPrice as use_fixed_price,
-    nxmPerAllocationUnit as nxm_per_allocation_unit,
-    allocationUnitsPerNXM as allocation_units_per_nxm,
-    cast(period as bigint) as premium_period_seconds,
-    case
-      when date_add('second', cast(period as bigint), call_block_time) > now()
-      then (to_unixTime(now()) - to_unixTime(call_block_time)) / cast(period as bigint)
-      else 1
-    end as premium_period_ratio,
-    call_trace_address,
-    call_tx_hash as tx_hash
-  from nexusmutual_ethereum.StakingProducts_call_getPremium
-  where call_success
-    and contract_address = 0xcafea573fbd815b5f59e8049e71e554bde3477e4
+    *,
+    date_diff('second', cover_start_time, cover_end_time) as cover_period_seconds
+  --from nexusmutual_ethereum.covers_v2
+  from query_3788370 -- covers v2 base (fallback) query (until extra columns added)
 ),
 
 cover_premiums as (
   select
-    c.cover_start_time,
-    c.pool_id,
-    c.product_id,
     c.cover_id,
-    p.premium / 1e18 as premium,
-    p.premium / 1e18 * 0.5 as commission,
-    (c.commission_ratio / 10000.0) * p.premium / 1e18 * 0.5 as commission_distibutor_fee,
-    p.premium / 1e18 * 0.5 * h.pool_fee as pool_manager_commission,
-    p.premium / 1e18 * 0.5 * (1 - h.pool_fee) as staker_commission,
-    p.premium_period_ratio * p.premium / 1e18 * 0.5 as commission_emitted,
-    p.premium_period_ratio * p.premium / 1e18 * 0.5 * h.pool_fee as pool_manager_commission_emitted,
-    p.premium_period_ratio * p.premium / 1e18 * 0.5 * (1 - h.pool_fee) as staker_commission_emitted
+    c.cover_start_time,
+    c.cover_end_time,
+    c.staking_pool_id,
+    c.product_id,
+    c.premium,
+    c.commission as cover_commision,
+    c.premium * 0.5 as commission,
+    c.commission_ratio * c.premium * 0.5 as commission_distibutor_fee,
+    c.premium * 0.5 * h.pool_fee as pool_manager_commission,
+    c.premium * 0.5 * (1 - h.pool_fee) as staker_commission,
+    c.premium_period_ratio * c.premium * 0.5 as commission_emitted,
+    c.premium_period_ratio * c.premium * 0.5 * h.pool_fee as pool_manager_commission_emitted,
+    c.premium_period_ratio * c.premium * 0.5 * (1 - h.pool_fee) as staker_commission_emitted
   from covers c
-    inner join staking_product_premiums p on c.tx_hash = p.tx_hash and c.block_number = p.block_number
-      and c.pool_id = p.pool_id and c.product_id = p.product_id
-    inner join staking_pool_fee_history h on p.pool_id = h.pool_id
-      and p.premium_start_time between h.start_time and h.end_time
+    inner join staking_pool_fee_history h on c.staking_pool_id = h.pool_id
+      and c.cover_start_time between h.start_time and h.end_time
 ),
 
 cover_premium_commissions as (
   select
-    pool_id,
+    staking_pool_id,
     sum(commission) as total_commission,
     sum(commission_emitted) as total_commission_emitted,
     sum(commission_distibutor_fee) as pool_distributor_commission,
@@ -294,9 +249,9 @@ staking_rewards as (
       where call_success
     ) mr
     inner join covers c on mr.call_tx_hash = c.tx_hash and mr.call_block_number = c.block_number
-  where mr.poolId = c.pool_id
-    and (c.call_trace_address is null
-      or slice(mr.call_trace_address, 1, cardinality(c.call_trace_address)) = c.call_trace_address)
+  where mr.poolId = c.staking_pool_id
+    and (c.trace_address is null
+      or slice(mr.call_trace_address, 1, cardinality(c.trace_address)) = c.trace_address)
 ),
 
 /*
@@ -347,5 +302,5 @@ from staking_pools sp
   left join staked_nxm_per_pool t on sp.pool_id = t.pool_id
   left join staked_nxm_allocated a on sp.pool_id = a.pool_id
   left join staked_nxm_rewards_per_pool r on sp.pool_id = r.pool_id
-  left join cover_premium_commissions c on sp.pool_id = c.pool_id
+  left join cover_premium_commissions c on sp.pool_id = c.staking_pool_id
 order by 1
