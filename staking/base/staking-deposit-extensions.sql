@@ -1,13 +1,13 @@
--- query_3609519: staking pool history
+-- query_3609519: staking events
 
-with recursive deposit_chain (block_time, pool_address, token_id, tranche_id, new_tranche_id, total_amount, is_active, chain_level) as (
+with recursive deposit_chain (pool_address, token_id, tranche_id, new_tranche_id, total_amount, block_time, is_active, chain_level) as (
   select
-    block_time,
     pool_address,
     token_id,
     tranche_id as tranche_id,
     tranche_id as new_tranche_id,
     sum(amount) as total_amount,
+    max(block_time) as block_time,
     max_by(is_active, block_time) as is_active,
     1 as chain_level
   from query_3609519
@@ -17,12 +17,12 @@ with recursive deposit_chain (block_time, pool_address, token_id, tranche_id, ne
   union all
   
   select 
-    d.block_time,
     d.pool_address,
     d.token_id,
     dc.tranche_id,
     d.new_tranche_id,
     dc.total_amount + coalesce(d.topup_amount, 0) as total_amount,
+    d.block_time,
     d.is_active,
     dc.chain_level + 1 as chain_level
   from deposit_chain dc
