@@ -1,6 +1,6 @@
--- query_3609519: staking events
+-- query_3609519: staking events - bae
 
-with recursive deposit_chain (pool_address, token_id, tranche_id, new_tranche_id, total_amount, block_time, is_active, chain_level) as (
+with recursive deposit_chain (pool_address, token_id, tranche_id, new_tranche_id, total_amount, block_time, is_active, evt_index, tx_hash, chain_level) as (
   select
     pool_address,
     token_id,
@@ -9,6 +9,8 @@ with recursive deposit_chain (pool_address, token_id, tranche_id, new_tranche_id
     sum(amount) as total_amount,
     max(block_time) as block_time,
     max_by(is_active, block_time) as is_active,
+    max_by(evt_index, block_time) as evt_index,
+    max_by(tx_hash, block_time) as tx_hash,
     1 as chain_level
   from query_3609519
   where flow_type = 'deposit'
@@ -24,6 +26,8 @@ with recursive deposit_chain (pool_address, token_id, tranche_id, new_tranche_id
     dc.total_amount + coalesce(d.topup_amount, 0) as total_amount,
     d.block_time,
     d.is_active,
+    d.evt_index,
+    d.tx_hash,
     dc.chain_level + 1 as chain_level
   from deposit_chain dc
   join query_3609519 d on dc.pool_address = d.pool_address
@@ -39,7 +43,9 @@ select
   tranche_id as init_tranche_id,
   new_tranche_id as current_tranche_id,
   total_amount,
-  is_active
+  is_active,
+  evt_index,
+  tx_hash
 from (
     select
       *,
