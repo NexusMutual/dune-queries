@@ -24,8 +24,8 @@ staking_pool_base as (
     sp.target_weight,
     sp.pool_created_time,
     sp.product_added_time
-  from query_3859935 sp -- staking pools base (fallback) query
-  --from nexusmutual_ethereum.staking_pools
+  --from query_3859935 sp -- staking pools base (fallback) query
+  from nexusmutual_ethereum.staking_pools sp
     left join staking_pool_names spn on sp.pool_id = spn.pool_id
 ),
 
@@ -60,32 +60,6 @@ staking_pools as (
       from staking_pool_products
       group by 1
     ) spp on sp.pool_id = spp.pool_id
-),
-
-staking_pool_fee_history as (
-  select
-    sp.pool_id,
-    sp.pool_address,
-    t.start_time,
-    coalesce(
-      date_add('second', -1, lead(t.start_time) over (partition by t.pool_address order by t.start_time)),
-      now()
-    ) as end_time,
-    t.pool_fee
-  from staking_pools sp
-    inner join (
-      select
-        pool_address,
-        pool_created_time as start_time,
-        initial_pool_fee as pool_fee
-      from staking_pools
-      union all
-      select
-        contract_address as pool_address,
-        evt_block_time as start_time,
-        newFee / 100.00 as pool_fee
-      from nexusmutual_ethereum.StakingPool_evt_PoolFeeChanged
-    ) t on sp.pool_address = t.pool_address
 ),
 
 /*
@@ -147,7 +121,7 @@ staked_nxm_per_pool as (
       select
         pool_address,
         sum(total_amount) as amount
-      --from query_3619534 -- staking pools - deposit extensions base query -- can't be used bc of Error: This query has too many stages and is too complex to execute at once
+      --from query_3619534 -- staking deposit extensions base query -- can't be used bc of "Error: This query has too many stages and is too complex to execute at once"
       from nexusmutual_ethereum.staking_deposit_extensions
       where is_active
       group by 1
@@ -155,8 +129,8 @@ staked_nxm_per_pool as (
       select
         pool_address,
         sum(amount) as amount
-      from query_3609519 -- staking pools - history base query
-      --from nexusmutual_ethereum.staking_events
+      --from query_3609519 -- staking events
+      from nexusmutual_ethereum.staking_events
       where is_active
         --and flow_type in ('withdraw', 'stake burn')
         and flow_type = 'withdraw' -- burn TBD
@@ -175,12 +149,38 @@ staked_nxm_allocated as (
   group by 1
 ),
 
+staking_pool_fee_history as (
+  select
+    sp.pool_id,
+    sp.pool_address,
+    t.start_time,
+    coalesce(
+      date_add('second', -1, lead(t.start_time) over (partition by t.pool_address order by t.start_time)),
+      now()
+    ) as end_time,
+    t.pool_fee
+  from staking_pools sp
+    inner join (
+      select
+        pool_address,
+        pool_created_time as start_time,
+        initial_pool_fee as pool_fee
+      from staking_pools
+      union all
+      select
+        contract_address as pool_address,
+        evt_block_time as start_time,
+        newFee / 100.00 as pool_fee
+      from nexusmutual_ethereum.StakingPool_evt_PoolFeeChanged
+    ) t on sp.pool_address = t.pool_address
+),
+
 covers as (
   select
     *,
     date_diff('second', cover_start_time, cover_end_time) as cover_period_seconds
-  --from nexusmutual_ethereum.covers_v2
-  from query_3788370 -- covers v2 base (fallback) query (until extra columns added)
+  from nexusmutual_ethereum.covers_v2
+  --from query_3788370 -- covers v2 base (fallback) query
 ),
 
 cover_premiums as (
