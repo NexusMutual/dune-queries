@@ -114,52 +114,7 @@ staking_nft_mints as (
   from nexusmutual_ethereum.StakingNFT_call_mint
   where call_success
 ),
-*/
 
-covers as (
-  select
-    *,
-    date_diff('second', cover_start_time, cover_end_time) as cover_period_seconds
-  --from nexusmutual_ethereum.covers_v2
-  from query_3788370 -- covers v2 base (fallback) query (until extra columns added)
-),
-
-cover_premiums as (
-  select
-    c.cover_id,
-    c.cover_start_time,
-    c.cover_end_time,
-    c.staking_pool_id,
-    c.product_id,
-    c.premium,
-    c.commission as cover_commision,
-    c.premium * 0.5 as commission,
-    c.commission_ratio * c.premium * 0.5 as commission_distibutor_fee,
-    c.premium * 0.5 * h.pool_fee as pool_manager_commission,
-    c.premium * 0.5 * (1 - h.pool_fee) as staker_commission,
-    c.premium_period_ratio * c.premium * 0.5 as commission_emitted,
-    c.premium_period_ratio * c.premium * 0.5 * h.pool_fee as pool_manager_commission_emitted,
-    c.premium_period_ratio * c.premium * 0.5 * (1 - h.pool_fee) as staker_commission_emitted
-  from covers c
-    inner join staking_pool_fee_history h on c.staking_pool_id = h.pool_id
-      and c.cover_start_time between h.start_time and h.end_time
-),
-
-cover_premium_commissions as (
-  select
-    staking_pool_id,
-    sum(commission) as total_commission,
-    sum(commission_emitted) as total_commission_emitted,
-    sum(commission_distibutor_fee) as pool_distributor_commission,
-    sum(pool_manager_commission) as pool_manager_commission,
-    sum(pool_manager_commission_emitted) as pool_manager_commission_emitted,
-    sum(staker_commission) as staker_commission,
-    sum(staker_commission_emitted) as staker_commission_emitted
-  from cover_premiums
-  group by 1
-),
-
-/*
 allocation_requests as (
   select
     call_block_time as block_time,
@@ -217,6 +172,49 @@ staked_nxm_allocated as (
     sum(w.target_weight * s.total_nxm_staked) / 100.00 as total_nxm_allocated
   from staking_pool_products w
     inner join staked_nxm_per_pool s on w.pool_id = s.pool_id
+  group by 1
+),
+
+covers as (
+  select
+    *,
+    date_diff('second', cover_start_time, cover_end_time) as cover_period_seconds
+  --from nexusmutual_ethereum.covers_v2
+  from query_3788370 -- covers v2 base (fallback) query (until extra columns added)
+),
+
+cover_premiums as (
+  select
+    c.cover_id,
+    c.cover_start_time,
+    c.cover_end_time,
+    c.staking_pool_id,
+    c.product_id,
+    c.premium,
+    c.commission as cover_commision,
+    c.premium * 0.5 as commission,
+    c.commission_ratio * c.premium * 0.5 as commission_distibutor_fee,
+    c.premium * 0.5 * h.pool_fee as pool_manager_commission,
+    c.premium * 0.5 * (1 - h.pool_fee) as staker_commission,
+    c.premium_period_ratio * c.premium * 0.5 as commission_emitted,
+    c.premium_period_ratio * c.premium * 0.5 * h.pool_fee as pool_manager_commission_emitted,
+    c.premium_period_ratio * c.premium * 0.5 * (1 - h.pool_fee) as staker_commission_emitted
+  from covers c
+    inner join staking_pool_fee_history h on c.staking_pool_id = h.pool_id
+      and c.cover_start_time between h.start_time and h.end_time
+),
+
+cover_premium_commissions as (
+  select
+    staking_pool_id,
+    sum(commission) as total_commission,
+    sum(commission_emitted) as total_commission_emitted,
+    sum(commission_distibutor_fee) as pool_distributor_commission,
+    sum(pool_manager_commission) as pool_manager_commission,
+    sum(pool_manager_commission_emitted) as pool_manager_commission_emitted,
+    sum(staker_commission) as staker_commission,
+    sum(staker_commission_emitted) as staker_commission_emitted
+  from cover_premiums
   group by 1
 ),
 
