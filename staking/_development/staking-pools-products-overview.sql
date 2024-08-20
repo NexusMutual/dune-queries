@@ -127,7 +127,7 @@ staked_nxm_allocated as (
   select
     sp.pool_id,
     sp.product_id,
-    sp.target_weight,
+    sp.target_weight / 100.00 as target_weight,
     sp.target_price,
     --s.total_nxm_staked, -- per pool
     --sum(sp.target_weight * s.total_nxm_staked / 100.00) over (partition by sp.pool_id) as nxm_allocated_total, -- per pool
@@ -167,5 +167,5 @@ select
 from staking_pool_products spp
   left join staked_nxm_allocated sna on spp.pool_id = sna.pool_id and spp.product_id = sna.product_id
   left join active_covers ac on spp.pool_id = ac.staking_pool_id and spp.product_id = ac.product_id
---where spp.pool_id = 3 -- 18
+where spp.pool_id = 3 -- 18
 order by 1, 2
