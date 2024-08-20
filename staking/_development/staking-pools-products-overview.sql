@@ -110,7 +110,7 @@ staked_nxm_per_pool as (
       group by 1
     ) t
     join staking_pools sp on t.pool_address = sp.pool_address
-  group by 1,2
+  group by 1, 2
 ),
 
 staked_nxm_allocated as (
@@ -127,15 +127,16 @@ staked_nxm_allocated as (
     inner join staked_nxm_per_pool s on sp.pool_id = s.pool_id
 ),
 
-covers as (
+active_covers as (
   select
     staking_pool_id,
     product_id,
-    count(*) as cover_count
-  from nexusmutual_ethereum.covers_v2
-  --from query_3788370 -- covers v2 base (fallback) query
-  where cover_end_date >= current_date
-  group by 1,2
+    count(*) as active_cover_count,
+    sum(eth_usd_cover_amount + dai_usd_cover_amount + usdc_usd_cover_amount) as usd_cover_amount,
+    sum(eth_cover_amount + dai_eth_cover_amount + usdc_eth_cover_amount) as eth_cover_amount
+  from query_3834200 -- active covers base (fallback) query
+  --from nexusmutual_ethereum.active_covers
+  group by 1, 2
 )
 
 select
@@ -146,9 +147,11 @@ select
   sna.target_weight,
   sna.target_price,
   coalesce(sna.nxm_allocated_per_product, 0) as total_nxm_allocated,
-  c.cover_count
+  ac.active_cover_count,
+  ac.usd_cover_amount,
+  ac.eth_cover_amount
 from staking_pool_products spp
   left join staked_nxm_allocated sna on spp.pool_id = sna.pool_id and spp.product_id = sna.product_id
-  left join covers c on spp.pool_id = c.staking_pool_id and spp.product_id = c.product_id
+  left join active_covers ac on spp.pool_id = ac.staking_pool_id and spp.product_id = ac.product_id
 where spp.pool_id = 3 -- 18
 order by 1,2
