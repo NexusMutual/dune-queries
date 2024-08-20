@@ -113,18 +113,31 @@ staked_nxm_per_pool as (
   group by 1, 2
 ),
 
+latest_avg_prices as (
+  select
+    max(block_date) as block_date,
+    max_by(avg_nxm_eth_price, block_date) as avg_nxm_eth_price,
+    max_by(avg_nxm_usd_price, block_date) as avg_nxm_usd_price
+  from nexusmutual_ethereum.capital_pool_prices
+  order by 1 desc
+  limit 1
+),
+
 staked_nxm_allocated as (
   select
     sp.pool_id,
     sp.product_id,
     sp.target_weight,
     sp.target_price,
-    --s.total_nxm_staked,
-    sp.target_weight * s.total_nxm_staked / 100.00 as nxm_allocated_per_product,
-    --sum(sp.target_weight * s.total_nxm_staked / 100.00) over (partition by sp.pool_id) as nxm_allocated_total,
+    --s.total_nxm_staked, -- per pool
+    --sum(sp.target_weight * s.total_nxm_staked / 100.00) over (partition by sp.pool_id) as nxm_allocated_total, -- per pool
+    (sp.target_weight * s.total_nxm_staked / 100.00) as nxm_allocated,
+    (sp.target_weight * s.total_nxm_staked / 100.00) * p.avg_nxm_usd_price as nxm_usd_allocated,
+    (sp.target_weight * s.total_nxm_staked / 100.00) * p.avg_nxm_eth_price as nxm_eth_allocated,
     sp.product_added_time
   from staking_pool_products sp
     inner join staked_nxm_per_pool s on sp.pool_id = s.pool_id
+    cross join latest_avg_prices p
 ),
 
 active_covers as (
@@ -145,13 +158,14 @@ select
   spp.product_id,
   spp.product_name,
   sna.target_weight,
-  sna.target_price,
-  coalesce(sna.nxm_allocated_per_product, 0) as total_nxm_allocated,
+  sna.nxm_allocated,
+  sna.nxm_usd_allocated,
+  sna.nxm_eth_allocated,
   ac.active_cover_count,
   ac.usd_cover_amount,
   ac.eth_cover_amount
 from staking_pool_products spp
   left join staked_nxm_allocated sna on spp.pool_id = sna.pool_id and spp.product_id = sna.product_id
   left join active_covers ac on spp.pool_id = ac.staking_pool_id and spp.product_id = ac.product_id
-where spp.pool_id = 3 -- 18
-order by 1,2
+--where spp.pool_id = 3 -- 18
+order by 1, 2
