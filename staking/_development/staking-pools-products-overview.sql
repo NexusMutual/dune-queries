@@ -49,6 +49,7 @@ staking_pool_products as (
   select
     pool_id,
     pool_address,
+    pool_name,
     product_id,
     product_name,
     product_type,
@@ -117,16 +118,14 @@ staked_nxm_allocated as (
     sp.pool_id,
     sp.product_id,
     sp.target_weight,
-    s.total_nxm_staked,
-    s.total_nxm_staked / sp.target_weight * 100.00 as nxm_staked_per_product,
+    sp.target_price,
+    --s.total_nxm_staked,
     sp.target_weight * s.total_nxm_staked / 100.00 as nxm_allocated_per_product,
-    sum(sp.target_weight * s.total_nxm_staked / 100.00) over (partition by sp.pool_id) as nxm_allocated_total
+    --sum(sp.target_weight * s.total_nxm_staked / 100.00) over (partition by sp.pool_id) as nxm_allocated_total,
+    sp.product_added_time
   from staking_pool_products sp
     inner join staked_nxm_per_pool s on sp.pool_id = s.pool_id
-)
-
-select * from staked_nxm_allocated where pool_id = 3 -- 18
-
+),
 
 covers as (
   select
@@ -140,18 +139,16 @@ covers as (
 )
 
 select
-  sp.pool_id,
-  --sp.pool_name,
-  sp.product_id,
-  --sp.manager,
-  --sp.pool_type,
-  --sp.current_management_fee,
-  --sp.max_management_fee,
-  --sp.leverage,
-  coalesce(a.total_nxm_staked, 0) as total_nxm_staked,
-  coalesce(a.total_nxm_allocated, 0) as total_nxm_allocated,
-  sum(a.total_nxm_staked) over () as staked_total
-from staking_pools sp
-  left join staked_nxm_allocated a on sp.pool_id = a.pool_id and sp.product_id = a.product_id
-where sp.pool_id = 18
+  spp.pool_id,
+  --spp.pool_name,
+  spp.product_id,
+  spp.product_name,
+  sna.target_weight,
+  sna.target_price,
+  coalesce(sna.nxm_allocated_per_product, 0) as total_nxm_allocated,
+  c.cover_count
+from staking_pool_products spp
+  left join staked_nxm_allocated sna on spp.pool_id = sna.pool_id and spp.product_id = sna.product_id
+  left join covers c on spp.pool_id = c.staking_pool_id and spp.product_id = c.product_id
+where spp.pool_id = 3 -- 18
 order by 1,2
