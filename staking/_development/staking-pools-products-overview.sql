@@ -147,7 +147,7 @@ active_covers as (
     count(*) as active_cover_count,
     sum(eth_usd_cover_amount + dai_usd_cover_amount + usdc_usd_cover_amount) as usd_cover_amount,
     sum(eth_cover_amount + dai_eth_cover_amount + usdc_eth_cover_amount) as eth_cover_amount
-  from query_3834200 -- active covers base (fallback) query
+  from query_3834200 -- active covers base (fallback) query (spell needs adding product_id)
   --from nexusmutual_ethereum.active_covers
   group by 1, 2
 )
@@ -167,5 +167,5 @@ select
 from staking_pool_products spp
   left join staked_nxm_allocated sna on spp.pool_id = sna.pool_id and spp.product_id = sna.product_id
   left join active_covers ac on spp.pool_id = ac.staking_pool_id and spp.product_id = ac.product_id
-where spp.pool_id = 3 -- 18
+where spp.pool_id = 22 -- 3 -- 18
 order by 1, 2
