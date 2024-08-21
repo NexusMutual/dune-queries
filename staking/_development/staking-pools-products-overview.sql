@@ -154,18 +154,21 @@ active_covers as (
 
 select
   spp.pool_id,
-  --spp.pool_name,
+  spp.pool_name,
   spp.product_id,
   spp.product_name,
   sna.target_weight,
   sna.nxm_allocated,
-  sna.nxm_usd_allocated,
-  sna.nxm_eth_allocated,
+  2 * sna.nxm_allocated as nxm_max_capacity,
+  2 * sna.nxm_usd_allocated as nxm_usd_max_capacity,
+  2 * sna.nxm_eth_allocated as nxm_eth_max_capacity,
   ac.active_cover_count,
   ac.usd_cover_amount,
-  ac.eth_cover_amount
+  ac.eth_cover_amount,
+  (2 * sna.nxm_usd_allocated) - ac.usd_cover_amount as usd_available_capacity,
+  (2 * sna.nxm_eth_allocated) - ac.eth_cover_amount as eth_available_capacity
 from staking_pool_products spp
   left join staked_nxm_allocated sna on spp.pool_id = sna.pool_id and spp.product_id = sna.product_id
   left join active_covers ac on spp.pool_id = ac.staking_pool_id and spp.product_id = ac.product_id
-where spp.pool_id = 22 -- 3 -- 18
-order by 1, 2
+--where spp.pool_id = 22 -- 3 -- 18
+order by 1, 3
