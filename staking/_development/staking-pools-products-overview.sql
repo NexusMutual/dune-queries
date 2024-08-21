@@ -119,8 +119,6 @@ latest_avg_prices as (
     max_by(avg_nxm_eth_price, block_date) as avg_nxm_eth_price,
     max_by(avg_nxm_usd_price, block_date) as avg_nxm_usd_price
   from nexusmutual_ethereum.capital_pool_prices
-  order by 1 desc
-  limit 1
 ),
 
 staked_nxm_allocated as (
