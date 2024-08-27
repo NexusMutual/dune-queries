@@ -63,21 +63,6 @@ staking_pools as (
 ),
 
 /*
-staking_pool_products_all_days as (
-  select
-    sp.pool_id,
-    sp.product_id,
-    s.block_date
-  from nexusmutual_ethereum.staking_pools sp
-    cross join unnest (
-      sequence(
-        cast(date_trunc('day', sp.product_added_time) as timestamp),
-        cast(date_trunc('day', now()) as timestamp),
-        interval '1' day
-      )
-    ) as s(block_date)
-),
-
 staking_nft_mints as (
   select
     call_block_time as block_time,
@@ -228,14 +213,12 @@ staking_rewards as (
     c.cover_id,
     c.cover_start_time,
     c.cover_end_time,
-    date_diff('day', c.cover_start_time, if(c.cover_end_time > now(), now(), c.cover_end_time)) as elapsed_cover_period_days,
-
-    if(c.cover_end_time < now(), 0, date_diff('second', c.cover_start_time, now())) as elapsed_cover_period_seconds,
-    if(c.cover_end_time < now(), 0, mr.amount / c.cover_period_seconds) as active_reward_amount_per_second,
-    
-    mr.amount as reward_amount_expected_total,
-    mr.amount / c.cover_period_seconds as reward_amount_per_second,
-    mr.amount * 86400.0 / c.cover_period_seconds as reward_amount_per_day,
+    --date_diff('day', c.cover_start_time, if(c.cover_end_time > now(), now(), c.cover_end_time)) as elapsed_cover_period_days,
+    --if(c.cover_end_time < now(), 0, date_diff('second', c.cover_start_time, now())) as elapsed_cover_period_seconds,
+    --if(c.cover_end_time < now(), 0, mr.amount / c.cover_period_seconds) as active_reward_amount_per_second,
+    mr.amount / 1e18 as reward_amount_expected_total,
+    mr.amount / c.cover_period_seconds / 1e18 as reward_amount_per_second,
+    mr.amount * 86400.0 / c.cover_period_seconds / 1e18 as reward_amount_per_day,
     mr.call_tx_hash as tx_hash
   from (
       select call_block_time, call_block_number, poolId, amount, call_trace_address, call_tx_hash
@@ -252,19 +235,65 @@ staking_rewards as (
       or slice(mr.call_trace_address, 1, cardinality(c.trace_address)) = c.trace_address)
 ),
 
-/*
+staking_pool_day_sequence as (
+  select
+    sp.pool_id,
+    s.block_date
+  from staking_pools sp
+    cross join unnest (
+      sequence(
+        cast(date_trunc('day', sp.pool_created_time) as timestamp),
+        cast(date_trunc('day', now()) as timestamp),
+        interval '1' day
+      )
+    ) as s(block_date)
+),
+
 staked_nxm_daily_rewards_per_pool as (
   select
-    d.pool_id,
-    sum(r.reward_amount_per_day) / 1e18 as reward_amount_current_total
-    --sum(r.reward_amount_per_day / 1e18) over (partition by d.pool_id order by d.block_time) as reward_amount_current_total,
-    --row_number() over (partition by d.pool_id order by d.block_time desc) as rn
-  from staking_pool_products_all_days d
-    inner join staking_rewards r on d.pool_id = r.pool_id and d.product_id = r.product_id
-  where d.block_date < current_date
-  group by 1
-),
-*/
+    pool_id,
+    block_date,
+    sum(reward_amount_per_day) as reward_amount_per_day,
+    reward_amount_total
+  from (
+    select
+      d.pool_id,
+      d.block_date,
+      r.reward_amount_per_day,
+      sum(r.reward_amount_per_day) over (partition by d.pool_id order by d.block_date) as reward_amount_total
+    from staking_pool_day_sequence d
+      left join (
+        select
+          pool_id,
+          block_date,
+          sum(reward_amount_per_day) as reward_amount_per_day
+        from staking_rewards
+        group by 1, 2
+      ) r on d.pool_id = r.pool_id and d.block_date >= r.block_date
+    where d.block_date < current_date
+  ) t
+  group by 1, 2, 4
+)
+
+select
+  'running' as type,
+  pool_id,
+  max_by(reward_amount_per_day, block_date) as reward_amount_per_day,
+  max_by(reward_amount_total, block_date) as reward_amount_total
+from staked_nxm_daily_rewards_per_pool
+group by pool_id
+
+union all
+
+select
+  'normal' as type,
+  pool_id,
+  sum(reward_amount_per_day) as reward_amount_per_day,
+  sum(reward_amount_expected_total) as reward_amount_expected_total
+from staking_rewards
+group by pool_id
+
+
 
 staked_nxm_rewards_per_pool as (
   select
