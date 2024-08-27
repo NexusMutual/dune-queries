@@ -48,10 +48,11 @@ commissions_agg as (
 
 select
   c.cover_month,
-  case c.commission_destination
-    when 0x586b9b2f8010b284a0197f392156f1a7eb5e86e9 then 'Community Fund'
-    when 0x95abc2a62ee543217cf7640b277ba13d056d904a then 'Unity'
-    when 0xac0734c62b316041d190438d5d3e5d1359614407 then 'Bright Union'
+  case
+    when c.commission_destination = 0x586b9b2f8010b284a0197f392156f1a7eb5e86e9 then 'Community Fund'
+    when c.commission_destination = 0x95abc2a62ee543217cf7640b277ba13d056d904a then 'Unity'
+    when c.commission_destination = 0xac0734c62b316041d190438d5d3e5d1359614407 then 'Bright Union'
+    when c.commission_destination in (0xe4994082a0e7f38b565e6c5f4afd608de5eddfbb,0x40329f3e27dd3fe228799b4a665f6f104c2ab6b4) then 'OpenCover'
     else coalesce(ens.name, cast(c.commission_destination as varchar))
   end as commission_destination,
   c.eth_commission,
