@@ -8,8 +8,8 @@ daily_avg_prices as (
     avg_usdc_usd_price,
     avg_nxm_eth_price,
     avg_nxm_usd_price
-  from query_3789851 -- prices base (fallback) query
-  --from nexusmutual_ethereum.capital_pool_prices
+  --from query_3789851 -- prices base (fallback) query
+  from nexusmutual_ethereum.capital_pool_prices
 ),
 
 commissions_ext as (
