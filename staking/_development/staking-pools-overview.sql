@@ -211,14 +211,14 @@ staking_rewards as (
     mr.poolId as pool_id,
     c.product_id,
     c.cover_id,
-    c.cover_start_time,
-    c.cover_end_time,
+    c.cover_start_date,
+    c.cover_end_date,
     --date_diff('day', c.cover_start_time, if(c.cover_end_time > now(), now(), c.cover_end_time)) as elapsed_cover_period_days,
     --if(c.cover_end_time < now(), 0, date_diff('second', c.cover_start_time, now())) as elapsed_cover_period_seconds,
     --if(c.cover_end_time < now(), 0, mr.amount / c.cover_period_seconds) as active_reward_amount_per_second,
     mr.amount / 1e18 as reward_amount_expected_total,
     mr.amount / c.cover_period_seconds / 1e18 as reward_amount_per_second,
-    mr.amount * 86400.0 / c.cover_period_seconds / 1e18 as reward_amount_per_day,
+    mr.amount / c.cover_period_seconds * 86400.0 / 1e18 as reward_amount_per_day,
     mr.call_tx_hash as tx_hash
   from (
       select call_block_time, call_block_number, poolId, amount, call_trace_address, call_tx_hash
@@ -250,16 +250,25 @@ staking_pool_day_sequence as (
 ),
 
 staked_nxm_daily_rewards_per_pool as (
+  select distinct
+    d.pool_id,
+    d.block_date,
+    sum(r.reward_amount_per_day) over (partition by d.pool_id order by d.block_date) as reward_amount_total
+  from staking_pool_day_sequence d
+    left join staking_rewards r on d.pool_id = r.pool_id and d.block_date between r.cover_start_date and date_add('day', -1, r.cover_end_date)
+  where d.block_date < current_date
+)
+
+/*
+staked_nxm_daily_rewards_per_pool as (
   select
     pool_id,
     block_date,
-    sum(reward_amount_per_day) as reward_amount_per_day,
     reward_amount_total
   from (
-    select
+    select distinct
       d.pool_id,
       d.block_date,
-      r.reward_amount_per_day,
       sum(r.reward_amount_per_day) over (partition by d.pool_id order by d.block_date) as reward_amount_total
     from staking_pool_day_sequence d
       left join (
@@ -272,13 +281,12 @@ staked_nxm_daily_rewards_per_pool as (
       ) r on d.pool_id = r.pool_id and d.block_date >= r.block_date
     where d.block_date < current_date
   ) t
-  group by 1, 2, 4
 )
+*/
 
 select
   'running' as type,
   pool_id,
-  max_by(reward_amount_per_day, block_date) as reward_amount_per_day,
   max_by(reward_amount_total, block_date) as reward_amount_total
 from staked_nxm_daily_rewards_per_pool
 group by pool_id
@@ -288,10 +296,10 @@ union all
 select
   'normal' as type,
   pool_id,
-  sum(reward_amount_per_day) as reward_amount_per_day,
   sum(reward_amount_expected_total) as reward_amount_expected_total
 from staking_rewards
 group by pool_id
+order by 1
 
 
 
