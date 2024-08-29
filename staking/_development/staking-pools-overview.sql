@@ -64,6 +64,21 @@ staking_pools as (
     ) spp on sp.pool_id = spp.pool_id
 ),
 
+staking_pool_day_sequence as (
+  select
+    sp.pool_id,
+    sp.pool_address,
+    s.block_date
+  from staking_pools sp
+    cross join unnest (
+      sequence(
+        cast(date_trunc('day', sp.pool_created_time) as timestamp),
+        cast(date_trunc('day', now()) as timestamp),
+        interval '1' day
+      )
+    ) as s(block_date)
+),
+
 /*
 staking_nft_mints as (
   select
@@ -101,12 +116,12 @@ allocation_requests as (
 
 staked_nxm_per_pool as (
   select
-    sp.pool_id,
-    t.pool_address,
-    t.block_date,
-    sum(t.amount) over (partition by t.pool_address order by t.block_date) as total_nxm_staked,
-    row_number() over (partition by t.pool_address order by t.block_date desc) as rn
-  from (
+    d.pool_id,
+    d.block_date,
+    sum(t.amount) over (partition by d.pool_id order by d.block_date) as total_nxm_staked,
+    row_number() over (partition by d.pool_id order by d.block_date desc) as rn
+  from staking_pool_day_sequence d
+    left join (
       select
         pool_address,
         date_trunc('day', block_time) as block_date,
@@ -126,8 +141,7 @@ staked_nxm_per_pool as (
         --and flow_type in ('withdraw', 'stake burn')
         and flow_type = 'withdraw' -- burn TBD
       group by 1, 2
-    ) t
-    join staking_pools sp on t.pool_address = sp.pool_address
+    ) t on d.pool_address = t.pool_address and d.block_date = t.block_date
 ),
 
 staked_nxm_allocated as (
@@ -243,29 +257,14 @@ staking_rewards as (
       or slice(mr.call_trace_address, 1, cardinality(c.trace_address)) = c.trace_address)
 ),
 
-staking_pool_day_sequence as (
-  select
-    sp.pool_id,
-    s.block_date
-  from staking_pools sp
-    cross join unnest (
-      sequence(
-        cast(date_trunc('day', sp.pool_created_time) as timestamp),
-        cast(date_trunc('day', now()) as timestamp),
-        interval '1' day
-      )
-    ) as s(block_date)
-),
-
 staked_nxm_daily_rewards_per_pool as (
   select distinct
     d.pool_id,
     d.block_date,
     sum(r.reward_amount_per_day) over (partition by d.pool_id order by d.block_date) as reward_amount_current_total,
-    row_number() over (partition by d.pool_id order by d.block_date desc) as rn
+    dense_rank() over (partition by d.pool_id order by d.block_date desc) as rn
   from staking_pool_day_sequence d
-    left join staking_rewards r on d.pool_id = r.pool_id and d.block_date between r.cover_start_date and date_add('day', -1, r.cover_end_date)
-  where d.block_date < current_date
+    left join staking_rewards r on d.pool_id = r.pool_id and d.block_date between date_add('day', 1, r.cover_start_date) and r.cover_end_date
 ),
 
 staked_nxm_rewards_per_pool as (
@@ -276,6 +275,17 @@ staked_nxm_rewards_per_pool as (
     sum(reward_amount_expected_total) as reward_amount_expected_total
   from staking_rewards
   group by 1
+),
+
+daily_staked_combined as (
+  select
+    d.pool_id,
+    d.block_date,
+    s.total_nxm_staked,
+    r.reward_amount_current_total
+  from staking_pool_day_sequence d
+    left join staked_nxm_per_pool s on d.pool_id = s.pool_id and d.block_date = s.block_date
+    left join staked_nxm_daily_rewards_per_pool r on d.pool_id = r.pool_id and d.block_date = r.block_date
 )
 
 select
