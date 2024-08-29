@@ -1,15 +1,17 @@
 with
 
+/*
 staking_pool_names as (
   select pool_id, pool_name
   from query_3833996 -- staking pool names base (fallback) query
 ),
+*/
 
 staking_pool_base as (
   select
     sp.pool_id,
     sp.pool_address,
-    spn.pool_name,
+    --spn.pool_name,
     sp.manager_address,
     sp.manager_ens,
     sp.manager,
@@ -26,7 +28,7 @@ staking_pool_base as (
     sp.product_added_time
   --from query_3859935 sp -- staking pools base (fallback) query
   from nexusmutual_ethereum.staking_pools sp
-    left join staking_pool_names spn on sp.pool_id = spn.pool_id
+    --left join staking_pool_names spn on sp.pool_id = spn.pool_id
 ),
 
 staking_pool_products as (
@@ -42,7 +44,7 @@ staking_pools as (
   select distinct
     sp.pool_id,
     sp.pool_address,
-    sp.pool_name,
+    --sp.pool_name,
     sp.pool_created_time,
     if(sp.is_private_pool, 'Private', 'Public') as pool_type,
     sp.manager,
@@ -172,6 +174,7 @@ covers as (
   --from query_3788370 -- covers v2 base (fallback) query
 ),
 
+/*
 cover_premiums as (
   select
     c.cover_id,
@@ -206,6 +209,7 @@ cover_premium_commissions as (
   from cover_premiums
   group by 1
 ),
+*/
 
 staking_rewards as (
   select
@@ -276,9 +280,9 @@ staked_nxm_rewards_per_pool as (
 
 select
   sp.pool_id,
-  sp.pool_name,
-  sp.manager,
-  sp.pool_type,
+  --sp.pool_name,
+  --sp.manager,
+  --sp.pool_type,
   sp.current_management_fee,
   sp.max_management_fee,
   sp.leverage,
@@ -287,17 +291,19 @@ select
   coalesce(t.total_nxm_staked, 0) as total_nxm_staked,
   coalesce(a.total_nxm_allocated, 0) as total_nxm_allocated,
   dr.reward_amount_current_total,
-  r.reward_amount_expected_total,
+  r.reward_amount_expected_total
+  /*
   c.pool_manager_commission + c.pool_distributor_commission + c.staker_commission as total_commission,
   c.pool_distributor_commission,
   c.staker_commission_emitted,
   c.staker_commission - c.staker_commission_emitted as future_staker_commission,
   c.pool_manager_commission_emitted,
   c.pool_manager_commission - c.pool_manager_commission_emitted as future_pool_manager_commission
+  */
 from staking_pools sp
   left join staked_nxm_per_pool t on sp.pool_id = t.pool_id and t.rn = 1
   left join staked_nxm_allocated a on sp.pool_id = a.pool_id
   left join staked_nxm_daily_rewards_per_pool dr on sp.pool_id = dr.pool_id and dr.rn = 1
   left join staked_nxm_rewards_per_pool r on sp.pool_id = r.pool_id
-  left join cover_premium_commissions c on sp.pool_id = c.staking_pool_id
+  --left join cover_premium_commissions c on sp.pool_id = c.staking_pool_id
 order by 1
