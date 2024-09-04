@@ -1,34 +1,25 @@
 with
 
-/*
-staking_pool_names as (
-  select pool_id, pool_name
-  from query_3833996 -- staking pool names base (fallback) query
-),
-*/
-
 staking_pool_base as (
   select
     sp.pool_id,
     sp.pool_address,
-    --spn.pool_name,
     sp.manager_address,
     sp.manager_ens,
     sp.manager,
-    sp.is_private_pool,
-    sp.initial_pool_fee,
-    sp.current_pool_fee,
-    sp.max_management_fee,
+    if(sp.is_private_pool, 'Private', 'Public') as pool_type,
+    sp.initial_pool_fee / 100.00 as initial_pool_fee,
+    sp.current_pool_fee / 100.00 as current_management_fee,
+    sp.max_management_fee / 100.00 as max_management_fee,
     sp.product_id,
     sp.initial_price,
     sp.target_price,
-    sp.initial_weight,
-    sp.target_weight,
+    sp.initial_weight / 100.00 as initial_weight,
+    sp.target_weight / 100.00 as target_weight,
     sp.pool_created_time,
     sp.product_added_time
   --from query_3859935 sp -- staking pools base (fallback) query
   from nexusmutual_ethereum.staking_pools sp
-    --left join staking_pool_names spn on sp.pool_id = spn.pool_id
 ),
 
 staking_pool_products as (
@@ -44,14 +35,13 @@ staking_pools as (
   select distinct
     sp.pool_id,
     sp.pool_address,
-    --sp.pool_name,
     sp.pool_created_time,
-    if(sp.is_private_pool, 'Private', 'Public') as pool_type,
+    sp.pool_type,
     sp.manager,
-    sp.initial_pool_fee / 100.00 as initial_pool_fee,
-    sp.current_pool_fee / 100.00 as current_management_fee,
-    sp.max_management_fee / 100.00 as max_management_fee,
-    spp.total_weight / 100.00 as leverage,
+    sp.initial_pool_fee,
+    sp.current_management_fee,
+    sp.max_management_fee,
+    spp.total_weight as leverage,
     spp.product_count
   from staking_pool_base sp
     inner join (
@@ -64,95 +54,39 @@ staking_pools as (
     ) spp on sp.pool_id = spp.pool_id
 ),
 
-staking_pool_day_sequence as (
-  select
-    sp.pool_id,
-    sp.pool_address,
-    s.block_date
-  from staking_pools sp
-    cross join unnest (
-      sequence(
-        cast(date_trunc('day', sp.pool_created_time) as timestamp),
-        cast(date_trunc('day', now()) as timestamp),
-        interval '1' day
-      )
-    ) as s(block_date)
-),
-
-/*
-staking_nft_mints as (
-  select
-    call_block_time as block_time,
-    to as minter,
-    poolId as pool_id,
-    output_id as token_id,
-    call_tx_hash as tx_hash
-  from nexusmutual_ethereum.StakingNFT_call_mint
-  where call_success
-),
-
-allocation_requests as (
-  select
-    call_block_time as block_time,
-    call_block_number as block_number,
-    output_allocationId as allocation_id,
-    output_premium as premium,
-    amount,
-    cast(json_query(request, 'lax $.coverId') as uint256) as cover_id,
-    cast(json_query(request, 'lax $.productId') as uint256) as product_id,
-    cast(json_query(request, 'lax $.period') as bigint) as period,
-    cast(json_query(request, 'lax $.gracePeriod') as bigint) as grace_period,
-    cast(json_query(request, 'lax $.useFixedPrice') as boolean) as use_fixed_price,
-    cast(json_query(request, 'lax $.rewardRatio') as bigint) as reward_ratio,
-    cast(json_query(request, 'lax $.globalMinPrice') as bigint) as global_min_price,
-    cast(json_query(request, 'lax $.globalCapacityRatio') as bigint) as global_capacity_ratio,
-    call_trace_address,
-    call_tx_hash as tx_hash,
-    row_number() over (partition by call_block_number, call_tx_hash order by call_trace_address desc) as rn
-  from nexusmutual_ethereum.StakingPool_call_requestAllocation
-  where call_success
-),
-*/
-
 staked_nxm_per_pool as (
   select
-    d.pool_id,
-    d.block_date,
-    sum(t.active_amount) over (partition by d.pool_id order by d.block_date) as active_nxm_staked,
-    sum(t.total_amount) over (partition by d.pool_id order by d.block_date) as total_nxm_staked,
-    row_number() over (partition by d.pool_id order by d.block_date desc) as rn
-  from staking_pool_day_sequence d
-    left join (
+    sp.pool_id,
+    sum(t.total_amount) as total_nxm_staked
+  from (
       select
         pool_address,
-        date_trunc('day', block_time) as block_date,
-        sum(total_amount) filter (where is_active) as active_amount,
         sum(total_amount) as total_amount
       --from query_3619534 -- staking deposit extensions base query -- can't be used bc of "Error: This query has too many stages and is too complex to execute at once"
       from nexusmutual_ethereum.staking_deposit_extensions
-      group by 1, 2
+      where is_active
+      group by 1
       union all
       select
         pool_address,
-        date_trunc('day', block_time) as block_date,
-        sum(amount) filter (where is_active) as active_amount,
         sum(amount) as total_amount
       --from query_3609519 -- staking events
       from nexusmutual_ethereum.staking_events
-      where 1=1
+      where is_active
         --and flow_type in ('withdraw', 'stake burn')
         and flow_type = 'withdraw' -- burn TBD
-      group by 1, 2
-    ) t on d.pool_address = t.pool_address and d.block_date = t.block_date
+      group by 1
+    ) t
+    inner join staking_pools sp on t.pool_address = sp.pool_address
+  group by 1
 ),
 
 staked_nxm_allocated as (
   select
     w.pool_id,
-    sum(w.target_weight * s.active_nxm_staked) / 100.00 as total_nxm_allocated
+    sum(w.target_weight * s.total_nxm_staked) as total_nxm_allocated
   from staking_pool_products w
     inner join staked_nxm_per_pool s on w.pool_id = s.pool_id
-  where s.rn = 1
   group by 1
 ),
 
@@ -254,6 +188,21 @@ staking_rewards as (
       or slice(mr.call_trace_address, 1, cardinality(c.trace_address)) = c.trace_address)
 ),
 
+staking_pool_day_sequence as (
+  select
+    sp.pool_id,
+    sp.pool_address,
+    s.block_date
+  from staking_pools sp
+    cross join unnest (
+      sequence(
+        cast(date_trunc('day', sp.pool_created_time) as timestamp),
+        cast(date_trunc('day', now()) as timestamp),
+        interval '1' day
+      )
+    ) as s(block_date)
+),
+
 daily_rewards as (
   select distinct
     d.pool_id,
@@ -274,14 +223,13 @@ expected_rewards as (
 
 select
   sp.pool_id,
-  --sp.pool_name,
   sp.manager,
   sp.pool_type,
   sp.current_management_fee,
   sp.max_management_fee,
   sp.leverage,
   sp.product_count,
-  coalesce(t.active_nxm_staked, 0) as total_nxm_staked,
+  coalesce(t.total_nxm_staked, 0) as total_nxm_staked,
   coalesce(a.total_nxm_allocated, 0) as total_nxm_allocated,
   dr.reward_amount_current_total,
   er.reward_amount_expected_total,
@@ -292,7 +240,7 @@ select
   c.pool_manager_commission_emitted,
   c.pool_manager_commission - c.pool_manager_commission_emitted as future_pool_manager_commission
 from staking_pools sp
-  left join staked_nxm_per_pool t on sp.pool_id = t.pool_id and t.rn = 1
+  left join staked_nxm_per_pool t on sp.pool_id = t.pool_id
   left join staked_nxm_allocated a on sp.pool_id = a.pool_id
   left join daily_rewards dr on sp.pool_id = dr.pool_id and dr.rn = 1
   left join expected_rewards er on sp.pool_id = er.pool_id
