@@ -26,7 +26,9 @@ staking_pool_names (pool_id, pool_name) as (
   (22, 'BraveNewDeFi''s Pool'),
   (23, 'Nexus Mutual Community Staking Pool'),
   (24, 'DimenRisk'),
-  (25, 'Molecular Research')
+  (25, 'Molecular Research'),
+  (26, 'BALTACHI'),
+  (27, '6666')
 )
 
 select pool_id, pool_name
