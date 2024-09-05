@@ -5,51 +5,10 @@ staking_pool_names as (
   from query_3833996 -- staking pool names base (fallback) query
 ),
 
-products as (
-  select
-    p.product_id,
-    p.product_name,
-    pt.product_type_id,
-    pt.product_type_name as product_type
-  --from query_3788361 pt -- product types
-  --  inner join query_3788363 p -- products
-  from nexusmutual_ethereum.product_types_v2 pt
-    inner join nexusmutual_ethereum.products_v2 p
-      on pt.product_type_id = p.product_type_id
-),
-
-staking_pool_base as (
-  select
-    sp.pool_id,
-    sp.pool_address,
-    spn.pool_name,
-    sp.manager_address,
-    sp.manager_ens,
-    sp.manager,
-    sp.is_private_pool,
-    sp.initial_pool_fee,
-    sp.current_pool_fee,
-    sp.max_management_fee,
-    sp.product_id,
-    p.product_type,
-    p.product_name,
-    sp.initial_price,
-    sp.target_price,
-    sp.initial_weight,
-    sp.target_weight,
-    sp.pool_created_time,
-    sp.product_added_time
-  --from query_3859935 sp -- staking pools base (fallback) query
-  from nexusmutual_ethereum.staking_pools sp
-    inner join products p on sp.product_id = p.product_id
-    left join staking_pool_names spn on sp.pool_id = spn.pool_id
-),
-
 staking_pool_products as (
   select
     pool_id,
     pool_address,
-    pool_name,
     product_id,
     product_name,
     product_type,
@@ -57,7 +16,8 @@ staking_pool_products as (
     initial_price,
     target_price,
     product_added_time
-  from staking_pool_base
+  from query_3859935 -- staking pools base (fallback) query
+  --from nexusmutual_ethereum.staking_pools
   where coalesce(target_weight, initial_weight) > 0
 ),
 
@@ -65,16 +25,16 @@ staking_pools as (
   select distinct
     sp.pool_id,
     sp.pool_address,
-    sp.pool_name,
     sp.pool_created_time,
-    if(sp.is_private_pool, 'Private', 'Public') as pool_type,
+    sp.is_private_pool,
     sp.manager,
-    sp.initial_pool_fee / 100.00 as initial_pool_fee,
-    sp.current_pool_fee / 100.00 as current_management_fee,
-    sp.max_management_fee / 100.00 as max_management_fee,
-    spp.total_weight / 100.00 as leverage,
+    sp.initial_pool_fee,
+    sp.current_management_fee,
+    sp.max_management_fee,
+    spp.total_weight as leverage,
     spp.product_count
-  from staking_pool_base sp
+  from query_3859935 sp -- staking pools base (fallback) query
+  --from nexusmutual_ethereum.staking_pools sp
     inner join (
       select
         pool_id,
@@ -152,7 +112,7 @@ active_covers as (
 
 select
   spp.pool_id,
-  spp.pool_name,
+  spn.pool_name,
   spp.product_id,
   spp.product_name,
   spp.product_type,
@@ -169,5 +129,6 @@ select
 from staking_pool_products spp
   inner join staked_nxm_allocated sna on spp.pool_id = sna.pool_id and spp.product_id = sna.product_id
   left join active_covers ac on spp.pool_id = ac.staking_pool_id and spp.product_id = ac.product_id
+  left join staking_pool_names spn on spp.pool_id = spn.pool_id
 --where spp.pool_id = 22 -- 3 -- 18
 order by 1, 3

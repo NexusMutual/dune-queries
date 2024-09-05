@@ -1,25 +1,8 @@
 with
 
-staking_pool_base as (
-  select
-    sp.pool_id,
-    sp.pool_address,
-    sp.manager_address,
-    sp.manager_ens,
-    sp.manager,
-    if(sp.is_private_pool, 'Private', 'Public') as pool_type,
-    sp.initial_pool_fee / 100.00 as initial_pool_fee,
-    sp.current_pool_fee / 100.00 as current_management_fee,
-    sp.max_management_fee / 100.00 as max_management_fee,
-    sp.product_id,
-    sp.initial_price,
-    sp.target_price,
-    sp.initial_weight / 100.00 as initial_weight,
-    sp.target_weight / 100.00 as target_weight,
-    sp.pool_created_time,
-    sp.product_added_time
-  --from query_3859935 sp -- staking pools base (fallback) query
-  from nexusmutual_ethereum.staking_pools sp
+staking_pool_names as (
+  select pool_id, pool_name
+  from query_3833996 -- staking pool names base (fallback) query
 ),
 
 staking_pool_products as (
@@ -28,7 +11,8 @@ staking_pool_products as (
     pool_address,
     product_id,
     coalesce(target_weight, initial_weight) as target_weight
-  from staking_pool_base
+  from query_3859935 -- staking pools base (fallback) query
+  --from nexusmutual_ethereum.staking_pools
 ),
 
 staking_pools as (
@@ -36,14 +20,15 @@ staking_pools as (
     sp.pool_id,
     sp.pool_address,
     sp.pool_created_time,
-    sp.pool_type,
+    sp.is_private_pool,
     sp.manager,
     sp.initial_pool_fee,
     sp.current_management_fee,
     sp.max_management_fee,
     spp.total_weight as leverage,
     spp.product_count
-  from staking_pool_base sp
+  from query_3859935 sp -- staking pools base (fallback) query
+  --from nexusmutual_ethereum.staking_pools sp
     inner join (
       select
         pool_id,
@@ -223,8 +208,9 @@ expected_rewards as (
 
 select
   sp.pool_id,
+  spn.pool_name,
   sp.manager,
-  sp.pool_type,
+  if(sp.is_private_pool, 'Private', 'Public') as pool_type,
   sp.current_management_fee,
   sp.max_management_fee,
   sp.leverage,
@@ -240,6 +226,7 @@ select
   c.pool_manager_commission_emitted,
   c.pool_manager_commission - c.pool_manager_commission_emitted as future_pool_manager_commission
 from staking_pools sp
+  left join staking_pool_names spn on sp.pool_id = spn.pool_id
   left join staked_nxm_per_pool t on sp.pool_id = t.pool_id
   left join staked_nxm_allocated a on sp.pool_id = a.pool_id
   left join daily_rewards dr on sp.pool_id = dr.pool_id and dr.rn = 1
