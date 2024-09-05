@@ -222,6 +222,8 @@ select
   coalesce(spf.new_fee, sp.initial_pool_fee) / 100.00 as current_management_fee,
   sp.max_management_fee / 100.00 as max_management_fee,
   spc.product_id,
+  p.product_name,
+  p.product_type,
   spc.initial_price / 100.00 as initial_price,
   coalesce(spc.updated_target_price, spc.target_price) / 100.00 as target_price,
   spc.initial_weight / 100.00 as initial_weight,
@@ -239,5 +241,6 @@ select
   ) as tx_hash_updated
 from staking_pools_created_ext sp
   inner join staking_pool_products_combined spc on sp.pool_id = spc.pool_id
+  left join products p on spc.product_id = p.product_id
   left join staking_pool_managers spm on sp.pool_id = spm.pool_id
   left join staking_pool_fee_updates spf on sp.pool_address = spf.pool_address
