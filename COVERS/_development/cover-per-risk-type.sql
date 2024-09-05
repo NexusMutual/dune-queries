@@ -21,7 +21,7 @@ covers as (
       when product_type like '%ETH Staking%' or product_type like 'ETH Slashing%' then 'ETH Staking'
       when product_type = 'OpenCover Transaction' then 'OC Transaction'
       when product_type in ('Protocol', 'Native Protocol', 'Bundled Protocol Cover', 'Fund Portfolio Cover', 'UnoRe Quota Share')
-        or product_type like 'Sherlock%' then 'Bundled'
+        or product_type like 'Sherlock%' then 'Protocol'
       else product_type
     end as product_type,
     cover_asset,
