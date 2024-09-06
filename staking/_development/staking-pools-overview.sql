@@ -11,7 +11,8 @@ staking_pool_products as (
     pool_address,
     product_id,
     coalesce(target_weight, initial_weight) as target_weight
-  from query_3859935 -- staking pools base (fallback) query
+  --from query_3859935 -- staking pools base (fallback) query
+  from test_schema.git_dunesql_73bb53b_nexusmutual_ethereum_staking_pools -- temp until PR merged
   --from nexusmutual_ethereum.staking_pools
 ),
 
@@ -27,7 +28,8 @@ staking_pools as (
     sp.max_management_fee,
     spp.total_weight as leverage,
     spp.product_count
-  from query_3859935 sp -- staking pools base (fallback) query
+  --from query_3859935 sp -- staking pools base (fallback) query
+  from test_schema.git_dunesql_73bb53b_nexusmutual_ethereum_staking_pools sp -- temp until PR merged
   --from nexusmutual_ethereum.staking_pools sp
     inner join (
       select
