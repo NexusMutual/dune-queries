@@ -147,10 +147,16 @@ current_active_cover_aggs as (
 
 daily_active_cover_aggs as (
   select
-    --block_date, -- ???
+    --block_date,
     product_type,
     sum(eth_active_cover) as eth_active_cover,
+    sum(eth_eth_active_cover) as eth_eth_active_cover,
+    sum(dai_eth_active_cover) as dai_eth_active_cover,
+    sum(usdc_eth_active_cover) as usdc_eth_active_cover,
     sum(usd_active_cover) as usd_active_cover,
+    sum(eth_usd_active_cover) as eth_usd_active_cover,
+    sum(dai_usd_active_cover) as dai_usd_active_cover,
+    sum(usdc_usd_active_cover) as usdc_usd_active_cover,
     sum(eth_active_premium) as eth_active_premium,
     sum(usd_active_premium) as usd_active_premium
   from (
@@ -160,7 +166,13 @@ daily_active_cover_aggs as (
       count(distinct cover_id) as active_cover,
       row_number() over (partition by product_type order by block_date desc) as rn,
       --== cover ==
+      sum(eth_eth_active_cover) as eth_eth_active_cover,
+      sum(dai_eth_active_cover) as dai_eth_active_cover,
+      sum(usdc_eth_active_cover) as usdc_eth_active_cover,
       sum(eth_eth_active_cover) + sum(dai_eth_active_cover) + sum(usdc_eth_active_cover) as eth_active_cover,
+      sum(eth_usd_active_cover) as eth_usd_active_cover,
+      sum(dai_usd_active_cover) as dai_usd_active_cover,
+      sum(usdc_usd_active_cover) as usdc_usd_active_cover,
       sum(eth_usd_active_cover) + sum(dai_usd_active_cover) + sum(usdc_usd_active_cover) as usd_active_cover,
       --== fees ==
       sum(eth_eth_active_premium) + sum(dai_eth_active_premium) + sum(usdc_eth_active_premium) + sum(nxm_eth_active_premium) as eth_active_premium,
@@ -193,7 +205,13 @@ select
   --**** ACTIVE COVER ****
   coalesce(cc.wavg_time_to_expiry, 0) as wavg_time_to_expiry,
   ac.eth_active_cover,
+  ac.usdc_eth_active_cover as eth_active_cover_usdc,
+  ac.dai_eth_active_cover as eth_active_cover_dai,
+  ac.eth_eth_active_cover as eth_active_cover_eth,
   ac.usd_active_cover,
+  ac.usdc_usd_active_cover as usd_active_cover_usdc,
+  ac.dai_usd_active_cover as usd_active_cover_dai,
+  ac.eth_usd_active_cover as usd_active_cover_eth,
   ac.eth_active_premium,
   ac.usd_active_premium,
   --**** COVER SALES ****
