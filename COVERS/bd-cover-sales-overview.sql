@@ -33,12 +33,8 @@ cover_tx_gas as (
   select
     c.block_date,
     c.cover_id,
-    t.tx_fee_native as tx_fee_eth,
+    t.tx_fee as tx_fee_eth,
     t.tx_fee_usd,
-    t.gas_price_gwei,
-    t.gas_price_usd,
-    t.gas_used,
-    t.transaction_type,
     t.tx_hash
   from gas_ethereum.fees t
     --inner join query_3788367 c -- covers v1 base (fallback) query
@@ -51,12 +47,8 @@ cover_tx_gas as (
   select
     c.block_date,
     c.cover_id,
-    t.tx_fee_native as tx_fee_eth,
+    t.tx_fee as tx_fee_eth,
     t.tx_fee_usd,
-    t.gas_price_gwei,
-    t.gas_price_usd,
-    t.gas_used,
-    t.transaction_type,
     t.tx_hash
   from gas_ethereum.fees t
     --inner join query_3788370 c -- covers v2 base (fallback) query
