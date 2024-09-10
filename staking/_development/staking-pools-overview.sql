@@ -204,6 +204,18 @@ expected_rewards as (
     sum(reward_amount_expected_total) as reward_amount_expected_total
   from staking_rewards
   group by 1
+),
+
+latest_prices as (
+  select
+    max(block_date) as block_date,
+    max_by(avg_eth_usd_price, block_date) as avg_eth_usd_price,
+    max_by(avg_dai_usd_price, block_date) as avg_dai_usd_price,
+    max_by(avg_usdc_usd_price, block_date) as avg_usdc_usd_price,
+    max_by(avg_nxm_eth_price, block_date) as avg_nxm_eth_price,
+    max_by(avg_nxm_usd_price, block_date) as avg_nxm_usd_price
+  --from query_3789851 -- prices base (fallback) query
+  from nexusmutual_ethereum.capital_pool_prices
 )
 
 select
@@ -216,7 +228,11 @@ select
   sp.leverage,
   sp.product_count,
   coalesce(t.total_nxm_staked, 0) as total_nxm_staked,
+  coalesce(t.total_nxm_staked * p.avg_nxm_usd_price, 0) as total_nxm_usd_staked,
+  coalesce(t.total_nxm_staked * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as total_nxm_eth_staked,
   coalesce(a.total_nxm_allocated, 0) as total_nxm_allocated,
+  coalesce(a.total_nxm_allocated * p.avg_nxm_usd_price, 0) as total_nxm_usd_allocated,
+  coalesce(a.total_nxm_allocated * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as total_nxm_eth_allocated,
   dr.reward_amount_current_total,
   er.reward_amount_expected_total,
   c.pool_manager_commission,
@@ -234,4 +250,5 @@ from staking_pools sp
   left join daily_rewards dr on sp.pool_id = dr.pool_id and dr.rn = 1
   left join expected_rewards er on sp.pool_id = er.pool_id
   left join cover_premium_commissions c on sp.pool_id = c.staking_pool_id
+  cross join latest_prices p
 order by 1
