@@ -17,8 +17,7 @@ staking_pool_products as (
     target_price,
     product_added_time
   --from query_3859935 -- staking pools base (fallback) query
-  from test_schema.git_dunesql_73bb53b_nexusmutual_ethereum_staking_pools -- temp until PR merged
-  --from nexusmutual_ethereum.staking_pools
+  from nexusmutual_ethereum.staking_pools
   where coalesce(target_weight, initial_weight) > 0
 ),
 
@@ -35,8 +34,7 @@ staking_pools as (
     spp.total_weight as leverage,
     spp.product_count
   --from query_3859935 sp -- staking pools base (fallback) query
-  from test_schema.git_dunesql_73bb53b_nexusmutual_ethereum_staking_pools sp -- temp until PR merged
-  --from nexusmutual_ethereum.staking_pools sp
+  from nexusmutual_ethereum.staking_pools sp
     inner join (
       select
         pool_id,
@@ -56,7 +54,7 @@ staked_nxm_per_pool as (
       select
         pool_address,
         sum(total_amount) as amount
-      --from query_3619534 -- staking deposit extensions base query -- can't be used bc of "Error: This query has too many stages and is too complex to execute at once"
+      --from query_3619534 -- staking deposit extensions base query
       from nexusmutual_ethereum.staking_deposit_extensions
       where is_active
       group by 1
