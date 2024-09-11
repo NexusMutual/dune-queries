@@ -1,12 +1,12 @@
 select
   count(*) as pool_count,
-  sum(total_nxm_staked) as total_nxm_staked,
-  sum(total_nxm_allocated) as total_nxm_allocated,
-  sum(total_nxm_allocated) / sum(total_nxm_staked) as leverage,
-  sum(reward_amount_current_total) as reward_amount_current_total,
-  sum(reward_amount_expected_total) as reward_amount_expected_total,
-  sum(pool_manager_commission) as pool_manager_commission,
-  sum(pool_distributor_commission) as pool_distributor_commission,
-  sum(staker_commission) as staker_commission,
-  sum(total_commission) as total_commission
+  sum(total_staked_nxm) as total_staked_nxm,
+  sum(total_allocated_nxm) as total_allocated_nxm,
+  sum(total_allocated_nxm) / sum(total_staked_nxm) as leverage,
+  sum(reward_current_total_nxm) as reward_current_total_nxm,
+  sum(reward_expected_total_nxm) as reward_expected_total_nxm,
+  sum(pool_manager_commission_nxm) as pool_manager_commission_nxm,
+  sum(pool_distributor_commission_nxm) as pool_distributor_commission_nxm,
+  sum(staker_commission_nxm) as staker_commission_nxm,
+  sum(total_commission_nxm) as total_commission_nxm
 from query_3599009 -- staking pools overview
