@@ -42,7 +42,7 @@ staking_pools as (
 staked_nxm_per_pool as (
   select
     sp.pool_id,
-    sum(t.total_amount) as total_nxm_staked
+    sum(t.total_amount) as total_staked_nxm
   from (
       select
         pool_address,
@@ -69,7 +69,7 @@ staked_nxm_per_pool as (
 staked_nxm_allocated as (
   select
     w.pool_id,
-    sum(w.target_weight * s.total_nxm_staked) as total_nxm_allocated
+    sum(w.target_weight * s.total_staked_nxm) as total_allocated_nxm
   from staking_pool_products w
     inner join staked_nxm_per_pool s on w.pool_id = s.pool_id
   group by 1
@@ -227,22 +227,46 @@ select
   sp.max_management_fee,
   sp.leverage,
   sp.product_count,
-  coalesce(t.total_nxm_staked, 0) as total_nxm_staked,
-  coalesce(t.total_nxm_staked * p.avg_nxm_usd_price, 0) as total_nxm_usd_staked,
-  coalesce(t.total_nxm_staked * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as total_nxm_eth_staked,
-  coalesce(a.total_nxm_allocated, 0) as total_nxm_allocated,
-  coalesce(a.total_nxm_allocated * p.avg_nxm_usd_price, 0) as total_nxm_usd_allocated,
-  coalesce(a.total_nxm_allocated * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as total_nxm_eth_allocated,
-  dr.reward_amount_current_total,
-  er.reward_amount_expected_total,
-  c.pool_manager_commission,
-  c.pool_distributor_commission,
-  c.staker_commission,
-  c.pool_manager_commission + c.pool_distributor_commission + c.staker_commission as total_commission,
-  c.staker_commission_emitted,
-  c.staker_commission - c.staker_commission_emitted as future_staker_commission,
-  c.pool_manager_commission_emitted,
-  c.pool_manager_commission - c.pool_manager_commission_emitted as future_pool_manager_commission
+  -- staked
+  coalesce(t.total_staked_nxm, 0) as total_staked_nxm,
+  coalesce(t.total_staked_nxm * p.avg_nxm_usd_price, 0) as total_staked_nxm_usd,
+  coalesce(t.total_staked_nxm * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as total_staked_nxm_eth,
+  -- allocated
+  coalesce(a.total_allocated_nxm, 0) as total_allocated_nxm,
+  coalesce(a.total_allocated_nxm * p.avg_nxm_usd_price, 0) as total_allocated_nxm_usd,
+  coalesce(a.total_allocated_nxm * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as total_allocated_nxm_eth,
+  -- rewards
+  coalesce(dr.reward_amount_current_total, 0) as reward_current_total_nxm,
+  coalesce(dr.reward_amount_current_total * p.avg_nxm_usd_price, 0) as reward_current_total_nxm_usd,
+  coalesce(dr.reward_amount_current_total * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as reward_current_total_nxm_eth,
+  coalesce(er.reward_amount_expected_total, 0) as reward_expected_total_nxm,
+  coalesce(er.reward_amount_expected_total * p.avg_nxm_usd_price, 0) as reward_expected_total_nxm_usd,
+  coalesce(er.reward_amount_expected_total * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as reward_expected_total_nxm_eth,
+  -- commisions
+  coalesce(c.pool_manager_commission, 0) as pool_manager_commission_nxm,
+  coalesce(c.pool_manager_commission, 0) as pool_manager_commission_nxm_usd,
+  coalesce(c.pool_manager_commission * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as pool_manager_commission_nxm_eth,
+  coalesce(c.pool_distributor_commission, 0) as pool_distributor_commission_nxm,
+  coalesce(c.pool_distributor_commission * p.avg_nxm_usd_price, 0) as pool_distributor_commission_nxm_usd,
+  coalesce(c.pool_distributor_commission * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as pool_distributor_commission_nxm_eth,
+  coalesce(c.staker_commission, 0) as staker_commission_nxm,
+  coalesce(c.staker_commission * p.avg_nxm_usd_price, 0) as staker_commission_nxm_usd,
+  coalesce(c.staker_commission * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as staker_commission_nxm_eth,
+  coalesce(c.pool_manager_commission, 0) + coalesce(c.pool_distributor_commission, 0) + coalesce(c.staker_commission, 0) as total_commission_nxm,
+  (coalesce(c.pool_manager_commission, 0) + coalesce(c.pool_distributor_commission, 0) + coalesce(c.staker_commission, 0)) * p.avg_nxm_usd_price as total_commission_nxm_usd,
+  (coalesce(c.pool_manager_commission, 0) + coalesce(c.pool_distributor_commission, 0) + coalesce(c.staker_commission, 0)) * p.avg_nxm_usd_price / p.avg_eth_usd_price as total_commission_nxm_eth,
+  coalesce(c.staker_commission_emitted, 0) as staker_commission_emitted_nxm,
+  coalesce(c.staker_commission_emitted * p.avg_nxm_usd_price, 0) as staker_commission_emitted_nxm_usd,
+  coalesce(c.staker_commission_emitted * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as staker_commission_emitted_nxm_eth,
+  coalesce(c.staker_commission, 0) - coalesce(c.staker_commission_emitted, 0) as future_staker_commission_nxm,
+  (coalesce(c.staker_commission, 0) - coalesce(c.staker_commission_emitted, 0)) * p.avg_nxm_usd_price as future_staker_commission_nxm_usd,
+  (coalesce(c.staker_commission, 0) - coalesce(c.staker_commission_emitted, 0)) * p.avg_nxm_usd_price / p.avg_eth_usd_price as future_staker_commission_nxm_eth,
+  coalesce(c.pool_manager_commission_emitted, 0) as pool_manager_commission_emitted_nxm,
+  coalesce(c.pool_manager_commission_emitted * p.avg_nxm_usd_price, 0) as pool_manager_commission_emitted_nxm_usd,
+  coalesce(c.pool_manager_commission_emitted * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as pool_manager_commission_emitted_nxm_eth,
+  coalesce(c.pool_manager_commission, 0) - coalesce(c.pool_manager_commission_emitted, 0) as future_pool_manager_commission_nxm,
+  (coalesce(c.pool_manager_commission, 0) - coalesce(c.pool_manager_commission_emitted, 0)) * p.avg_nxm_usd_price as future_pool_manager_commission_nxm_usd,
+  (coalesce(c.pool_manager_commission, 0) - coalesce(c.pool_manager_commission_emitted, 0)) * p.avg_nxm_usd_price / p.avg_eth_usd_price as future_pool_manager_commission_nxm_eth
 from staking_pools sp
   left join staking_pool_names spn on sp.pool_id = spn.pool_id
   left join staked_nxm_per_pool t on sp.pool_id = t.pool_id
