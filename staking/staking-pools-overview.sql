@@ -127,7 +127,7 @@ current_rewards as (
   select
     pool_id,
     sum(reward_total) as reward_total
-  from query_4068272 -- staking rewards
+  from query_4068272 -- daily staking rewards - base
   group by 1
 ),
 
@@ -135,7 +135,7 @@ expected_rewards as (
   select
     pool_id,
     sum(reward_expected_total) as reward_expected_total
-  from query_4068262 -- staking rewards expected
+  from query_4068262 -- expected staking rewards - base
   group by 1
 ),
 
