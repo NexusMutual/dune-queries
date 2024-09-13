@@ -41,29 +41,10 @@ staking_pools as (
 
 staked_nxm_per_pool as (
   select
-    sp.pool_id,
-    sum(t.total_amount) as total_staked_nxm
-  from (
-      select
-        pool_address,
-        sum(total_amount) as total_amount
-      --from query_3619534 -- staking deposit extensions base query
-      from nexusmutual_ethereum.staking_deposit_extensions
-      where is_active
-      group by 1
-      union all
-      select
-        pool_address,
-        sum(amount) as total_amount
-      --from query_3609519 -- staking events
-      from nexusmutual_ethereum.staking_events
-      where is_active
-        --and flow_type in ('withdraw', 'stake burn')
-        and flow_type = 'withdraw' -- burn TBD
-      group by 1
-    ) t
-    inner join staking_pools sp on t.pool_address = sp.pool_address
-  group by 1
+    pool_id,
+    total_staked_nxm
+  from query_4065286 -- staked nxm base query
+  where pool_date_rn = 1
 ),
 
 staked_nxm_allocated as (
