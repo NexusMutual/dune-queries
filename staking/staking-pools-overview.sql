@@ -83,9 +83,7 @@ staking_pool_fee_history as (
 ),
 
 covers as (
-  select
-    *,
-    date_diff('second', cover_start_time, cover_end_time) as cover_period_seconds
+  select *
   from nexusmutual_ethereum.covers_v2
   --from query_3788370 -- covers v2 base (fallback) query
 ),
@@ -125,65 +123,19 @@ cover_premium_commissions as (
   group by 1
 ),
 
-staking_rewards as (
+current_rewards as (
   select
-    mr.call_block_time as block_time,
-    mr.call_block_number as block_number,
-    date_trunc('day', mr.call_block_time) as block_date,
-    mr.poolId as pool_id,
-    c.product_id,
-    c.cover_id,
-    c.cover_start_date,
-    c.cover_end_date,
-    mr.amount / 1e18 as reward_amount_expected_total,
-    mr.amount / c.cover_period_seconds / 1e18 as reward_amount_per_second,
-    mr.amount / c.cover_period_seconds * 86400.0 / 1e18 as reward_amount_per_day,
-    mr.call_tx_hash as tx_hash
-  from (
-      select call_block_time, call_block_number, poolId, amount, call_trace_address, call_tx_hash
-      from nexusmutual_ethereum.TokenController_call_mintStakingPoolNXMRewards
-      where call_success
-      union all
-      select call_block_time, call_block_number, poolId, amount, call_trace_address, call_tx_hash
-      from nexusmutual_ethereum.TokenController2_call_mintStakingPoolNXMRewards
-      where call_success
-    ) mr
-    inner join covers c on mr.call_tx_hash = c.tx_hash and mr.call_block_number = c.block_number
-  where mr.poolId = c.staking_pool_id
-    and (c.trace_address is null
-      or slice(mr.call_trace_address, 1, cardinality(c.trace_address)) = c.trace_address)
-),
-
-staking_pool_day_sequence as (
-  select
-    sp.pool_id,
-    sp.pool_address,
-    s.block_date
-  from staking_pools sp
-    cross join unnest (
-      sequence(
-        cast(date_trunc('day', sp.pool_created_time) as timestamp),
-        cast(date_trunc('day', now()) as timestamp),
-        interval '1' day
-      )
-    ) as s(block_date)
-),
-
-daily_rewards as (
-  select distinct
-    d.pool_id,
-    d.block_date,
-    sum(r.reward_amount_per_day) over (partition by d.pool_id order by d.block_date) as reward_amount_current_total,
-    dense_rank() over (partition by d.pool_id order by d.block_date desc) as rn
-  from staking_pool_day_sequence d
-    left join staking_rewards r on d.pool_id = r.pool_id and d.block_date between date_add('day', 1, r.cover_start_date) and r.cover_end_date
+    pool_id,
+    sum(reward_total) as reward_total
+  from query_4068272 -- staking rewards
+  group by 1
 ),
 
 expected_rewards as (
   select
     pool_id,
-    sum(reward_amount_expected_total) as reward_amount_expected_total
-  from staking_rewards
+    sum(reward_expected_total) as reward_expected_total
+  from query_4068262 -- staking rewards expected
   group by 1
 ),
 
@@ -217,12 +169,12 @@ select
   coalesce(a.total_allocated_nxm * p.avg_nxm_usd_price, 0) as total_allocated_nxm_usd,
   coalesce(a.total_allocated_nxm * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as total_allocated_nxm_eth,
   -- rewards
-  coalesce(dr.reward_amount_current_total, 0) as reward_current_total_nxm,
-  coalesce(dr.reward_amount_current_total * p.avg_nxm_usd_price, 0) as reward_current_total_nxm_usd,
-  coalesce(dr.reward_amount_current_total * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as reward_current_total_nxm_eth,
-  coalesce(er.reward_amount_expected_total, 0) as reward_expected_total_nxm,
-  coalesce(er.reward_amount_expected_total * p.avg_nxm_usd_price, 0) as reward_expected_total_nxm_usd,
-  coalesce(er.reward_amount_expected_total * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as reward_expected_total_nxm_eth,
+  coalesce(dr.reward_total, 0) as reward_current_total_nxm,
+  coalesce(dr.reward_total * p.avg_nxm_usd_price, 0) as reward_current_total_nxm_usd,
+  coalesce(dr.reward_total * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as reward_current_total_nxm_eth,
+  coalesce(er.reward_expected_total, 0) as reward_expected_total_nxm,
+  coalesce(er.reward_expected_total * p.avg_nxm_usd_price, 0) as reward_expected_total_nxm_usd,
+  coalesce(er.reward_expected_total * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as reward_expected_total_nxm_eth,
   -- commisions
   coalesce(c.pool_manager_commission, 0) as pool_manager_commission_nxm,
   coalesce(c.pool_manager_commission, 0) as pool_manager_commission_nxm_usd,
@@ -252,7 +204,7 @@ from staking_pools sp
   left join staking_pool_names spn on sp.pool_id = spn.pool_id
   left join staked_nxm_per_pool t on sp.pool_id = t.pool_id
   left join staked_nxm_allocated a on sp.pool_id = a.pool_id
-  left join daily_rewards dr on sp.pool_id = dr.pool_id and dr.rn = 1
+  left join current_rewards dr on sp.pool_id = dr.pool_id
   left join expected_rewards er on sp.pool_id = er.pool_id
   left join cover_premium_commissions c on sp.pool_id = c.staking_pool_id
   cross join latest_prices p
