@@ -16,4 +16,5 @@ from query_4065286 s -- staked nxm base query
   inner join query_4068272 r -- daily staking rewards base query
     on s.pool_id = r.pool_id and s.block_date = r.block_date
   left join staking_pool_names spn on s.pool_id = spn.pool_id
+where s.block_date >= date_add('month', -3, current_date)
 order by s.pool_id, s.block_date
