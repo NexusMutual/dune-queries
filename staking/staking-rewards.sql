@@ -41,7 +41,7 @@ select
   d.pool_id,
   d.block_date,
   sum(r.reward_amount_per_day) as reward_total,
-  dense_rank() over (partition by d.pool_id order by d.block_date desc) as rn
+  dense_rank() over (partition by d.pool_id order by d.block_date desc) as pool_date_rn
 from staking_pool_day_sequence d
   left join staking_rewards r on d.pool_id = r.pool_id and d.block_date between date_add('day', 1, r.cover_start_date) and r.cover_end_date
 group by 1, 2
