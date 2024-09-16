@@ -3,6 +3,7 @@ select
   pool_name,
   manager,
   pool_type,
+  apy,
   current_management_fee,
   max_management_fee,
   leverage,

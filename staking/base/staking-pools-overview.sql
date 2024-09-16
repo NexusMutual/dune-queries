@@ -126,7 +126,8 @@ cover_premium_commissions as (
 current_rewards as (
   select
     pool_id,
-    sum(reward_total) as reward_total
+    sum(reward_total) as reward_total,
+    min_by(reward_total, pool_date_rn) as latest_daily_reward_total -- min bc pool_date_rn is desc
   from query_4068272 -- daily staking rewards - base
   group by 1
 ),
@@ -156,6 +157,7 @@ select
   spn.pool_name,
   sp.manager,
   if(sp.is_private_pool, 'Private', 'Public') as pool_type,
+  coalesce(dr.latest_daily_reward_total, 0) / nullif(t.total_staked_nxm, 0) * 365.0 as apy,
   sp.current_management_fee,
   sp.max_management_fee,
   sp.leverage,
