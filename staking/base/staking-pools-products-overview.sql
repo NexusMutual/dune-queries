@@ -59,6 +59,7 @@ staked_nxm_allocated as (
     sp.product_id,
     sp.target_weight,
     sp.target_price,
+    s.total_staked_nxm,
     sp.target_weight * s.total_staked_nxm as allocated_nxm,
     sp.product_added_time
   from staking_pool_products sp
@@ -87,27 +88,59 @@ latest_prices as (
     max_by(avg_nxm_usd_price, block_date) as avg_nxm_usd_price
   --from query_3789851 -- prices base (fallback) query
   from nexusmutual_ethereum.capital_pool_prices
+),
+
+staking_totals_combined as (
+  select
+    spp.pool_id,
+    spn.pool_name,
+    spp.product_id,
+    spp.product_name,
+    spp.product_type,
+    sna.target_weight,
+    -- staked
+    coalesce(sna.total_staked_nxm, 0) as staked_nxm,
+    coalesce(sna.total_staked_nxm * p.avg_nxm_usd_price, 0) as staked_nxm_usd,
+    coalesce(sna.total_staked_nxm * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as staked_nxm_eth,
+    -- allocated
+    coalesce(sna.allocated_nxm, 0) as allocated_nxm,
+    coalesce(sna.allocated_nxm * p.avg_nxm_usd_price, 0) as allocated_nxm_usd,
+    coalesce(sna.allocated_nxm * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as allocated_nxm_eth,
+    -- active cover
+    coalesce(ac.active_cover_count, 0) as active_cover_count,
+    coalesce(ac.usd_cover_amount, 0) as usd_cover_amount,
+    coalesce(ac.eth_cover_amount, 0) as eth_cover_amount,
+    coalesce(ac.usd_cover_amount / p.avg_nxm_usd_price, 0) as nxm_cover_amount
+  from staking_pool_products spp
+    inner join staked_nxm_allocated sna on spp.pool_id = sna.pool_id and spp.product_id = sna.product_id
+    left join active_covers ac on spp.pool_id = ac.staking_pool_id and spp.product_id = ac.product_id
+    left join staking_pool_names spn on spp.pool_id = spn.pool_id
+    cross join latest_prices p
 )
 
 select
-  spp.pool_id,
-  spn.pool_name,
-  spp.product_id,
-  spp.product_name,
-  spp.product_type,
-  sna.target_weight,
-  sna.allocated_nxm,
-  2 * sna.allocated_nxm as nxm_max_capacity,
-  --2 * sna.nxm_usd_allocated as nxm_usd_max_capacity,
-  --2 * sna.nxm_eth_allocated as nxm_eth_max_capacity,
-  ac.active_cover_count,
-  ac.usd_cover_amount,
-  ac.eth_cover_amount
-  --(2 * sna.nxm_usd_allocated) - coalesce(ac.usd_cover_amount, 0) as usd_available_capacity,
-  --(2 * sna.nxm_eth_allocated) - coalesce(ac.eth_cover_amount, 0) as eth_available_capacity
-from staking_pool_products spp
-  inner join staked_nxm_allocated sna on spp.pool_id = sna.pool_id and spp.product_id = sna.product_id
-  left join active_covers ac on spp.pool_id = ac.staking_pool_id and spp.product_id = ac.product_id
-  left join staking_pool_names spn on spp.pool_id = spn.pool_id
-  cross join latest_prices p
-order by 1, 3
+  pool_id,
+  pool_name,
+  product_id,
+  product_name,
+  product_type,
+  target_weight,
+  -- staked
+  staked_nxm,
+  staked_nxm_usd,
+  staked_nxm_eth,
+  -- allocated
+  2 * allocated_nxm as max_capacity_nxm,
+  2 * allocated_nxm_usd as max_capacity_nxm_usd,
+  2 * allocated_nxm_eth as max_capacity_nxm_eth,
+  -- active cover
+  active_cover_count,
+  nxm_cover_amount,
+  usd_cover_amount,
+  eth_cover_amount,
+  -- available capacity
+  (2 * allocated_nxm) - nxm_cover_amount as available_capacity_nxm,
+  (2 * allocated_nxm_usd) - usd_cover_amount as available_capacity_usd,
+  (2 * allocated_nxm_eth) - eth_cover_amount as available_capacity_eth
+from staking_totals_combined
+--order by 1, 3
