@@ -20,25 +20,5 @@ select
         when 'NXM' then reward_expected_total_nxm
         when 'ETH' then reward_expected_total_nxm_eth
         when 'USD' then reward_expected_total_nxm_usd
-      end) as reward_expected_total,
-  sum(case '{{currency}}'
-        when 'NXM' then pool_manager_commission_nxm
-        when 'ETH' then pool_manager_commission_nxm_eth
-        when 'USD' then pool_manager_commission_nxm_usd
-      end) as pool_manager_commission,
-  sum(case '{{currency}}'
-        when 'NXM' then pool_distributor_commission_nxm
-        when 'ETH' then pool_distributor_commission_nxm_eth
-        when 'USD' then pool_distributor_commission_nxm_usd
-      end) as pool_distributor_commission,
-  sum(case '{{currency}}'
-        when 'NXM' then staker_commission_nxm
-        when 'ETH' then staker_commission_nxm_eth
-        when 'USD' then staker_commission_nxm_usd
-      end) as staker_commission,
-  sum(case '{{currency}}'
-        when 'NXM' then total_commission_nxm
-        when 'ETH' then total_commission_nxm_eth
-        when 'USD' then total_commission_nxm_usd
-      end) as total_commission
+      end) as reward_expected_total
 from query_3599009 -- staking pools overview - base query

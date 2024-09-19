@@ -27,7 +27,8 @@ select
     when 'NXM' then reward_expected_total_nxm
     when 'ETH' then reward_expected_total_nxm_eth
     when 'USD' then reward_expected_total_nxm_usd
-  end reward_expected_total,
+  end reward_expected_total
+  /*
   case '{{currency}}'
     when 'NXM' then pool_manager_commission_nxm
     when 'ETH' then pool_manager_commission_nxm_eth
@@ -68,5 +69,6 @@ select
     when 'ETH' then future_pool_manager_commission_nxm_eth
     when 'USD' then future_pool_manager_commission_nxm_usd
   end as future_pool_manager_commission
+  */
 from query_3599009 -- staking pools overview - base query
 order by 1
