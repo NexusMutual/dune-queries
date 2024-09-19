@@ -15,15 +15,15 @@ latest_prices as (
 )
 
 select
-  r.pool_id,
-  r.block_date,
+  s.pool_id,
+  s.block_date,
   spn.pool_name,
   case '{{currency}}'
-    when 'NXM' then r.reward_total
-    when 'ETH' then r.reward_total * p.avg_nxm_eth_price
-    when 'USD' then r.reward_total * p.avg_nxm_usd_price
-  end as reward_total
-from query_4068272 r -- daily staking rewards base query
-  left join staking_pool_names spn on r.pool_id = spn.pool_id
+    when 'NXM' then s.total_staked_nxm
+    when 'ETH' then s.total_staked_nxm * p.avg_nxm_eth_price
+    when 'USD' then s.total_staked_nxm * p.avg_nxm_usd_price
+  end as total_staked
+from query_4065286 s -- staked nxm per pool - base query
+  left join staking_pool_names spn on s.pool_id = spn.pool_id
   cross join latest_prices p
 order by 1, 2
