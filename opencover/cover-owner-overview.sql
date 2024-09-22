@@ -3,8 +3,14 @@ with
 covers as (
   select
     cover_id,
-    cover_start_date,
-    cover_end_date,
+    cast(cover_start_date as date) as cover_start_date,
+    cast(cover_end_date as date) as cover_end_date,
+    case blockchain
+      when 'arbitrum' then '🟢'
+      when 'base' then '🔵'
+      when 'optimism' then '🔴'
+      when 'polygon' then '🟣'
+    end blockchain,
     cover_owner,
     product_id,
     product_name,
@@ -17,6 +23,7 @@ covers as (
 cover_owner_aggs as (
   select
     cover_owner,
+    listagg(distinct blockchain, '') within group (order by blockchain) as blockchain,
     count(distinct cover_id) as cover_sold,
     count(distinct coalesce(product_id, -1)) as product_sold,
     min(cover_start_date) as first_cover_buy,
@@ -31,6 +38,7 @@ cover_owner_aggs as (
 
 select
   cover_owner,
+  blockchain,
   cover_sold,
   product_sold,
   coalesce(1.00 * product_sold / nullif(cover_sold, 0), 0) as mean_product_sold,
@@ -43,4 +51,4 @@ select
   coalesce(usd_premium_amount / nullif(cover_sold, 0), 0) as mean_usd_premium,
   median_usd_premium
 from cover_owner_aggs
-order by 2 desc
+order by cover_sold desc
