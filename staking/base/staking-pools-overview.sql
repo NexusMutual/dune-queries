@@ -11,8 +11,8 @@ staking_pool_products as (
     pool_address,
     product_id,
     coalesce(target_weight, initial_weight) as target_weight
-  --from query_3859935 -- staking pools base (fallback) query
-  from nexusmutual_ethereum.staking_pools
+  from query_3859935 -- staking pools base (fallback) query
+  --from nexusmutual_ethereum.staking_pools -- dupes need fixing
 ),
 
 staking_pools as (
@@ -27,8 +27,8 @@ staking_pools as (
     sp.max_management_fee,
     spp.total_weight as leverage,
     spp.product_count
-  --from query_3859935 sp -- staking pools base (fallback) query
-  from nexusmutual_ethereum.staking_pools sp
+  from query_3859935 sp -- staking pools base (fallback) query
+  --from nexusmutual_ethereum.staking_pools sp -- dupes need fixing
     inner join (
       select
         pool_id,
@@ -56,6 +56,7 @@ staked_nxm_allocated as (
   group by 1
 ),
 
+/*
 staking_pool_fee_history as (
   select
     sp.pool_id,
@@ -81,6 +82,7 @@ staking_pool_fee_history as (
       from nexusmutual_ethereum.StakingPool_evt_PoolFeeChanged
     ) t on sp.pool_address = t.pool_address
 ),
+*/
 
 covers as (
   select *
@@ -88,6 +90,7 @@ covers as (
   --from query_3788370 -- covers v2 base (fallback) query
 ),
 
+/*
 cover_premiums as (
   select
     c.cover_id,
@@ -122,6 +125,7 @@ cover_premium_commissions as (
   from cover_premiums
   group by 1
 ),
+*/
 
 current_rewards as (
   select
@@ -176,7 +180,8 @@ select
   coalesce(dr.reward_total * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as reward_current_total_nxm_eth,
   coalesce(er.reward_expected_total, 0) as reward_expected_total_nxm,
   coalesce(er.reward_expected_total * p.avg_nxm_usd_price, 0) as reward_expected_total_nxm_usd,
-  coalesce(er.reward_expected_total * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as reward_expected_total_nxm_eth,
+  coalesce(er.reward_expected_total * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as reward_expected_total_nxm_eth
+  /*,
   -- commisions
   coalesce(c.pool_manager_commission, 0) as pool_manager_commission_nxm,
   coalesce(c.pool_manager_commission, 0) as pool_manager_commission_nxm_usd,
@@ -202,12 +207,13 @@ select
   coalesce(c.pool_manager_commission, 0) - coalesce(c.pool_manager_commission_emitted, 0) as future_pool_manager_commission_nxm,
   (coalesce(c.pool_manager_commission, 0) - coalesce(c.pool_manager_commission_emitted, 0)) * p.avg_nxm_usd_price as future_pool_manager_commission_nxm_usd,
   (coalesce(c.pool_manager_commission, 0) - coalesce(c.pool_manager_commission_emitted, 0)) * p.avg_nxm_usd_price / p.avg_eth_usd_price as future_pool_manager_commission_nxm_eth
+  */
 from staking_pools sp
   left join staking_pool_names spn on sp.pool_id = spn.pool_id
   left join staked_nxm_per_pool t on sp.pool_id = t.pool_id
   left join staked_nxm_allocated a on sp.pool_id = a.pool_id
   left join current_rewards dr on sp.pool_id = dr.pool_id
   left join expected_rewards er on sp.pool_id = er.pool_id
-  left join cover_premium_commissions c on sp.pool_id = c.staking_pool_id
+  --left join cover_premium_commissions c on sp.pool_id = c.staking_pool_id
   cross join latest_prices p
 --order by 1
