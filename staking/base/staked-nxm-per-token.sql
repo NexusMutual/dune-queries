@@ -39,6 +39,7 @@ staked_nxm_per_pool_n_token as (
     pool_address,
     token_id,
     sum(coalesce(total_amount, 0)) as total_staked_nxm,
+    max(stake_expiry_date) as stake_expiry_date,
     dense_rank() over (partition by pool_id, token_id order by block_date desc) as token_date_rn
   from (
       -- deposits & deposit extensions
@@ -47,7 +48,8 @@ staked_nxm_per_pool_n_token as (
         d.pool_id,
         d.pool_address,
         se.token_id,
-        sum(se.total_amount) as total_amount
+        sum(se.total_amount) as total_amount,
+        max(se.tranche_expiry_date) as stake_expiry_date
       from staking_pool_day_sequence d
         left join query_3619534 se -- staking deposit extensions base query
         --left join nexusmutual_ethereum.staking_deposit_extensions se
@@ -62,7 +64,8 @@ staked_nxm_per_pool_n_token as (
         d.pool_id,
         d.pool_address,
         se.token_id,
-        sum(se.amount) as total_amount
+        sum(se.amount) as total_amount,
+        cast(null as date) as stake_expiry_date -- no point pulling stake_expiry_date for withdrawals
       from staking_pool_day_sequence d
         left join query_3609519 se -- staking events
         --left join nexusmutual_ethereum.staking_events se
@@ -82,6 +85,7 @@ select
   pool_address,
   token_id,
   total_staked_nxm,
+  stake_expiry_date,
   token_date_rn
 from staked_nxm_per_pool_n_token
 --where token_date_rn = 1
