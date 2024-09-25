@@ -1,3 +1,18 @@
+with
+
+stakers as (
+  select
+    staker,
+    sum(staked_nxm) as staked_nxm,
+    sum(staked_nxm_eth) as staked_nxm_eth,
+    sum(staked_nxm_usd) as staked_nxm_usd,
+    listagg(cast(pool_id as varchar), ',') within group (order by pool_id) as pools,
+    listagg(cast(token_id as varchar), ',') within group (order by token_id) as tokens
+  from query_4077503 -- stakers - basers
+  where staker <> '0x84edffa16bb0b9ab1163abb0a13ff0744c11272f' -- legacy pooled staking v1
+  group by 1
+)
+
 select
   staker,
   case '{{currency}}'
@@ -7,5 +22,5 @@ select
   end as staked,
   pools,
   tokens
-from query_4077503 -- stakers - base
+from stakers
 order by 2 desc

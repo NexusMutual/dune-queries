@@ -57,35 +57,22 @@ latest_prices as (
     max_by(avg_nxm_usd_price, block_date) as avg_nxm_usd_price
   --from query_3789851 -- prices base (fallback) query
   from nexusmutual_ethereum.capital_pool_prices
-),
-
-stakers as (
-  select
-    sb.pool_id,
-    sb.token_id,
-    sb.staker as staker_address,
-    ens.name as staker_ens,
-    coalesce(ens.name, cast(sb.staker as varchar)) as staker,
-    st.total_staked_nxm as staked_nxm,
-    st.total_staked_nxm * p.avg_nxm_eth_price as staked_nxm_eth,
-    st.total_staked_nxm * p.avg_nxm_usd_price as staked_nxm_usd
-  from stakers_base sb
-    inner join query_4079728 st -- staked nxm per token - base
-      on sb.pool_id = st.pool_id and sb.token_id = st.token_id
-    left join labels.ens on sb.staker = ens.address
-    cross join latest_prices p
-  where sb.event_rn = 1 -- current staker
-    and (st.token_date_rn = 1 and st.block_date = current_date) -- today's stake
 )
 
 select
-  staker,
-  sum(staked_nxm) as staked_nxm,
-  sum(staked_nxm_eth) as staked_nxm_eth,
-  sum(staked_nxm_usd) as staked_nxm_usd,
-  listagg(cast(pool_id as varchar), ',') within group (order by pool_id) as pools,
-  listagg(cast(token_id as varchar), ',') within group (order by token_id) as tokens
-from stakers
-where staker <> '0x84edffa16bb0b9ab1163abb0a13ff0744c11272f' -- legacy pooled staking
-group by 1
---order by 2 desc
+  sb.pool_id,
+  sb.token_id,
+  sb.staker as staker_address,
+  ens.name as staker_ens,
+  coalesce(ens.name, cast(sb.staker as varchar)) as staker,
+  st.total_staked_nxm as staked_nxm,
+  st.total_staked_nxm * p.avg_nxm_eth_price as staked_nxm_eth,
+  st.total_staked_nxm * p.avg_nxm_usd_price as staked_nxm_usd,
+  st.stake_expiry_date
+from stakers_base sb
+  inner join query_4079728 st -- staked nxm per token - base
+    on sb.pool_id = st.pool_id and sb.token_id = st.token_id
+  left join labels.ens on sb.staker = ens.address
+  cross join latest_prices p
+where sb.event_rn = 1 -- current staker
+  and (st.token_date_rn = 1 and st.block_date = current_date) -- today's stake
