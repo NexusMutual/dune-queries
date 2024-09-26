@@ -11,8 +11,8 @@ staking_pools as (
       select
         pool_address,
         cast(min(block_time) as date) as first_stake_event_date
-      from query_3609519 -- staking events
-      --from nexusmutual_ethereum.staking_events
+      --from query_3609519 -- staking events
+      from nexusmutual_ethereum.staking_events
       group by 1
     ) se on sp.pool_address = se.pool_address
 ),
@@ -47,8 +47,8 @@ staked_nxm_per_pool as (
         d.pool_address,
         sum(se.total_amount) as total_amount
       from staking_pool_day_sequence d
-        left join query_3619534 se -- staking deposit extensions base query
-        --left join nexusmutual_ethereum.staking_deposit_extensions se
+        --left join query_3619534 se -- staking deposit extensions base query
+        left join nexusmutual_ethereum.staking_deposit_extensions se
           on d.pool_address = se.pool_address
          and d.block_date between date_trunc('day', se.block_time) and se.tranche_expiry_date
          and se.token_tranche_rn = 1
@@ -61,8 +61,8 @@ staked_nxm_per_pool as (
         d.pool_address,
         sum(se.amount) as total_amount
       from staking_pool_day_sequence d
-        left join query_3609519 se -- staking events
-        --left join nexusmutual_ethereum.staking_events se
+        --left join query_3609519 se -- staking events
+        left join nexusmutual_ethereum.staking_events se
           on d.pool_address = se.pool_address
          and d.block_date between date_trunc('day', se.block_time) and se.tranche_expiry_date
       where 1=1

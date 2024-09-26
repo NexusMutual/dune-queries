@@ -16,8 +16,8 @@ staking_pool_products as (
     initial_price,
     target_price,
     product_added_time
-  from query_3859935 -- staking pools base (fallback) query
-  --from nexusmutual_ethereum.staking_pools -- dupes need fixing
+  --from query_3859935 -- staking pools base (fallback) query
+  from nexusmutual_ethereum.staking_pools
   where coalesce(target_weight, initial_weight) > 0
 ),
 
@@ -33,8 +33,8 @@ staking_pools as (
     sp.max_management_fee,
     spp.total_weight as leverage,
     spp.product_count
-  from query_3859935 sp -- staking pools base (fallback) query
-  --from nexusmutual_ethereum.staking_pools sp -- dupes need fixing
+  --from query_3859935 sp -- staking pools base (fallback) query
+  from nexusmutual_ethereum.staking_pools sp
     inner join (
       select
         pool_id,
