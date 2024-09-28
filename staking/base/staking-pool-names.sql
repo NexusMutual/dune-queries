@@ -28,7 +28,8 @@ staking_pool_names (pool_id, pool_name) as (
   (24, 'DimenRisk'),
   (25, 'Molecular Research'),
   (26, 'BALTACHI'),
-  (27, '6666')
+  (27, '6666'),
+  (28, 'Native')
 )
 
 select pool_id, pool_name
