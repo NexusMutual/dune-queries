@@ -17,11 +17,14 @@ deposits as (
     user,
     evt_index,
     tx_hash,
-    lead(date_trunc('day', block_time), 1) over (partition by pool_address, token_id order by block_time, tranche_id) as next_block_date,
-    lag(token_id, 1) over (partition by pool_address, token_id order by block_time, tranche_id) as prev_token_id,
-    lag(flow_type, 1) over (partition by pool_address, token_id order by block_time, tranche_id) as prev_flow_type,
-    lag(tranche_expiry_date, 1) over (partition by pool_address, token_id order by block_time, tranche_id) as prev_tranche_expiry_date,
-    row_number() over (partition by pool_address, token_id order by block_time, tranche_id) as deposit_rn
+    lead(date_trunc('day', block_time), 1) over (partition by pool_address, token_id order by coalesce(tranche_id, init_tranche_id), block_time) as next_block_date,
+    lag(flow_type, 1) over (partition by pool_address, token_id order by coalesce(tranche_id, init_tranche_id), block_time) as prev_flow_type,
+    lead(flow_type, 1) over (partition by pool_address, token_id order by coalesce(tranche_id, init_tranche_id), block_time) as next_flow_type,
+    lag(token_id, 1) over (partition by pool_address, token_id order by coalesce(tranche_id, init_tranche_id), block_time) as prev_token_id,
+    lag(tranche_id, 1) over (partition by pool_address, token_id order by coalesce(tranche_id, init_tranche_id), block_time) as prev_tranche_id,
+    lead(tranche_id, 1) over (partition by pool_address, token_id order by coalesce(tranche_id, init_tranche_id), block_time) as next_tranche_id,
+    lag(tranche_expiry_date, 1) over (partition by pool_address, token_id order by coalesce(tranche_id, init_tranche_id), block_time) as prev_tranche_expiry_date,
+    row_number() over (partition by pool_address, token_id order by coalesce(tranche_id, init_tranche_id), block_time) as deposit_rn
   --from query_3609519 -- staking events - base
   from nexusmutual_ethereum.staking_events
   where flow_type in ('deposit', 'deposit extended')
@@ -30,12 +33,14 @@ deposits as (
 select
   block_time,
   case
-    when token_id = prev_token_id and flow_type = 'deposit' and prev_flow_type = 'deposit' and prev_tranche_expiry_date > block_date
+    when token_id = prev_token_id and flow_type = 'deposit' and prev_flow_type = 'deposit' and prev_tranche_id = tranche_id
     then 'deposit addon'
     else flow_type
   end as flow_type,
   block_date as stake_start_date,
   case
+    when flow_type = 'deposit' and next_flow_type <> 'deposit extended' and next_tranche_id <> tranche_id then tranche_expiry_date
+    when flow_type = 'deposit extended' and next_flow_type = 'deposit' then tranche_expiry_date
     when next_block_date > tranche_expiry_date then tranche_expiry_date
     else coalesce(next_block_date, tranche_expiry_date)
   end as stake_end_date,

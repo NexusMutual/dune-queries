@@ -25,12 +25,7 @@ with recursive deposit_chain (
     d.pool_address,
     d.token_id,
     dc.tranche_id,
-    --d.new_tranche_id,
     coalesce(d.new_tranche_id, dc.tranche_id) as new_tranche_id,
-    /*case
-      when d.flow_type = 'deposit extended' then d.new_tranche_id
-      when d.flow_type = 'deposit' then d.tranche_id
-    end as new_tranche_id,*/
     dc.amount + coalesce(d.amount, d.topup_amount, 0) as amount,
     d.stake_start_date,
     d.stake_end_date,
@@ -48,6 +43,7 @@ with recursive deposit_chain (
 
 select 
   block_time,
+  date_trunc('day', block_time) as block_date,
   pool_address,
   token_id,
   tranche_id as init_tranche_id,

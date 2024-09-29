@@ -48,17 +48,17 @@ staked_nxm_per_pool_n_token as (
         d.pool_id,
         d.pool_address,
         se.token_id,
-        sum(se.total_amount) as total_amount,
-        max(se.tranche_expiry_date) as stake_expiry_date
+        sum(se.amount) as total_amount,
+        max(se.stake_end_date) as stake_expiry_date
       from staking_pool_day_sequence d
-        --left join query_3619534 se -- staking deposit extensions base query
-        left join nexusmutual_ethereum.staking_deposit_extensions se
+        left join query_3619534 se -- staking deposit extensions base query
+        --left join nexusmutual_ethereum.staking_deposit_extensions se
           on d.pool_address = se.pool_address
-         and d.block_date between date_trunc('day', se.block_time) and se.tranche_expiry_date
-         and se.token_tranche_rn = 1
+         and d.block_date >= se.stake_start_date
+         and d.block_date < se.stake_end_date
       group by 1, 2, 3, 4
       union all
-      -- withdrawals (& burns?)
+      -- withdrawals & burns?
       select
         d.block_date,
         d.pool_id,
@@ -70,10 +70,9 @@ staked_nxm_per_pool_n_token as (
         --left join query_3609519 se -- staking events
         left join nexusmutual_ethereum.staking_events se
           on d.pool_address = se.pool_address
-         and d.block_date between date_trunc('day', se.block_time) and se.tranche_expiry_date
-      where 1=1
-        --and flow_type in ('withdraw', 'stake burn')
-        and flow_type = 'withdraw' -- burn TBD
+         and d.block_date >= date_trunc('day', se.block_time)
+         and d.block_date < coalesce(se.tranche_expiry_date, current_date)
+      where flow_type in ('withdraw', 'stake burn')
       group by 1, 2, 3, 4
     ) t
   group by 1, 2, 3, 4
