@@ -22,12 +22,17 @@ select
     when 'NXM' then reward_current_total_nxm
     when 'ETH' then reward_current_total_nxm_eth
     when 'USD' then reward_current_total_nxm_usd
-  end reward_current_total,
+  end earned_reward_total,
+  case '{{currency}}'
+    when 'NXM' then reward_expected_total_nxm - reward_current_total_nxm
+    when 'ETH' then reward_expected_total_nxm_eth - reward_current_total_nxm_eth
+    when 'USD' then reward_expected_total_nxm_usd - reward_current_total_nxm_usd
+  end pending_reward_total,
   case '{{currency}}'
     when 'NXM' then reward_expected_total_nxm
     when 'ETH' then reward_expected_total_nxm_eth
     when 'USD' then reward_expected_total_nxm_usd
-  end reward_expected_total
+  end aggregate_reward_total
   /*
   case '{{currency}}'
     when 'NXM' then pool_manager_commission_nxm
