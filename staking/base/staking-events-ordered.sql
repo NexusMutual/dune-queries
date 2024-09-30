@@ -23,7 +23,6 @@ deposits as (
     lag(token_id, 1) over (partition by pool_address, token_id order by coalesce(tranche_id, init_tranche_id), block_time) as prev_token_id,
     lag(tranche_id, 1) over (partition by pool_address, token_id order by coalesce(tranche_id, init_tranche_id), block_time) as prev_tranche_id,
     lead(tranche_id, 1) over (partition by pool_address, token_id order by coalesce(tranche_id, init_tranche_id), block_time) as next_tranche_id,
-    lag(tranche_expiry_date, 1) over (partition by pool_address, token_id order by coalesce(tranche_id, init_tranche_id), block_time) as prev_tranche_expiry_date,
     row_number() over (partition by pool_address, token_id order by coalesce(tranche_id, init_tranche_id), block_time) as deposit_rn
   --from query_3609519 -- staking events - base
   from nexusmutual_ethereum.staking_events
