@@ -1,5 +1,10 @@
 with
 
+staking_pool_names as (
+  select pool_id, pool_name
+  from query_3833996 -- staking pool names base (fallback) query
+),
+
 mints as (
   select
     call_block_time as block_time,
@@ -61,6 +66,7 @@ latest_prices as (
 
 select
   sb.pool_id,
+  spn.pool_name,
   sb.token_id,
   sb.staker as staker_address,
   ens.name as staker_ens,
@@ -72,6 +78,7 @@ select
 from stakers_base sb
   inner join query_4079728 st -- staked nxm per token - base
     on sb.pool_id = st.pool_id and sb.token_id = st.token_id
+  left join staking_pool_names spn on sb.pool_id = spn.pool_id
   left join labels.ens on sb.staker = ens.address
   cross join latest_prices p
 where sb.event_rn = 1 -- current staker
