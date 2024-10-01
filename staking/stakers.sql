@@ -11,16 +11,26 @@ stakers as (
   from query_4077503 -- stakers - basers
   where staker <> '0x84edffa16bb0b9ab1163abb0a13ff0744c11272f' -- legacy pooled staking v1
   group by 1
+),
+
+stakers_output as (
+  select
+    staker,
+    case '{{currency}}'
+      when 'NXM' then staked_nxm
+      when 'ETH' then staked_nxm_eth
+      when 'USD' then staked_nxm_usd
+    end as staked,
+    pools,
+    tokens
+  from stakers
 )
 
 select
   staker,
-  case '{{currency}}'
-    when 'NXM' then staked_nxm
-    when 'ETH' then staked_nxm_eth
-    when 'USD' then staked_nxm_usd
-  end as staked,
+  staked,
+  staked / (select sum(staked) from stakers) as pct_total_staked,
   pools,
   tokens
-from stakers
+from stakers_output
 order by 2 desc
