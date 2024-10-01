@@ -193,13 +193,19 @@ products as (
   select
     cast(p.product_id as int) as product_id,
     p.product_name,
-    pt.product_type_id,
+    cast(pt.product_type_id as int) as product_type_id,
     pt.product_type_name as product_type
   --from query_3788361 pt -- product types
   --  inner join query_3788363 p -- products
   from nexusmutual_ethereum.product_types_v2 pt
     inner join nexusmutual_ethereum.products_v2 p
       on pt.product_type_id = p.product_type_id
+  union all
+  select
+    -1 as product_id,
+    null as product_name,
+    -1 as product_type_id,
+    null as product_type
 )
 
 select
@@ -241,6 +247,6 @@ select
   ) as tx_hash_updated
 from staking_pools_created_ext sp
   inner join staking_pool_products_combined spc on sp.pool_id = spc.pool_id
-  left join products p on spc.product_id = p.product_id
+  inner join products p on spc.product_id = p.product_id
   left join staking_pool_managers spm on sp.pool_id = spm.pool_id
   left join staking_pool_fee_updates spf on sp.pool_address = spf.pool_address
