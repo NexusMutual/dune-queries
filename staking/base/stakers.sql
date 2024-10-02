@@ -22,6 +22,7 @@ transfers as (
     tokenId as token_id,
     "from" as from_address,
     "to" as to_address,
+    evt_index,
     evt_tx_hash as tx_hash
   from nexusmutual_ethereum.StakingNFT_evt_Transfer
 ),
@@ -33,13 +34,14 @@ stakers_base as (
     token_id,
     staker,
     tx_hash,
-    row_number() over (partition by pool_id, token_id order by block_time desc) as event_rn
+    row_number() over (partition by pool_id, token_id order by block_time desc, evt_index desc) as event_rn
   from (
     select
       block_time,
       pool_id,
       token_id,
       to_address as staker,
+      cast(-1 as bigint) as evt_index,
       tx_hash
     from mints
     union all
@@ -48,6 +50,7 @@ stakers_base as (
       m.pool_id,
       m.token_id,
       t.to_address as staker,
+      t.evt_index,
       t.tx_hash
     from mints m
       inner join transfers t on m.token_id = t.token_id
