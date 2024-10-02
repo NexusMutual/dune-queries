@@ -32,5 +32,6 @@ staking_pool_names (pool_id, pool_name) as (
   (28, 'Native')
 )
 
-select pool_id, pool_name
+select pool_id, pool_name, concat(cast(pool_id as varchar), ' : ', pool_name) as pool_id_name
 from staking_pool_names
+order by 1
