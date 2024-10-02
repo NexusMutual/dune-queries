@@ -1,5 +1,9 @@
 with
 
+params as (
+  select cast(split_part('{{pool}}', ' : ', 1) as int) as pool_id
+),
+
 latest_prices as (
   select
     max(block_date) as block_date,
@@ -20,7 +24,7 @@ daily_stake as (
     end as total_staked
   from query_4065286 s -- staked nxm per pool - base query
     cross join latest_prices p
-  where s.pool_id = {{pool id}}
+  where cast(s.pool_id as int) in (select pool_id from params)
 ),
 
 daily_rewards as (
@@ -34,7 +38,7 @@ daily_rewards as (
     end as reward_total
   from query_4068272 r -- daily staking rewards base query
     cross join latest_prices p
-  where r.pool_id = {{pool id}}
+  where cast(r.pool_id as int) in (select pool_id from params)
 )
 
 select

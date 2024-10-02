@@ -1,5 +1,9 @@
 with
 
+params as (
+  select cast(split_part('{{pool}}', ' : ', 1) as int) as pool_id
+),
+
 stakers as (
   select
     pool_id,
@@ -10,7 +14,7 @@ stakers as (
     max(stake_expiry_date) as stake_expiry_date
   from query_4077503 -- stakers - basers
   where staker <> '0x84edffa16bb0b9ab1163abb0a13ff0744c11272f' -- legacy pooled staking v1
-    and pool_id = {{pool id}}
+    and cast(pool_id as int) in (select pool_id from params)
   group by 1, 2
 )
 

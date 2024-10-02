@@ -1,9 +1,13 @@
 with
 
+params as (
+  select cast(split_part('{{pool}}', ' : ', 1) as int) as pool_id
+),
+
 stakers as (
   select count(distinct staker) as unique_stakers
   from query_4077503 -- stakers - base
-  where pool_id = {{pool id}}
+  where cast(pool_id as int) in (select pool_id from params)
 )
 
 select
@@ -39,4 +43,4 @@ select
       end as reward_expected_total
 from query_3599009 spo -- staking pools overview - base query
   cross join stakers s
-where spo.pool_id = {{pool id}}
+where cast(spo.pool_id as int) in (select pool_id from params)
