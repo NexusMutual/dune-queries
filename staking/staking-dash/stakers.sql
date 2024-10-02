@@ -9,7 +9,7 @@ stakers as (
     listagg(cast(pool_id as varchar), ',') within group (order by pool_id) as pools,
     listagg(cast(token_id as varchar), ',') within group (order by token_id) as tokens
   from query_4077503 -- stakers - base
-  where staker <> '0x84edffa16bb0b9ab1163abb0a13ff0744c11272f' -- legacy pooled staking v1
+  --where staker <> '0x84edffa16bb0b9ab1163abb0a13ff0744c11272f' -- legacy pooled staking v1
   group by 1
 ),
 

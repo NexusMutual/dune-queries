@@ -10,7 +10,7 @@ stakers as (
     sum(staked_nxm_usd) as staked_nxm_usd,
     max(stake_expiry_date) as stake_expiry_date
   from query_4077503 -- stakers - base
-  where staker <> '0x84edffa16bb0b9ab1163abb0a13ff0744c11272f' -- legacy pooled staking v1
+  --where staker <> '0x84edffa16bb0b9ab1163abb0a13ff0744c11272f' -- legacy pooled staking v1
   group by 1, 2, 3
 )
 
