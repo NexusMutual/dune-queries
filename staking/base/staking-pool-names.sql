@@ -23,7 +23,7 @@ staking_pool_names (pool_id, pool_name) as (
   (19, 'Broad And Diversified'),
   (20, 'Lowest Risk'),
   (21, 'Crypto Plaza'),
-  (22, 'BraveNewDeFi''s Pool'),
+  (22, 'BraveNewDeFi`s Pool'),
   (23, 'Nexus Mutual Community Staking Pool'),
   (24, 'DimenRisk'),
   (25, 'Molecular Research'),
