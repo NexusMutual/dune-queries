@@ -64,7 +64,7 @@ staked_nxm_per_pool as (
         --left join query_3609519 se -- staking events
         left join nexusmutual_ethereum.staking_events se
           on d.pool_address = se.pool_address
-         and d.block_date >= date_trunc('day', se.block_time)
+         and d.block_date >= se.block_date
          and d.block_date < coalesce(se.tranche_expiry_date, current_date)
       where flow_type in ('withdraw', 'stake burn')
       group by 1, 2, 3

@@ -12,7 +12,8 @@ staking_rewards as (
     reward_amount_expected_total,
     reward_amount_per_day,
     tx_hash
-  from query_4067736 -- staking rewards base
+  --from query_4067736 -- staking rewards base
+  from nexusmutual_ethereum.staking_rewards
 ),
 
 staking_pools as (

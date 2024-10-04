@@ -43,7 +43,8 @@ staked_nxm_per_pool as (
   select
     pool_id,
     total_staked_nxm
-  from query_4065286 -- staked nxm base query
+  --from query_4065286 -- staked nxm base query
+  from nexusmutual_ethereum.staked_per_pool
   where pool_date_rn = 1
 ),
 
