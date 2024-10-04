@@ -49,5 +49,5 @@ select
 from staking_pool_day_sequence d
   left join staking_rewards r on d.pool_id = r.pool_id and d.product_id = r.product_id
     and d.block_date between date_add('day', 1, r.cover_start_date) and r.cover_end_date
-group by 1, 2
+group by 1, 2, 3
 --order by 1, 2
