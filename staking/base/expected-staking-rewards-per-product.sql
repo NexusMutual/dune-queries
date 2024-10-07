@@ -19,7 +19,8 @@ staking_rewards as (
 select
   pool_id,
   product_id,
-  sum(reward_amount_expected_total) as reward_expected_total
+  sum(reward_amount_expected_total) as reward_expected_total,
+  sum(reward_amount_expected_total) filter (where cover_end_date >= now()) as reward_expected_total_on_active_cover
 from staking_rewards
 group by 1, 2
 --order by 1

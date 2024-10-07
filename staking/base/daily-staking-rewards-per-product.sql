@@ -45,6 +45,7 @@ select
   d.product_id,
   d.block_date,
   sum(r.reward_amount_per_day) as reward_total,
+  sum(r.reward_amount_per_day) filter (where r.cover_end_date >= now()) as reward_total_on_active_cover,
   dense_rank() over (partition by d.pool_id, d.product_id order by d.block_date desc) as pool_product_date_rn
 from staking_pool_day_sequence d
   left join staking_rewards r on d.pool_id = r.pool_id and d.product_id = r.product_id
