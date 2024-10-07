@@ -24,8 +24,8 @@ active_covers as (
 current_rewards as (
   select
     product_id,
-    sum(reward_total) as reward_total,
-    min_by(reward_total, pool_product_date_rn) as latest_daily_reward_total -- min bc pool_date_rn is desc
+    sum(reward_total_on_active_cover) as reward_total,
+    min_by(reward_total_on_active_cover, pool_product_date_rn) as latest_daily_reward_total -- min bc pool_date_rn is desc
   from query_4127951 -- daily staking rewards per product - base
   where cast(pool_id as int) in (select pool_id from params)
   group by 1
@@ -34,23 +34,29 @@ current_rewards as (
 expected_rewards as (
   select
     product_id,
-    sum(reward_expected_total) as reward_expected_total
+    sum(reward_expected_total_on_active_cover) as reward_expected_total
   from query_4127963 -- expected staking rewards per product - base
   where cast(pool_id as int) in (select pool_id from params)
   group by 1
 )
 
 select
-  coalesce(ac.product_name, 'Totals') as listing,
+  --coalesce(ac.product_name, 'Totals') as listing,
+  ac.product_name as listing,
   sum(ac.premium_nxm) as premium_nxm,
-  sum(cr.reward_total) as reward_total,
-  sum(cr.latest_daily_reward_total) as daily_reward,
-  sum(er.reward_expected_total) as expected_rewards
+  sum(cr.reward_total) as earned_rewards,
+  sum(cr.latest_daily_reward_total) as daily_rewards,
+  sum(er.reward_expected_total) - sum(cr.reward_total) as pending_rewards
 from active_covers ac
   left join current_rewards cr on ac.product_id = cr.product_id
   left join expected_rewards er on ac.product_id = er.product_id
+group by 1
+order by 1
+
+/*
 group by grouping sets (
   (product_name), -- individual product totals
   ()              -- grand total for all products
 )
 order by case when product_name is null then 1 else 0 end, product_name
+*/
