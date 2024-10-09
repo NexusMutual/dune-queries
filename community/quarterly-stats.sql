@@ -58,6 +58,7 @@ latest_prices as (
 
 staking_rewards as (
   select
+    sum(r.reward_total) as nxm_rewards,
     sum(r.reward_total * p.avg_nxm_usd_price) as usd_rewards,
     sum(r.reward_total * p.avg_nxm_eth_price) as eth_rewards
   from query_4068272 r -- daily staking rewards base query
@@ -78,6 +79,7 @@ select
   c.usd_commission,
   c.eth_commission,
   -- staking rewards
+  sr.nxm_rewards,
   sr.usd_rewards,
   sr.eth_rewards
 from cover_sales cs, claims_paid cp, commissions c, staking_rewards sr
