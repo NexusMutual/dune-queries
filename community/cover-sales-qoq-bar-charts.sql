@@ -8,4 +8,4 @@ select
 from nexusmutual_ethereum.covers_daily_agg
 where block_date >= date_add('quarter', -12, date_trunc('quarter', current_date))
 group by 1
-order by 1 desc
+order by 1
