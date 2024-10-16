@@ -39,7 +39,20 @@ commissions_ext as (
 commissions_agg as (
   select
     cover_month,
-    commission_destination,
+    case
+      when commission_destination in (
+        0x586b9b2f8010b284a0197f392156f1a7eb5e86e9,
+        0x8e53D04644E9ab0412a8c6bd228C84da7664cFE3
+      ) then 'Community Fund'
+      when commission_destination = 0x95abc2a62ee543217cf7640b277ba13d056d904a then 'Unity'
+      when commission_destination = 0xac0734c62b316041d190438d5d3e5d1359614407 then 'Bright Union'
+      when commission_destination in (
+        0xe4994082a0e7f38b565e6c5f4afd608de5eddfbb,
+        0x40329f3e27dd3fe228799b4a665f6f104c2ab6b4,
+        0x5f2b6e70aa6a217e9ecd1ed7d0f8f38ce9a348a2
+      ) then 'OpenCover'
+      else cast(commission_destination as varchar)
+    end as commission_destination,
     sum(eth_eth_commission + dai_eth_commission + usdc_eth_commission + nxm_eth_commission) as eth_commission,
     sum(eth_usd_commission + dai_usd_commission + usdc_usd_commission + nxm_usd_commission) as usd_commission
   from commissions_ext
@@ -48,22 +61,9 @@ commissions_agg as (
 
 select
   c.cover_month,
-  case
-    when c.commission_destination in (
-      0x586b9b2f8010b284a0197f392156f1a7eb5e86e9,
-      0x8e53D04644E9ab0412a8c6bd228C84da7664cFE3
-    ) then 'Community Fund'
-    when c.commission_destination = 0x95abc2a62ee543217cf7640b277ba13d056d904a then 'Unity'
-    when c.commission_destination = 0xac0734c62b316041d190438d5d3e5d1359614407 then 'Bright Union'
-    when c.commission_destination in (
-      0xe4994082a0e7f38b565e6c5f4afd608de5eddfbb,
-      0x40329f3e27dd3fe228799b4a665f6f104c2ab6b4,
-      0x5f2b6e70aa6a217e9ecd1ed7d0f8f38ce9a348a2
-    ) then 'OpenCover'
-    else coalesce(ens.name, cast(c.commission_destination as varchar))
-  end as commission_destination,
+  coalesce(ens.name, c.commission_destination) as commission_destination,
   c.eth_commission,
   c.usd_commission
 from commissions_agg c
-  left join labels.ens on c.commission_destination = ens.address
+  left join labels.ens on c.commission_destination = cast(ens.address as varchar)
 order by 1, 2
