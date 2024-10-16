@@ -27,4 +27,4 @@ select
     when 'USD' then available_capacity_usd
   end available_capacity
 from query_3991071 -- staking pools products overview - base query
-order by 1, 3
+order by pool_id, product_name
