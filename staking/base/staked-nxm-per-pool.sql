@@ -5,8 +5,9 @@ staking_pools as (
     sp.pool_id,
     sp.pool_address,
     se.first_stake_event_date
-  --from query_3859935 -- staking pools base (fallback) query
-  from nexusmutual_ethereum.staking_pools sp
+  --from query_3859935 sp -- staking pools base (fallback) query
+  from query_4167546 sp -- staking pools - spell de-duped
+  --from nexusmutual_ethereum.staking_pools sp
     inner join (
       select
         pool_address,
