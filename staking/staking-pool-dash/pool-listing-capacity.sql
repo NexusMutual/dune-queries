@@ -34,4 +34,4 @@ select
 from query_3991071 -- staking pools products overview (staked per product)
 where (max_capacity_nxm <> 0 or nxm_cover_amount <> 0 or available_capacity_nxm <> 0)
   and cast(pool_id as int) in (select pool_id from params)
-order by product_id
+order by product_name
