@@ -47,8 +47,8 @@ claims as (
     cast(product_id as int) as product_id,
     submit_date as claim_date,
     requested_amount as claim_amount
-  --from query_3894982 -- claims v2 base (fallback) query
-  from nexusmutual_ethereum.claims_v2
+  from query_3894982 -- claims v2 base (fallback) query
+  --from nexusmutual_ethereum.claims_v2
 ),
 
 claims_paid as (

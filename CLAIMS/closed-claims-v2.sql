@@ -27,8 +27,8 @@ claims as (
     assessment_id,
     cover_asset,
     requested_amount
-  --from query_3894982 -- claims v2 base (fallback) query
-  from nexusmutual_ethereum.claims_v2
+  from query_3894982 -- claims v2 base (fallback) query
+  --from nexusmutual_ethereum.claims_v2
 ),
 
 vote_count as (
