@@ -2,8 +2,8 @@ with
 
 capital_pool_timed as (
   select * 
-  from query_3773633 -- Capital Pool base (fallback) query
-  --from nexusmutual_ethereum.capital_pool_totals
+  --from query_3773633 -- Capital Pool base (fallback) query
+  from nexusmutual_ethereum.capital_pool_totals
   where block_date = if(timestamp '{{End Date}}' > current_timestamp, cast(current_date as timestamp), timestamp '{{End Date}}')
 ),
 
