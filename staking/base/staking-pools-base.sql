@@ -58,7 +58,7 @@ staking_pools_and_products as (
     sp.is_private_pool,
     sp.initial_pool_fee,
     sp.max_management_fee,
-    cast(json_query(t.json, 'lax $.productId') as int) as product_id,
+    coalesce(cast(json_query(t.json, 'lax $.productId') as int), -1) as product_id,
     cast(json_query(t.json, 'lax $.weight') as double) as weight,
     cast(json_query(t.json, 'lax $.initialPrice') as double) as initial_price,
     cast(json_query(t.json, 'lax $.targetPrice') as double) as target_price,
@@ -75,7 +75,7 @@ staking_pool_products_updated as (
     select
       p.call_block_time as block_time_updated,
       p.poolId as pool_id,
-      cast(json_query(t.json, 'lax $.productId') as int) as product_id,
+      coalesce(cast(json_query(t.json, 'lax $.productId') as int), -1) as product_id,
       cast(json_query(t.json, 'lax $.recalculateEffectiveWeight') as boolean) as re_eval_eff_weight,
       cast(json_query(t.json, 'lax $.setTargetWeight') as boolean) as set_target_weight,
       cast(json_query(t.json, 'lax $.targetWeight') as double) as target_weight,
