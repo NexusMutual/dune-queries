@@ -2,8 +2,8 @@ with
 
 capital_pool as (
   select *
-  --from query_3773633 -- Capital Pool base (fallback) query
-  from nexusmutual_ethereum.capital_pool_totals
+  from query_3773633 -- Capital Pool base (fallback) query
+  --from nexusmutual_ethereum.capital_pool_totals -- until cbBTC is added
 )
 
 select
@@ -16,6 +16,7 @@ select
   if('{{display_currency}}' = 'USD', avg_steth_usd_total, steth_total) as steth_display_curr,
   if('{{display_currency}}' = 'USD', avg_reth_usd_total, avg_reth_eth_total) as reth_display_curr,
   if('{{display_currency}}' = 'USD', avg_usdc_usd_total, avg_usdc_eth_total) as usdc_display_curr,
+  if('{{display_currency}}' = 'USD', avg_cbbtc_usd_total, avg_cbbtc_eth_total) as cbbtc_display_curr,
   if('{{display_currency}}' = 'USD', avg_cover_re_usdc_usd_total, avg_cover_re_usdc_eth_total) as cover_re_usdc_display_curr,
   if('{{display_currency}}' = 'USD', avg_aave_collateral_weth_usd_total, aave_collateral_weth_total) as aave_collateral_weth_display_curr,
   if('{{display_currency}}' = 'USD', avg_aave_debt_usdc_usd_total, avg_aave_debt_usdc_eth_total) as aave_debt_usdc_display_curr
