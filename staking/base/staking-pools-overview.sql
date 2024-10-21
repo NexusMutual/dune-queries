@@ -12,8 +12,8 @@ staking_pool_products as (
     product_id,
     coalesce(target_weight, initial_weight) as target_weight
   --from query_3859935 -- staking pools base (fallback) query
-  --from query_4167546 -- staking pools - spell de-duped
-  from nexusmutual_ethereum.staking_pools
+  from query_4167546 -- staking pools - spell de-duped
+  --from nexusmutual_ethereum.staking_pools
 ),
 
 staking_pools as (
@@ -29,8 +29,8 @@ staking_pools as (
     spp.total_weight as leverage,
     spp.product_count
   --from query_3859935 sp -- staking pools base (fallback) query
-  --from query_4167546 sp -- staking pools - spell de-duped
-  from nexusmutual_ethereum.staking_pools sp
+  from query_4167546 sp -- staking pools - spell de-duped
+  --from nexusmutual_ethereum.staking_pools sp
     inner join (
       select
         pool_id,
