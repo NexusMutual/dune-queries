@@ -29,6 +29,7 @@ select
   c.cover_id,
   c.cover_start_date,
   c.cover_end_date,
+  c.cover_end_bucket_expiry_date,
   mr.amount / 1e18 as reward_amount_expected_total,
   mr.amount / c.cover_period_seconds / 1e18 as reward_amount_per_second,
   mr.amount / c.cover_period_seconds * 86400.0 / 1e18 as reward_amount_per_day,
