@@ -34,20 +34,9 @@ select
   mr.amount / c.cover_period_seconds / 1e18 as reward_amount_per_second,
   mr.amount / c.cover_period_seconds * 86400.0 / 1e18 as reward_amount_per_day,
   mr.call_tx_hash as tx_hash
-from (
-    select call_block_time, call_block_number, poolId, amount, call_trace_address, call_tx_hash
-    from nexusmutual_ethereum.TokenController_call_mintStakingPoolNXMRewards
-    where call_success
-    union all
-    select call_block_time, call_block_number, poolId, amount, call_trace_address, call_tx_hash
-    from nexusmutual_ethereum.TokenController2_call_mintStakingPoolNXMRewards
-    where call_success
-    union all
-    select call_block_time, call_block_number, poolId, amount, call_trace_address, call_tx_hash
-    from nexusmutual_ethereum.TokenController3_call_mintStakingPoolNXMRewards
-    where call_success
-  ) mr
+from nexusmutual_ethereum.TokenController_call_mintStakingPoolNXMRewards mr
   inner join covers c on mr.call_tx_hash = c.tx_hash and mr.call_block_number = c.block_number
-where mr.poolId = c.staking_pool_id
+where mr.call_success
+  and mr.poolId = c.staking_pool_id
   and (c.trace_address is null
     or slice(mr.call_trace_address, 1, cardinality(c.trace_address)) = c.trace_address)
