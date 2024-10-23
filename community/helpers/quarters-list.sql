@@ -6,7 +6,7 @@ select
   end as period_date
 from (
     select sequence(
-        date_add('quarter', -20, date_trunc('quarter', current_date)),
+        date_add('quarter', -10, date_trunc('quarter', current_date)),
         date_trunc('quarter', current_date),
         interval '3' month
       ) as days

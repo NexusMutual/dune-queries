@@ -6,7 +6,7 @@ select
   end as period_date
 from (
     select sequence(
-        date_add('week', -52, date_trunc('week', current_date)),
+        date_add('week', -13, date_trunc('week', current_date)),
         date_trunc('week', current_date),
         interval '7' day
       ) as days
