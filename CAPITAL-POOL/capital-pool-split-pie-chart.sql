@@ -2,9 +2,9 @@ with
 
 capital_pool_timed as (
   select * 
-  from query_3773633 -- Capital Pool base (fallback) query
-  --from nexusmutual_ethereum.capital_pool_totals -- until cbBTC is added
-  where block_date = if(timestamp '{{End Date}}' > current_timestamp, cast(current_date as timestamp), timestamp '{{End Date}}')
+  --from query_3773633 -- Capital Pool base (fallback) query
+  from nexusmutual_ethereum.capital_pool_totals
+  where block_date = if(timestamp '{{End Date}}' > current_timestamp, cast(date_add('day', -1, current_date) as timestamp), timestamp '{{End Date}}')
 ),
 
 capital_pool_assets (asset_type, eth_amount, usd_amount, rn) as (
