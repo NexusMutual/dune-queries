@@ -118,7 +118,7 @@ staked_per_pool_tranche as (
   group by 1, 2, 3, 4
 ),
 
-staked_nxm_combined as (
+stake_burn_per_tranche as (
   select
     p.block_date,
     p.pool_id,
@@ -127,16 +127,42 @@ staked_nxm_combined as (
     p.total_staked_nxm,
     pt.total_tranche_staked_nxm,
     se.amount as burn_amount,
-    se.amount * pt.total_tranche_staked_nxm / p.total_staked_nxm as burn_per_tranche,
-    p.pool_date_rn,
-    pt.pool_tranche_date_rn
+    se.amount * pt.total_tranche_staked_nxm / p.total_staked_nxm as burn_per_tranche
   from staked_per_pool p
     inner join staked_per_pool_tranche pt on p.pool_id = pt.pool_id and p.block_date = pt.block_date
     inner join nexusmutual_ethereum.staking_events se on p.pool_address = se.pool_address and p.block_date = se.block_date
   where se.flow_type = 'stake burn'
+),
+
+staked_combined as (
+  select
+    pt.block_date,
+    pt.pool_id,
+    pt.pool_address,
+    pt.tranche_id,
+    pt.total_tranche_staked_nxm + coalesce(b.burn_per_tranche, 0) as total_tranche_staked_nxm,
+    pt.pool_tranche_date_rn
+  from staked_per_pool_tranche pt
+    left join stake_burn_per_tranche b on pt.pool_id = b.pool_id and pt.tranche_id = b.tranche_id and pt.block_date >= b.block_date
 )
 
-select * from staked_nxm_combined where pool_id = 11 order by 1
+select
+  min(block_date) as block_date,
+  pool_id,
+  pool_address,
+  total_staked_nxm
+from (
+  select
+    block_date,
+    pool_id,
+    pool_address,
+    sum(total_tranche_staked_nxm) as total_staked_nxm
+  from staked_combined
+  where pool_id = 11
+  group by 1, 2, 3
+) t
+group by 2,3,4
+order by 1
 
 
 /*
