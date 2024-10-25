@@ -29,7 +29,7 @@ stakers_output as (
 select
   staker,
   staked,
-  staked / (select sum(staked) from stakers) as pct_total_staked,
+  round(staked / (select sum(staked) from stakers_output), 6) as pct_total_staked,
   pools,
   tokens
 from stakers_output
