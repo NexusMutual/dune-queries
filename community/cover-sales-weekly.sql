@@ -1,32 +1,42 @@
 with
 
-params as (
-  select cast(case '{{week}}'
-      when 'current week' then cast(date_trunc('week', current_date) as varchar)
-      when 'last week' then cast(date_add('week', -1, date_trunc('week', current_date)) as varchar)
-      else '{{week}}'
-    end as timestamp) as period_date
+avg_prices as (
+  select
+    date_trunc('week', block_date) as week_date,
+    min(avg_eth_usd_price) as avg_eth_usd_price
+  --from query_3789851 -- prices base (fallback) query
+  from nexusmutual_ethereum.capital_pool_prices
+  group by 1
 ),
 
-covers_v2 as (
+weekly_aggs as (
   select
-    cover_id,
-    product_name,
-    cover_start_usd,
-    cover_start_eth,
-    sum(premium_nxm) as premium_nxm,
-    sum(premium_usd) as premium_usd
-  from query_3810247 -- full list of covers v2
-  where date_trunc('week', cover_start_time) in (select period_date from params)
-  group by 1, 2, 3, 4
+    date_trunc('week', block_date) as week_date,
+    sum(eth_active_cover) as eth_active_cover,
+    sum(eth_eth_active_cover) as eth_eth_active_cover,
+    sum(dai_eth_active_cover) as dai_eth_active_cover,
+    sum(usdc_eth_active_cover) as usdc_eth_active_cover,
+    sum(usd_active_cover) as usd_active_cover,
+    sum(eth_usd_active_cover) as eth_usd_active_cover,
+    sum(dai_usd_active_cover) as dai_usd_active_cover,
+    sum(usdc_usd_active_cover) as usdc_usd_active_cover
+  --from query_3889661 -- BD active cover base
+  from nexusmutual_ethereum.covers_daily_agg
+  where block_date >= date_add('week', -52, date_trunc('week', current_date))
+  group by 1
 )
 
 select
-  product_name,
-  sum(cover_start_usd) as cover_usd,
-  sum(cover_start_eth) as cover_eth,
-  sum(premium_nxm) as premium_nxm,
-  sum(premium_usd) as premium_usd
-from covers_v2
-group by 1
-order by 1
+  a.week_date,
+  p.avg_eth_usd_price,
+  a.eth_active_cover,
+  a.eth_eth_active_cover,
+  a.dai_eth_active_cover,
+  a.usdc_eth_active_cover,
+  a.usd_active_cover,
+  a.eth_usd_active_cover,
+  a.dai_usd_active_cover,
+  a.usdc_usd_active_cover
+from weekly_aggs a
+  inner join avg_prices p on a.week_date = p.week_date
+order by 1 desc
