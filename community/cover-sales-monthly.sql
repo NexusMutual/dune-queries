@@ -23,7 +23,7 @@ monthly_aggs as (
     sum(usdc_usd_cover) as usdc_usd_cover
   --from query_3889661 -- BD active cover base
   from nexusmutual_ethereum.covers_daily_agg
-  where block_date >= date_add('month', -52, date_trunc('month', current_date))
+  where block_date >= date_add('month', -24, date_trunc('month', current_date))
   group by 1
 )
 
