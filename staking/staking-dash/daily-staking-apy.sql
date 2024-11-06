@@ -12,8 +12,8 @@ select
   s.total_staked_nxm,
   r.reward_total,
   r.reward_total / nullif(s.total_staked_nxm, 0) * 36500.0 as apy
---from query_4065286 s -- staked nxm base query
-from nexusmutual_ethereum.staked_per_pool s
+from query_4065286 s -- staked nxm base query (uses staking pools - spell de-duped)
+--from nexusmutual_ethereum.staked_per_pool s
   inner join query_4068272 r -- daily staking rewards base query
     on s.pool_id = r.pool_id and s.block_date = r.block_date
   left join staking_pool_names spn on s.pool_id = spn.pool_id
