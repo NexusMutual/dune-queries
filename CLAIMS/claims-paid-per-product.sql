@@ -18,7 +18,8 @@ claims_paid as (
     --USDC
     usdc_eth_claim_amount,
     usdc_usd_claim_amount
-  from query_3911051 -- claims paid base (fallback) query
+  --from query_3911051 -- claims paid base (fallback) query
+  from nexusmutual_ethereum.claims_paid
 ),
 
 reimbursements (block_number, product_name, amount, symbol, tx_hash) as (
