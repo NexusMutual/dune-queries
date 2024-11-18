@@ -41,7 +41,8 @@ covers_ext as (
     premium_nxm,
     if(cover_asset = 'ETH', sum_assured * partial_cover_amount / total_cover_amount, 0) as eth_cover_amount,
     if(cover_asset = 'DAI', sum_assured * partial_cover_amount / total_cover_amount, 0) as dai_cover_amount,
-    if(cover_asset = 'USDC', sum_assured * partial_cover_amount / total_cover_amount, 0) as usdc_cover_amount
+    if(cover_asset = 'USDC', sum_assured * partial_cover_amount / total_cover_amount, 0) as usdc_cover_amount,
+    if(cover_asset = 'cbBTC', sum_assured * partial_cover_amount / total_cover_amount, 0) as cbbtc_cover_amount
   from covers
 ),
 
@@ -51,6 +52,7 @@ latest_prices as (
     max_by(avg_eth_usd_price, block_date) as avg_eth_usd_price,
     max_by(avg_dai_usd_price, block_date) as avg_dai_usd_price,
     max_by(avg_usdc_usd_price, block_date) as avg_usdc_usd_price,
+    max_by(avg_cbbtc_usd_price, block_date) as avg_cbbtc_usd_price,
     max_by(avg_nxm_eth_price, block_date) as avg_nxm_eth_price,
     max_by(avg_nxm_usd_price, block_date) as avg_nxm_usd_price
   --from query_3789851 -- prices base (fallback) query
@@ -83,6 +85,10 @@ select
   c.usdc_cover_amount,
   c.usdc_cover_amount * p.avg_usdc_usd_price / p.avg_eth_usd_price as usdc_eth_cover_amount,
   c.usdc_cover_amount * p.avg_usdc_usd_price as usdc_usd_cover_amount,
+  --cbBTC
+  c.cbbtc_cover_amount,
+  c.cbbtc_cover_amount * p.avg_cbbtc_usd_price / p.avg_eth_usd_price as cbbtc_eth_cover_amount,
+  c.cbbtc_cover_amount * p.avg_cbbtc_usd_price as cbbtc_usd_cover_amount,
   --NXM fees
   c.premium_nxm,
   c.premium_nxm * p.avg_nxm_eth_price as premium_nxm_eth,
