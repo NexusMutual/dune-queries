@@ -6,6 +6,7 @@ daily_avg_prices as (
     avg_eth_usd_price,
     avg_dai_usd_price,
     avg_usdc_usd_price,
+    avg_cbbtc_usd_price,
     avg_nxm_eth_price,
     avg_nxm_usd_price
   --from query_3789851 -- prices base (fallback) query
@@ -26,6 +27,9 @@ commissions_ext as (
     --USDC
     if(c.premium_asset = 'USDC', c.commission * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as usdc_eth_commission,
     if(c.premium_asset = 'USDC', c.commission * p.avg_nxm_usd_price, 0) as usdc_usd_commission,
+    --cbBTC
+    if(c.premium_asset = 'cbBTC', c.commission * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as cbbtc_eth_commission,
+    if(c.premium_asset = 'cbBTC', c.commission * p.avg_nxm_usd_price, 0) as cbbtc_usd_commission,
     --NXM
     if(c.premium_asset = 'NXM', c.commission * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as nxm_eth_commission,
     if(c.premium_asset = 'NXM', c.commission * p.avg_nxm_usd_price, 0) as nxm_usd_commission
@@ -53,8 +57,8 @@ commissions_agg as (
       ) then 'OpenCover'
       else cast(commission_destination as varchar)
     end as commission_destination,
-    sum(eth_eth_commission + dai_eth_commission + usdc_eth_commission + nxm_eth_commission) as eth_commission,
-    sum(eth_usd_commission + dai_usd_commission + usdc_usd_commission + nxm_usd_commission) as usd_commission
+    sum(eth_eth_commission + dai_eth_commission + usdc_eth_commission + cbbtc_eth_commission + nxm_eth_commission) as eth_commission,
+    sum(eth_usd_commission + dai_usd_commission + usdc_usd_commission + cbbtc_usd_commission + nxm_usd_commission) as usd_commission
   from commissions_ext
   group by 1, 2
 )

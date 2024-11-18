@@ -15,7 +15,10 @@ claims_paid as (
     dai_usd_claim_amount,
     --USDC
     usdc_eth_claim_amount,
-    usdc_usd_claim_amount
+    usdc_usd_claim_amount,
+    --cbBTC
+    cbbtc_eth_claim_amount,
+    cbbtc_usd_claim_amount
   --from query_3911051 -- claims paid base (fallback) query
   from nexusmutual_ethereum.claims_paid
 ),
@@ -23,8 +26,8 @@ claims_paid as (
 claims_paid_agg as (
   select
     coalesce(claim_payout_date, claim_date) as claim_payout_date,
-    sum(eth_eth_claim_amount + dai_eth_claim_amount + usdc_eth_claim_amount) as eth_claim_amount,
-    sum(eth_usd_claim_amount + dai_usd_claim_amount + usdc_usd_claim_amount) as usd_claim_amount
+    sum(eth_eth_claim_amount + dai_eth_claim_amount + usdc_eth_claim_amount + cbbtc_eth_claim_amount) as eth_claim_amount,
+    sum(eth_usd_claim_amount + dai_usd_claim_amount + usdc_usd_claim_amount + cbbtc_usd_claim_amount) as usd_claim_amount
   from claims_paid
   group by 1
 ),
