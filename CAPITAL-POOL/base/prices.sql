@@ -8,8 +8,8 @@ capital_pool as (
     avg_usdc_usd_price,
     avg_cbbtc_usd_price,
     avg_capital_pool_eth_total  
-  from query_3773633 -- Capital Pool base (fallback) query
-  --from nexusmutual_ethereum.capital_pool_totals -- until cbBTC is added
+  --from query_3773633 -- Capital Pool base (fallback) query
+  from nexusmutual_ethereum.capital_pool_totals
   --where block_date >= timestamp '2019-11-06'
 ),
 
