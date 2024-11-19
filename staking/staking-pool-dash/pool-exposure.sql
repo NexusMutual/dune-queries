@@ -24,9 +24,13 @@ active_covers as (
     --USDC
     usdc_cover_amount,
     usdc_eth_cover_amount,
-    usdc_usd_cover_amount
-  from query_3834200 -- active covers base (fallback) query
-  --from nexusmutual_ethereum.active_covers ac -- spell needs updating
+    usdc_usd_cover_amount,
+    --cbBTC
+    cbbtc_cover_amount,
+    cbbtc_eth_cover_amount,
+    cbbtc_usd_cover_amount
+  --from query_3834200 -- active covers base (fallback) query
+  from nexusmutual_ethereum.active_covers
   where cast(staking_pool_id as int) in (select pool_id from params)
 )
 
@@ -34,10 +38,11 @@ select
   --coalesce(product_name, '**Totals**') as listing,
   product_name as listing,
   sum(usdc_cover_amount) as usdc_cover_amount,
+  sum(cbbtc_cover_amount) as cbbtc_cover_amount,
   sum(dai_cover_amount) as dai_cover_amount,
   sum(eth_cover_amount) as eth_cover_amount,
-  sum(usdc_usd_cover_amount + dai_usd_cover_amount + eth_usd_cover_amount) as total_usd_cover_amount,
-  sum(usdc_eth_cover_amount + dai_eth_cover_amount + eth_cover_amount) as total_eth_cover_amount
+  sum(usdc_usd_cover_amount + cbbtc_usd_cover_amount + dai_usd_cover_amount + eth_usd_cover_amount) as total_usd_cover_amount,
+  sum(usdc_eth_cover_amount + cbbtc_eth_cover_amount + dai_eth_cover_amount + eth_cover_amount) as total_eth_cover_amount
 from active_covers
 group by 1
 order by 1
