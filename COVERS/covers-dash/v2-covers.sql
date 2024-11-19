@@ -32,10 +32,11 @@ daily_avg_prices as (
     avg_eth_usd_price,
     avg_dai_usd_price,
     avg_usdc_usd_price,
+    avg_cbbtc_usd_price,
     avg_nxm_eth_price,
     avg_nxm_usd_price
-  from query_3789851 -- prices base (fallback) query
-  --from nexusmutual_ethereum.capital_pool_prices
+  --from query_3789851 -- prices base (fallback) query
+  from nexusmutual_ethereum.capital_pool_prices
 )
 
 select
@@ -47,21 +48,25 @@ select
     when c.cover_asset = 'ETH' then c.sum_assured * p_start.avg_eth_usd_price
     when c.cover_asset = 'DAI' then c.sum_assured * p_start.avg_dai_usd_price
     when c.cover_asset = 'USDC' then c.sum_assured * p_start.avg_usdc_usd_price
+    when c.cover_asset = 'cbBTC' then c.sum_assured * p_start.avg_cbbtc_usd_price
   end as cover_start_usd,
   case
     when c.cover_asset = 'ETH' then c.sum_assured
     when c.cover_asset = 'DAI' then (c.sum_assured * p_start.avg_dai_usd_price) / p_start.avg_eth_usd_price
     when c.cover_asset = 'USDC' then (c.sum_assured * p_start.avg_usdc_usd_price) / p_start.avg_eth_usd_price
+    when c.cover_asset = 'cbBTC' then (c.sum_assured * p_start.avg_cbbtc_usd_price) / p_start.avg_eth_usd_price
   end as cover_start_eth,
   case
     when c.cover_asset = 'ETH' then c.sum_assured * p_end.avg_eth_usd_price
     when c.cover_asset = 'DAI' then c.sum_assured * p_end.avg_dai_usd_price
     when c.cover_asset = 'USDC' then c.sum_assured * p_end.avg_usdc_usd_price
+    when c.cover_asset = 'cbBTC' then c.sum_assured * p_end.avg_cbbtc_usd_price
   end as cover_end_usd,
   case
     when c.cover_asset = 'ETH' then c.sum_assured
     when c.cover_asset = 'DAI' then (c.sum_assured * p_end.avg_dai_usd_price) / p_end.avg_eth_usd_price
     when c.cover_asset = 'USDC' then (c.sum_assured * p_end.avg_usdc_usd_price) / p_end.avg_eth_usd_price
+    when c.cover_asset = 'cbBTC' then (c.sum_assured * p_end.avg_cbbtc_usd_price) / p_end.avg_eth_usd_price
   end as cover_end_eth,
   c.staking_pool,
   c.sum_assured * c.partial_cover_amount / c.total_cover_amount as staking_pool_cover_amount,
@@ -71,6 +76,7 @@ select
     when c.cover_asset = 'ETH' then c.premium_nxm * p_start.avg_nxm_eth_price
     when c.cover_asset = 'DAI' then (c.premium_nxm * p_start.avg_nxm_usd_price) / p_start.avg_dai_usd_price
     when c.cover_asset = 'USDC' then (c.premium_nxm * p_start.avg_nxm_usd_price) / p_start.avg_usdc_usd_price
+    when c.cover_asset = 'cbBTC' then (c.premium_nxm * p_start.avg_nxm_usd_price) / p_start.avg_cbbtc_usd_price
   end as premium_native,
   c.premium_nxm * p_start.avg_nxm_usd_price as premium_usd,
   coalesce(c.product_type, 'unknown') as product_type,

@@ -1,5 +1,18 @@
 with
 
+daily_avg_prices as (
+  select
+    block_date,
+    avg_eth_usd_price,
+    avg_dai_usd_price,
+    avg_usdc_usd_price,
+    avg_cbbtc_usd_price,
+    avg_nxm_eth_price,
+    avg_nxm_usd_price
+  --from query_3789851 -- prices base (fallback) query
+  from nexusmutual_ethereum.capital_pool_prices
+),
+
 covers as (
   select
     cover_id,
@@ -10,7 +23,8 @@ covers as (
     cover_owner,
     if(cover_asset = 'ETH', sum_assured, 0) as eth_cover_amount,
     if(cover_asset = 'DAI', sum_assured, 0) as dai_cover_amount,
-    if(cover_asset = 'USDC', sum_assured, 0) as usdc_cover_amount
+    cast(0 as double) as usdc_cover_amount,
+    cast(0 as double) as cbbtc_cover_amount
   --from query_3788367 -- covers v1 base (fallback) query
   from nexusmutual_ethereum.covers_v1
   union all
@@ -23,46 +37,11 @@ covers as (
     cover_owner,
     if(cover_asset = 'ETH', sum_assured, 0) as eth_cover_amount,
     if(cover_asset = 'DAI', sum_assured, 0) as dai_cover_amount,
-    if(cover_asset = 'USDC', sum_assured, 0) as usdc_cover_amount
+    if(cover_asset = 'USDC', sum_assured, 0) as usdc_cover_amount,
+    if(cover_asset = 'cbBTC', sum_assured, 0) as cbbtc_cover_amount
   --from query_3788370 -- covers v2 base (fallback) query
   from nexusmutual_ethereum.covers_v2
   where is_migrated = false
-),
-
-daily_avg_eth_prices as (
-  select
-    date_trunc('day', minute) as block_date,
-    avg(price) as price_usd
-  from prices.usd
-  where symbol = 'ETH'
-    and blockchain is null
-    and contract_address is null
-    and minute >= timestamp '2019-05-01'
-  group by 1
-),
-
-daily_avg_dai_prices as (
-  select
-    date_trunc('day', minute) as block_date,
-    avg(price) as price_usd
-  from prices.usd
-  where symbol = 'DAI'
-    and blockchain = 'ethereum'
-    and contract_address = 0x6b175474e89094c44da98b954eedeac495271d0f
-    and minute >= timestamp '2019-07-12'
-  group by 1
-),
-
-daily_avg_usdc_prices as (
-  select
-    date_trunc('day', minute) as block_date,
-    avg(price) as price_usd
-  from prices.usd
-  where symbol = 'USDC'
-    and blockchain = 'ethereum'
-    and contract_address = 0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48
-    and minute >= timestamp '2019-07-12'
-  group by 1
 ),
 
 cover_owners as (
@@ -70,17 +49,18 @@ cover_owners as (
     c.cover_owner,
     --ETH
     c.eth_cover_amount,
-    c.eth_cover_amount * p_avg_eth.price_usd as eth_usd_cover_amount,
+    c.eth_cover_amount * p.avg_eth_usd_price as eth_usd_cover_amount,
     --DAI
-    c.dai_cover_amount * p_avg_dai.price_usd / p_avg_eth.price_usd as dai_eth_cover_amount,
-    c.dai_cover_amount * p_avg_dai.price_usd as dai_usd_cover_amount,
+    c.dai_cover_amount * p.avg_dai_usd_price / p.avg_eth_usd_price as dai_eth_cover_amount,
+    c.dai_cover_amount * p.avg_dai_usd_price as dai_usd_cover_amount,
     --USDC
-    c.usdc_cover_amount * p_avg_usdc.price_usd / p_avg_eth.price_usd as usdc_eth_cover_amount,
-    c.usdc_cover_amount * p_avg_usdc.price_usd as usdc_usd_cover_amount
+    c.usdc_cover_amount * p.avg_usdc_usd_price / p.avg_eth_usd_price as usdc_eth_cover_amount,
+    c.usdc_cover_amount * p.avg_usdc_usd_price as usdc_usd_cover_amount,
+    --cbBTC
+    c.cbbtc_cover_amount * p.avg_cbbtc_usd_price / p.avg_eth_usd_price as cbbtc_eth_cover_amount,
+    c.cbbtc_cover_amount * p.avg_cbbtc_usd_price as cbbtc_usd_cover_amount
   from covers c
-    inner join daily_avg_eth_prices p_avg_eth on c.cover_start_date = p_avg_eth.block_date
-    inner join daily_avg_dai_prices p_avg_dai on c.cover_start_date = p_avg_dai.block_date
-    inner join daily_avg_usdc_prices p_avg_usdc on c.cover_start_date = p_avg_usdc.block_date
+    inner join daily_avg_prices p on c.cover_start_date = p.block_date
   where c.cover_start_date >= timestamp '{{Start Date}}'
     and c.cover_start_date < timestamp '{{End Date}}'
 )
@@ -89,8 +69,8 @@ select
   cover_owner,
   sum(if(
     '{{display_currency}}' = 'USD',
-    eth_usd_cover_amount + dai_usd_cover_amount + usdc_usd_cover_amount,
-    eth_cover_amount + dai_eth_cover_amount + usdc_eth_cover_amount
+    eth_usd_cover_amount + dai_usd_cover_amount + usdc_usd_cover_amount + cbbtc_usd_cover_amount,
+    eth_cover_amount + dai_eth_cover_amount + usdc_eth_cover_amount + cbbtc_eth_cover_amount
   )) as total_cover_amount
 from cover_owners
 group by 1

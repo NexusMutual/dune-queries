@@ -6,10 +6,11 @@ daily_avg_prices as (
     avg_eth_usd_price,
     avg_dai_usd_price,
     avg_usdc_usd_price,
+    avg_cbbtc_usd_price,
     avg_nxm_eth_price,
     avg_nxm_usd_price
-  from query_3789851 -- prices base (fallback) query
-  --from nexusmutual_ethereum.capital_pool_prices
+  --from query_3789851 -- prices base (fallback) query
+  from nexusmutual_ethereum.capital_pool_prices
 ),
 
 covers as (
@@ -49,6 +50,8 @@ premium_aggs as (
     sum(premium_eth) filter (where premium_asset = 'DAI') as premium_dai_eth,
     sum(premium_usd) filter (where premium_asset = 'USDC') as premium_usdc_usd,
     sum(premium_eth) filter (where premium_asset = 'USDC') as premium_usdc_eth,
+    sum(premium_usd) filter (where premium_asset = 'cbBTC') as premium_cbbtc_usd,
+    sum(premium_eth) filter (where premium_asset = 'cbBTC') as premium_cbbtc_eth,
     sum(premium_usd) filter (where premium_asset = 'NXM') as premium_nxm_usd,
     sum(premium_eth) filter (where premium_asset = 'NXM') as premium_nxm_eth
   from covers
@@ -67,6 +70,7 @@ select
   if('{{display_currency}}' = 'USD', sum(premium_eth_usd) over (), sum(premium_eth_eth) over ()) as eth_premium,
   if('{{display_currency}}' = 'USD', sum(premium_dai_usd) over (), sum(premium_dai_eth) over ()) as dai_premium,
   if('{{display_currency}}' = 'USD', sum(premium_usdc_usd) over (), sum(premium_usdc_eth) over ()) as usdc_premium,
+  if('{{display_currency}}' = 'USD', sum(premium_cbbtc_usd) over (), sum(premium_cbbtc_eth) over ()) as cbbtc_premium,
   if('{{display_currency}}' = 'USD', sum(premium_nxm_usd) over (), sum(premium_nxm_eth) over ()) as nxm_premium
 from premium_aggs
 order by 1, 2

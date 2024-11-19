@@ -13,7 +13,10 @@ active_covers as (
     dai_usd_cover_amount,
     --USDC
     usdc_eth_cover_amount,
-    usdc_usd_cover_amount
+    usdc_usd_cover_amount,
+    --cbBTC
+    cbbtc_eth_cover_amount,
+    cbbtc_usd_cover_amount
   --from query_3834200 -- active covers base (fallback) query
   from nexusmutual_ethereum.active_covers
 ),
@@ -38,7 +41,9 @@ daily_cover_expiry as (
     sum(c.dai_eth_cover_amount) as dai_eth_cover_total,
     sum(c.dai_usd_cover_amount) as dai_usd_cover_total,
     sum(c.usdc_eth_cover_amount) as usdc_eth_cover_total,
-    sum(c.usdc_usd_cover_amount) as usdc_usd_cover_total
+    sum(c.usdc_usd_cover_amount) as usdc_usd_cover_total,
+    sum(c.cbbtc_eth_cover_amount) as cbbtc_eth_cover_total,
+    sum(c.cbbtc_usd_cover_amount) as cbbtc_usd_cover_total
   from day_sequence ds
     left join active_covers c on ds.block_date between c.cover_start_date and c.cover_end_date
   group by 1
@@ -49,10 +54,11 @@ select
   sum(if('{{display_currency}}' = 'USD', eth_usd_cover_total, eth_eth_cover_total)) as eth_cover_total,
   sum(if('{{display_currency}}' = 'USD', dai_usd_cover_total, dai_eth_cover_total)) as dai_cover_total,
   sum(if('{{display_currency}}' = 'USD', usdc_usd_cover_total, usdc_eth_cover_total)) as usdc_cover_total,
+  sum(if('{{display_currency}}' = 'USD', cbbtc_usd_cover_total, cbbtc_eth_cover_total)) as cbbtc_cover_total,
   sum(if(
     '{{display_currency}}' = 'USD',
-    eth_usd_cover_total + dai_usd_cover_total + usdc_usd_cover_total,
-    eth_eth_cover_total + dai_eth_cover_total + usdc_eth_cover_total
+    eth_usd_cover_total + dai_usd_cover_total + usdc_usd_cover_total + cbbtc_usd_cover_total,
+    eth_eth_cover_total + dai_eth_cover_total + usdc_eth_cover_total + cbbtc_eth_cover_total
   )) as cover_total
 from daily_cover_expiry
 where block_date <= case '{{period}}'
