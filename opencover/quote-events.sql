@@ -208,6 +208,7 @@ select
     when 0 then 'ETH'
     when 1 then 'DAI'
     when 2 then 'USDC'
+    when 3 then 'cbBTC'
   end as cover_asset,
   sb.cover_amount,
   sb.payment_asset_id,
