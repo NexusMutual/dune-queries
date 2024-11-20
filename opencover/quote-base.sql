@@ -50,16 +50,16 @@ select
   ocq.quote_submitted_block_time,
   ocq.quote_settled_block_time,
   ocq.cover_expiry,
-  --date_add('day', -1 * ocq.cover_expiry, from_unixtime(ocq.cover_expires_at)) as cover_start_time,
-  --from_unixtime(ocq.cover_expires_at) as cover_end_time,
-  --date_trunc('day', date_add('day', -1 * ocq.cover_expiry, from_unixtime(ocq.cover_expires_at))) as cover_start_date,
-  --date_trunc('day', from_unixtime(ocq.cover_expires_at)) as cover_end_date,
-  ocq.quote_settled_block_time as cover_start_time,
+--   date_add('day', -1 * ocq.cover_expiry, from_unixtime(ocq.cover_expires_at)) as cover_start_time,
+--   from_unixtime(ocq.cover_expires_at) as cover_end_time,
+--   date_trunc('day', date_add('day', -1 * ocq.cover_expiry, from_unixtime(ocq.cover_expires_at))) as cover_start_date,
+--   date_trunc('day', from_unixtime(ocq.cover_expires_at)) as cover_end_date,
+  quote_settled_block_time as cover_start_time,
   date_add('day', ocq.cover_expiry, ocq.quote_settled_block_time) as cover_end_time,
-  date_trunc('day', ocq.quote_settled_block_time) as cover_start_date,
+  date_trunc('day', quote_settled_block_time) as cover_start_date,
   date_trunc('day', date_add('day', ocq.cover_expiry, ocq.quote_settled_block_time)) as cover_end_date,
   ocq.provider_id,
-  ocq.product_id,
+  ocq.product_id % 10000 as product_id,
   p.product_type,
   p.product_name,
   ocq.cover_asset,
@@ -76,7 +76,7 @@ from query_3933198 ocq -- opencover - quote events
   inner join daily_avg_prices ppa on ocq.blockchain = ppa.blockchain
     and ocq.quote_submitted_block_date = ppa.block_date
     and ocq.payment_asset = ppa.asset_symbol
-  left join products p on ocq.product_id = p.product_id
+  left join products p on ocq.product_id % 10000 = p.product_id
 where ocq.quote_settled_block_time is not null
   and ocq.quote_refunded_block_time is null
 --order by 1,2
