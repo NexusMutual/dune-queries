@@ -31,8 +31,8 @@ cover_sales as (
 
 claims_paid as (
   select
-    coalesce(sum(eth_usd_claim_amount + dai_usd_claim_amount + usdc_usd_claim_amount), 0) as usd_claim_amount,
-    coalesce(sum(eth_eth_claim_amount + dai_eth_claim_amount + usdc_eth_claim_amount), 0) as eth_claim_amount
+    coalesce(sum(eth_usd_claim_amount + dai_usd_claim_amount + usdc_usd_claim_amount + cbbtc_usd_claim_amount), 0) as usd_claim_amount,
+    coalesce(sum(eth_eth_claim_amount + dai_eth_claim_amount + usdc_eth_claim_amount + cbbtc_eth_claim_amount), 0) as eth_claim_amount
   --from query_3911051 -- claims paid base (fallback) query
   from nexusmutual_ethereum.claims_paid
   where date_trunc('quarter', coalesce(claim_payout_date, claim_date)) in (select period_date from params)
