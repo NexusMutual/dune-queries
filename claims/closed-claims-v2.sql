@@ -98,7 +98,7 @@ select
     else 'DENIED ❌'
   end as verdict,
   concat(
-    '<a href="https://app.nexusmutual.io/assessment/view-claim?claimId=',
+    '<a href="https://app.nexusmutual.io/claims/view-claim?claimId=',
     cast(cc.assessment_id as varchar),
     '" target="_blank">',
     'link',

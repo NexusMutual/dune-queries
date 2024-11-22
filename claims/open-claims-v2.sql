@@ -92,7 +92,7 @@ select
   oc.cover_id,
   'PENDING ❓' as verdict,
   concat(
-    '<a href="https://app.nexusmutual.io/assessment/claim/claim-details?claimId=',
+    '<a href="https://app.nexusmutual.io/claims/claim/claim-details?claimId=',
     cast(oc.assessment_id as varchar),
     '" target="_blank">',
     'link',
