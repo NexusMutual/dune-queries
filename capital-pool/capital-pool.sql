@@ -2,8 +2,8 @@ with
 
 capital_pool as (
   select *
-  from query_3773633 -- Capital Pool base (fallback) query
-  --from nexusmutual_ethereum.capital_pool_totals -- until cbBTC is added
+  --from query_3773633 -- Capital Pool base (fallback) query
+  from nexusmutual_ethereum.capital_pool_totals -- until cbBTC is added
 )
 
 select
