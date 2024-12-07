@@ -2,9 +2,11 @@ with
 
 cover_base as (
   select distinct
-    cover_id, cover_start_date, cover_end_date, cover_asset, sum_assured, cover_owner, cover_ipfs_data
+    cover_id, product_id, product_name, cover_start_date, cover_end_date,
+    cover_asset, sum_assured, cover_owner, cover_ipfs_data
   from query_3788370 -- covers v2 - base
   where cover_ipfs_data <> ''
+    --and product_id in (245, 246, 247) -- Entry / Essential / Elite Plan
     and cover_id in (
       1572, -- Entry sample(s)
       1559, 1566, -- Essential sample(s)
@@ -16,14 +18,18 @@ cover_base as (
 
 cover_ipfs_data as (
   select
-    cover_id, cover_start_date, cover_end_date, cover_asset, sum_assured, cover_owner,
+    cover_id, product_id, product_name,
+    cover_start_date, cover_end_date,
+    cover_asset, sum_assured, cover_owner,
     http_get(concat('https://api.nexusmutual.io/ipfs/', cover_ipfs_data)) as cover_data
   from cover_base
 ),
 
 cover_ipfs_data_ext as (
   select
-    cover_id, cover_start_date, cover_end_date, cover_asset, sum_assured, cover_owner,
+    cover_id, product_id, product_name,
+    cover_start_date, cover_end_date,
+    cover_asset, sum_assured, cover_owner,
     case
       when try(json_array_length(json_parse(cover_data))) is not null then
         sequence(1, json_array_length(json_parse(cover_data)))
@@ -37,6 +43,8 @@ cover_ipfs_data_ext as (
 cover as (
   select
     cover_id,
+    product_id,
+    product_name,
     cover_start_date,
     cover_end_date,
     cover_asset,
@@ -55,15 +63,16 @@ cover as (
 
 select
   cover_id,
-  cover_start_date,
-  cover_end_date,
-  cover_asset,
-  sum_assured,
-  case
+  product_id,
+  /*product_name*/ case
     when sum_assured < 200000 then 'Entry'
     when sum_assured < 1000000 then 'Essential'
     else 'Elite'
   end as plan,
+  cover_start_date,
+  cover_end_date,
+  cover_asset,
+  sum_assured,
   cover_owner,
   coalesce(cover_data_address, cover_owner) as monitored_wallet
 from cover
