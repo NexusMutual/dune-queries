@@ -73,7 +73,7 @@ cover_enriched as (
     c.usdc_cover_amount * p.avg_usdc_usd_price / p.avg_eth_usd_price as usdc_eth_cover_amount,
     c.usdc_cover_amount * p.avg_usdc_usd_price as usdc_usd_cover_amount,
     c.cbbtc_cover_amount * p.avg_cbbtc_usd_price / p.avg_eth_usd_price as cbbtc_eth_cover_amount,
-    c.cbbtc_cover_amount * p.avg_cbbtc_usd_price as cbbtc_usd_cover_amount
+    c.cbbtc_cover_amount * p.avg_cbbtc_usd_price as cbbtc_usd_cover_amount,
     c.cover_owner,
     c.cover_data_address
   from cover c
