@@ -93,3 +93,4 @@ select
   cover_owner,
   coalesce(cover_data_address, cover_owner) as monitored_wallet
 from cover_enriched
+order by 1
