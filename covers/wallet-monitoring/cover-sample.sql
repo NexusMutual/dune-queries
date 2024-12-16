@@ -91,6 +91,7 @@ select
   eth_usd_cover_amount + dai_usd_cover_amount + usdc_usd_cover_amount + cbbtc_usd_cover_amount as usd_cover_amount,
   eth_eth_cover_amount + dai_eth_cover_amount + usdc_eth_cover_amount + cbbtc_eth_cover_amount as eth_cover_amount,
   cover_owner,
-  coalesce(cover_data_address, cover_owner) as monitored_wallet
+  coalesce(cover_data_address, cover_owner) as monitored_wallet,
+  current_timestamp as inserted_at
 from cover_enriched
 order by 1
