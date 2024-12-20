@@ -94,4 +94,5 @@ select
   coalesce(cover_data_address, cover_owner) as monitored_wallet,
   current_timestamp as inserted_at
 from cover_enriched
+where cover_id > {{max_cover_id}}
 order by 1
