@@ -1,87 +1,50 @@
-WITH
-  bv_diff_swapNxmForEth AS (
-    SELECT
-      date_trunc('minute', a.call_block_time) as ts,
-      CAST(b.output_0 AS DOUBLE) * 1E-18 AS pre_sale_nxm_supply,
-      CAST(a.output_0 AS DOUBLE) * 1E-18 AS pre_sale_capital_pool_eth,
-      CAST(b.output_0 - c.nxmIn AS DOUBLE) * 1E-18 AS post_sale_nxm_supply,
-      CAST(a.output_0 - c.ethOut AS DOUBLE) * 1E-18 AS post_sale_capital_pool_eth,
-      (
-        CAST(a.output_0 - c.ethOut AS DOUBLE) / CAST(b.output_0 - c.nxmIn AS DOUBLE)
-      ) - (
-        CAST(a.output_0 AS DOUBLE) / CAST(b.output_0 AS DOUBLE)
-      ) AS bv_diff_per_nxm,
-      (
-        (
-          CAST(a.output_0 - c.ethOut AS DOUBLE) / CAST(b.output_0 - c.nxmIn AS DOUBLE)
-        ) - (
-          CAST(a.output_0 AS DOUBLE) / CAST(b.output_0 AS DOUBLE)
-        )
-      ) * CAST(b.output_0 - c.nxmIn AS DOUBLE) * 1E-18 AS bv_diff
-    FROM
-      nexusmutual_ethereum.Pool_call_getPoolValueInEth AS a
-      INNER JOIN nexusmutual_ethereum.NXMToken_call_totalSupply AS b ON a.call_tx_hash = b.call_tx_hash
-      INNER JOIN nexusmutual_ethereum.Ramm_evt_NxmSwappedForEth AS c ON a.call_tx_hash = c.evt_tx_hash
-    WHERE
-      a.call_success
-      AND b.call_success
-  ),
-  bv_diff_swapEthForNxm AS (
-    SELECT
-      CAST(a.call_block_time AS TIMESTAMP) as ts,
-      CAST(b.output_0 AS DOUBLE) AS pre_sale_nxm_supply,
-      CAST(a.output_0 AS DOUBLE) AS pre_sale_capital_pool_eth,
-      CAST(b.output_0 + c.nxmOut AS DOUBLE) AS post_sale_nxm_supply,
-      CAST(a.output_0 + c.ethIn AS DOUBLE) AS post_sale_capital_pool_eth,
-      (
-        CAST(a.output_0 + c.ethIn AS DOUBLE) / CAST(b.output_0 + c.nxmOut AS DOUBLE)
-      ) - (
-        CAST(a.output_0 AS DOUBLE) / CAST(b.output_0 AS DOUBLE)
-      ) AS bv_diff_per_nxm
-    FROM
-      nexusmutual_ethereum.Pool_call_getPoolValueInEth AS a
-      INNER JOIN nexusmutual_ethereum.NXMToken_call_totalSupply AS b ON a.call_tx_hash = b.call_tx_hash
-      INNER JOIN nexusmutual_ethereum.Ramm_evt_EthSwappedForNxm AS c ON a.call_tx_hash = c.evt_tx_hash
-    WHERE
-      a.call_success
-      AND b.call_success
-  ),
-  prices AS (
-    SELECT DISTINCT
-      date_trunc('minute', minute) AS ts,
-      symbol,
-      AVG(price) OVER (
-        PARTITION BY
-          date_trunc('minute', minute)
-      ) AS price_dollar
-    FROM prices.usd
-    WHERE symbol = 'ETH'
-      AND blockchain IS NULL
-      AND minute > CAST('2023-11-11' AS TIMESTAMP)
-  ),
-  bv_diff AS (
-    SELECT
-      a.ts,
-      bv_diff_per_nxm,
-      bv_diff,
-      SUM(bv_diff) OVER (
-        ORDER BY
-          a.ts ASC
-      ) AS cummulative_bv_diff,
-      SUM(bv_diff * price_dollar) OVER (
-        ORDER BY
-          a.ts ASC
-      ) AS cummulative_bv_diff_in_dollars
-    FROM
-      bv_diff_swapNxmForEth AS a
-      INNER JOIN prices AS b ON a.ts = b.ts
-  )
-SELECT
-  *
-FROM
-  bv_diff
-WHERE
-  ts >= CAST('{{Start Date}}' AS TIMESTAMP)
-  AND ts <= CAST('{{End Date}}' AS TIMESTAMP)
-ORDER BY
-  ts DESC
+with
+
+prices as (
+  select
+    date_trunc('minute', minute) as block_minute,
+    avg(price) as avg_eth_usd_price
+  from prices.usd
+  where symbol = 'ETH'
+    and blockchain is null
+    and minute > cast('2023-11-11' as timestamp)
+  group by 1
+),
+
+bv_diff_nxm_eth_swap as (
+  select
+    date_trunc('minute', r.evt_block_time) as block_minute,
+    s.output_0 / 1e18 as nxm_supply_pre_sale,
+    c.output_0 / 1e18 as eth_capital_pool_pre_sale,
+    (s.output_0 - r.nxmIn) / 1e18 as nxm_supply_post_sale,
+    (c.output_0 - r.ethOut) / 1e18 as eth_capital_pool_post_sale
+  from nexusmutual_ethereum.Ramm_evt_NxmSwappedForEth r
+    inner join nexusmutual_ethereum.Pool_call_getPoolValueInEth c on r.evt_block_time = c.call_block_time and r.evt_tx_hash = c.call_tx_hash
+    inner join nexusmutual_ethereum.NXMToken_call_totalSupply s on c.call_block_time = s.call_block_time and c.call_tx_hash = s.call_tx_hash
+  where c.call_success
+    and s.call_success
+),
+
+bv_diff_nxm_eth_swap_ext as (
+  select
+    block_minute,
+    nxm_supply_pre_sale,
+    eth_capital_pool_pre_sale,
+    nxm_supply_post_sale,
+    eth_capital_pool_post_sale,
+    (eth_capital_pool_post_sale / nxm_supply_post_sale) - (eth_capital_pool_pre_sale / nxm_supply_pre_sale) as bv_diff_per_nxm,
+    ((eth_capital_pool_post_sale / nxm_supply_post_sale) - (eth_capital_pool_pre_sale / nxm_supply_pre_sale)) * nxm_supply_post_sale as bv_diff
+  from bv_diff_nxm_eth_swap
+)
+
+select
+  s.block_minute,
+  s.bv_diff_per_nxm,
+  s.bv_diff,
+  sum(s.bv_diff) over (order by s.block_minute) as bv_diff_cummulative,
+  sum(s.bv_diff * p.avg_eth_usd_price) over (order by s.block_minute) as bv_diff_cummulative_usd
+from bv_diff_nxm_eth_swap_ext s
+  inner join prices p on s.block_minute = p.block_minute
+where s.block_minute >= cast('{{Start Date}}' as timestamp)
+  and s.block_minute <= cast('{{End Date}}' as timestamp)
+order by 1 desc
