@@ -1,73 +1,22 @@
-WITH
-  volume_transacted AS (
-    SELECT
-      CAST(evt_block_time AS TIMESTAMP) AS ts,
-      CAST(ethIn AS DOUBLE) * 1E-18 AS eth_in,
-      0 AS nxm_out,
-      0 AS nxm_in,
-      0 AS eth_out
-    FROM
-      nexusmutual_ethereum.Ramm_evt_EthSwappedForNxm
-    UNION ALL
-    SELECT
-      CAST(evt_block_time AS TIMESTAMP) AS ts,
-      0 AS eth_in,
-      CAST(nxmOut AS DOUBLE) * 1E-18 AS nxm_out,
-      0 AS nxm_in,
-      0 AS eth_out
-    FROM
-      nexusmutual_ethereum.Ramm_evt_EthSwappedForNxm
-    UNION ALL
-    SELECT
-      CAST(evt_block_time AS TIMESTAMP) AS ts,
-      0 AS eth_in,
-      0 AS nxm_out,
-      CAST(nxmIn AS DOUBLE) * 1E-18 AS nxm_in,
-      0 AS eth_out
-    FROM
-      nexusmutual_ethereum.Ramm_evt_NxmSwappedForEth
-    UNION ALL
-    SELECT
-      CAST(evt_block_time AS TIMESTAMP) AS ts,
-      0 AS eth_in,
-      0 AS nxm_out,
-      0 AS nxm_in,
-      CAST(ethOut AS DOUBLE) * 1E-18 AS eth_out
-    FROM
-      nexusmutual_ethereum.Ramm_evt_NxmSwappedForEth
-  ),
-  cummulative_volume_transacted AS (
-    SELECT
-      ts,
-      SUM(eth_in) OVER (
-        ORDER BY
-          ts
-      ) AS cummulative_eth_in,
-      SUM(nxm_in) OVER (
-        ORDER BY
-          ts
-      ) AS cummulative_nxm_in,
-      SUM(eth_out) OVER (
-        ORDER BY
-          ts
-      ) AS cummulative_eth_out,
-      SUM(nxm_out) OVER (
-        ORDER BY
-          ts
-      ) AS cummulative_nxm_out
-    FROM
-      volume_transacted
-  )
-SELECT DISTINCT
-  ts,
+with
+
+cummulative_volume_transacted as (
+  select
+    block_time,
+    sum(case when token_in = 'ETH' then amount_in end) over (order by block_time) as cummulative_eth_in,
+    sum(case when token_in = 'NXM' then amount_in end) over (order by block_time) as cummulative_nxm_in,
+    sum(case when token_out = 'ETH' then amount_out end) over (order by block_time) as cummulative_eth_out,
+    sum(case when token_out = 'NXM' then amount_out end) over (order by block_time) as cummulative_nxm_out
+  from query_4498669 -- RAMM swaps - base
+)
+
+select distinct
+  block_time,
   cummulative_eth_in,
   cummulative_eth_out,
   cummulative_nxm_out,
   cummulative_nxm_in
-FROM
-  cummulative_volume_transacted
-WHERE
-  ts >= CAST('{{Start Date}}' AS TIMESTAMP)
-  AND ts <= CAST('{{End Date}}' AS TIMESTAMP)
-ORDER BY
-  ts DESC NULLS FIRST
+from cummulative_volume_transacted
+where block_time >= cast('{{Start Date}}' as timestamp)
+  and block_time <= cast('{{End Date}}' as timestamp)
+order by 1 desc
