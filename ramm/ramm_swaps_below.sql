@@ -13,12 +13,13 @@ prices as (
 
 swaps_below as (
   select
-    date_trunc('minute', evt_block_time) as block_minute,
+    date_trunc('minute', block_time) as block_minute,
     member,
-    nxmIn / 1e18 as nxm_in,
-    ethOut / 1e18 as eth_out,
-    cast(ethOut as double) / cast(nxmIn as double) as nxm_eth_swap_price
-  from nexusmutual_ethereum.Ramm_evt_NxmSwappedForEth
+    amount_in as nxm_in,
+    amount_out as eth_out,
+    swap_price as nxm_eth_swap_price
+  from query_4498669 -- RAMM swaps - base
+  where swap_type = 'below'
 )
 
 select

@@ -6,7 +6,8 @@ select
   'ETH' as token_out,
   nxmIn / 1e18 as amount_in,
   ethOut / 1e18 as amount_out,
-  (ethOut / 1e18) / (nxmIn / 1e18) as swap_price
+  (ethOut / 1e18) / (nxmIn / 1e18) as swap_price,
+  evt_tx_hash as tx_hash
 from nexusmutual_ethereum.Ramm_evt_NxmSwappedForEth
 union all
 select
@@ -17,5 +18,6 @@ select
   'NXM' as token_out,
   ethIn / 1e18 as amount_in,
   nxmOut / 1e18 as amount_out,
-  (ethIn / 1e18) / (nxmOut / 1e18) as swap_price
+  (ethIn / 1e18) / (nxmOut / 1e18) as swap_price,
+  evt_tx_hash as tx_hash
 from nexusmutual_ethereum.Ramm_evt_EthSwappedForNxm
