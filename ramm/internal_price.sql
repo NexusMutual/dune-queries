@@ -1,28 +1,29 @@
-WITH
-  internal_price AS (
-    SELECT
-      date_trunc('minute', call_block_time) AS ts,
-      CAST(output_internalPrice AS DOUBLE) AS internal_price_eth
-    FROM
-      nexusmutual_ethereum.Ramm_call_getInternalPriceAndUpdateTwap
-  ),
-  prices AS (
-    SELECT DISTINCT
-      date_trunc('minute', minute) AS ts,
-      symbol,
-      AVG(price) OVER (
-        PARTITION BY
-          date_trunc('minute', minute)
-      ) AS price_dollar
-    FROM prices.usd
-    WHERE symbol = 'ETH'
-      AND blockchain IS NULL
-      AND minute > CAST('2023-11-11' AS TIMESTAMP)
-  )
-SELECT
-  a.ts,
-  internal_price_eth,
-  internal_price_eth * price_dollar AS internal_price_dollar
-FROM
-  internal_price AS a
-  INNER JOIN prices AS b ON a.ts = b.ts
+with
+
+prices as (
+  select
+    date_trunc('minute', minute) as block_minute,
+    avg(price) as avg_eth_usd_price
+  from prices.usd
+  where symbol = 'ETH'
+    and blockchain is null
+    and minute > cast('2023-11-11' as timestamp)
+  group by 1
+),
+
+internal_price as (
+  select
+    date_trunc('minute', call_block_time) as block_minute,
+    output_internalPrice / 1e18 as internal_price_nxm
+  from nexusmutual_ethereum.Ramm_call_getInternalPriceAndUpdateTwap
+)
+
+select
+  ip.block_minute,
+  ip.internal_price_nxm,
+  ip.internal_price_nxm * p.avg_eth_usd_price as internal_price_usd
+from internal_price ip
+  inner join prices p on ip.block_minute = p.block_minute
+where ip.block_minute >= cast('{{Start Date}}' as timestamp)
+  and ip.block_minute <= cast('{{End Date}}' as timestamp)
+order by 1 desc
