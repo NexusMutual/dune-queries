@@ -1,145 +1,91 @@
-WITH
-  nxm_distribution AS (
-    SELECT
-      DATE_TRUNC('day', evt_block_time) AS day,
-      "to" AS address,
-      CAST(value AS DOUBLE) * 1E-18 AS value
-    FROM
-      erc20_ethereum.evt_Transfer
-    WHERE
-      CAST(value AS DOUBLE) > 0
-      AND "contract_address" = 0xd7c49cee7e9188cca6ad8ff264c1da2e69d4cf3b
-    UNION ALL
-    SELECT
-      DATE_TRUNC('day', evt_block_time) AS day,
-      "from" AS address,
-      CAST(value AS DOUBLE) * -1E-18 AS value
-    FROM
-      erc20_ethereum.evt_Transfer
-    WHERE
-      CAST(value AS DOUBLE) > 0
-      AND "contract_address" = 0xd7c49cee7e9188cca6ad8ff264c1da2e69d4cf3b
-  ),
-  nxm_running_total AS (
-    SELECT DISTINCT
-      day,
-      address,
-      SUM(CAST(value AS DOUBLE)) OVER (
-        PARTITION BY
-          address
-        ORDER BY
-          day
-      ) AS running_total
-    FROM
-      nxm_distribution
-    WHERE
-      cast(address AS VARBINARY) != 0x0000000000000000000000000000000000000000
-  ),
-  exit_entrance AS (
-    SELECT
-      *,
-      CASE
-        when running_total <= 1E-12 then -1
-        ELSE 0
-      END AS exited_mututal,
-      CASE
-        WHEN running_total >= 1E-12 THEN 1
-        ELSE 0
-      END AS in_mututal
-    FROM
-      nxm_running_total
-  ),
-  unqiue_addresses AS (
-    SELECT
-      day,
-      address,
-      running_total,
-      exited_mututal,
-      in_mututal,
-      CASE
-        WHEN exited_mututal - COALESCE(
-          LAG(exited_mututal) OVER (
-            PARTITION BY
-              address
-            ORDER BY
-              day
-          ),
-          -1
-        ) = -1 THEN -1
-        WHEN in_mututal - COALESCE(
-          LAG(in_mututal) OVER (
-            PARTITION BY
-              address
-            ORDER BY
-              day
-          ),
-          0
-        ) = 1 THEN 1
-      END AS count_,
-      CASE
-        WHEN exited_mututal - COALESCE(
-          LAG(exited_mututal) OVER (
-            PARTITION BY
-              address
-            ORDER BY
-              day
-          ),
-          -1
-        ) = -1 THEN -1
-      END AS exited,
-      CASE
-        WHEN in_mututal - COALESCE(
-          LAG(in_mututal) OVER (
-            PARTITION BY
-              address
-            ORDER BY
-              day
-          ),
-          0
-        ) = 1 THEN 1
-      END AS entered
-    FROM
-      exit_entrance
-  ),
-  entered_and_exited AS (
-    SELECT DISTINCT
-      day,
-      COALESCE(
-        SUM(exited) OVER (
-          PARTITION BY
-            day
-        ),
+with
+
+nxm_transfer as (
+  select
+    date_trunc('day', evt_block_time) as block_date,
+    'out' as transfer_type,
+    "from" as address,
+    -1 * (value / 1e18) as amount
+  from nexusmutual_ethereum.NXMToken_evt_Transfer
+  --where value > 0
+  union all
+  select
+    date_trunc('day', evt_block_time) as block_date,
+    'in' as transfer_type,
+    "to" as address,
+    value / 1e18 as amount
+  from nexusmutual_ethereum.NXMToken_evt_Transfer
+  --where value > 0
+),
+
+nxm_address_running_total as (
+  select distinct
+    block_date,
+    address,
+    sum(amount) over (partition by address order by block_date) as total_amount
+  from nxm_transfer
+  --where address <> 0x0000000000000000000000000000000000000000
+),
+
+exit_entrance as (
+  select
+    block_date,
+    address,
+    total_amount,
+    -- total 1e-12 = "0" assumption
+    case when total_amount < 1e-12 then -1 else 0 end as exited_mututal,
+    case when total_amount >= 1e-12 then 1 else 0 end as in_mututal
+  from nxm_address_running_total
+),
+
+unqiue_addresses as (
+  select
+    block_date,
+    address,
+    total_amount,
+    exited_mututal,
+    in_mututal,
+    case
+      when exited_mututal - coalesce(
+        lag(exited_mututal) over (partition by address order by block_date),
+        -1
+      ) = -1 then -1
+    end as exited, -- find first exit for the address
+    case
+      when in_mututal - coalesce(
+        lag(in_mututal) over (partition by address order by block_date),
         0
-      ) AS exited_per_day,
-      COALESCE(
-        SUM(entered) OVER (
-          PARTITION BY
-            day
-        ),
-        0
-      ) AS entered_per_day
-    FROM
-      unqiue_addresses
-  ),
-  nxm_holders AS (
-    SELECT
-      day,
-      exited_per_day,
-      entered_per_day,
-      entered_per_day + exited_per_day AS net_change,
-      SUM(entered_per_day + exited_per_day) OVER (
-        ORDER BY
-          day
-      ) AS running_unique_users
-    FROM
-      entered_and_exited
-  )
-SELECT
-  *
-FROM
-  nxm_holders
-WHERE
-  day >= CAST('{{Start Date}}' AS TIMESTAMP)
-  AND day <= CAST('{{End Date}}' AS TIMESTAMP)
-ORDER BY
-  day DESC NULLS FIRST
+      ) = 1 then 1
+    end as entered -- find first enter for the address
+  from exit_entrance
+),
+
+entered_and_exited as (
+  select distinct
+    block_date,
+    -- running total for the firsts
+    coalesce(sum(exited) over (partition by block_date), 0) as exited_per_day,
+    coalesce(sum(entered) over (partition by block_date), 0) as entered_per_day
+  from unqiue_addresses
+),
+
+nxm_holders as (
+  select
+    block_date,
+    exited_per_day,
+    entered_per_day,
+    entered_per_day + exited_per_day as net_change,
+    sum(entered_per_day + exited_per_day) over (order by block_date) as running_unique_users
+  from entered_and_exited
+)
+
+select
+  block_date,
+  exited_per_day,
+  entered_per_day,
+  net_change,
+  running_unique_users
+from nxm_holders
+where block_date >= cast('{{Start Date}}' as timestamp)
+  and block_date <= cast('{{End Date}}' as timestamp)
+order by 1 desc
