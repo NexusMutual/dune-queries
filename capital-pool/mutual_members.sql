@@ -1,73 +1,45 @@
-WITH
-  kyc_verdict_counts AS (
-    SELECT DISTINCT
-      DATE_TRUNC('day', call_block_time) AS day,
-      COUNT(*) OVER (
-        PARTITION BY
-          DATE_TRUNC('day', call_block_time)
-      ) AS count_per_day
-    FROM
-      nexusmutual_ethereum.MemberRoles_call_kycVerdict
-    WHERE
-      call_success
-      AND verdict
-    UNION
-    SELECT
-      DATE_TRUNC('day', call_block_time) AS day,
-      CARDINALITY(userArray) AS count_per_day
-    FROM
-      nexusmutual_ethereum.MemberRoles_call_addMembersBeforeLaunch
-    WHERE
-      call_success
-    UNION ALL -- v2 join function
-    SELECT DISTINCT
-      DATE_TRUNC('day', call_block_time) AS day,
-      COUNT(*) OVER (
-        PARTITION BY
-          DATE_TRUNC('day', call_block_time)
-      ) AS count_per_day
-    FROM
-      nexusmutual_ethereum.MemberRoles_call_join
-    WHERE
-      call_success
-  ),
-  memebership_revoked AS (
-    SELECT DISTINCT
-      DATE_TRUNC('day', call_block_time) AS day,
-      COUNT(*) OVER (
-        PARTITION BY
-          DATE_TRUNC('day', call_block_time)
-      ) AS revoked_count
-    FROM
-      nexusmutual_ethereum.MemberRoles_call_withdrawMembership
-    WHERE
-      call_success = TRUE
-  ),
-  kyc_verdict_day_counts AS (
-    SELECT DISTINCT
-      COALESCE(kyc_verdict_counts.day, memebership_revoked.day) AS day,
-      COALESCE(revoked_count, 0) AS revoked_count,
-      COALESCE(count_per_day, 0) AS count_per_day
-    FROM
-      kyc_verdict_counts
-      FULL JOIN memebership_revoked ON kyc_verdict_counts.day = memebership_revoked.day
-  ),
-  members AS (
-    SELECT
-      day,
-      SUM(count_per_day - revoked_count) OVER (
-        ORDER BY
-          day NULLS FIRST
-      ) AS running_member_count
-    FROM
-      kyc_verdict_day_counts
-  )
-SELECT
-  *
-FROM
-  members
-WHERE
-  day >= CAST('{{Start Date}}' AS TIMESTAMP)
-  AND day <= CAST('{{End Date}}' AS TIMESTAMP)
-ORDER BY
-  day DESC
+with
+
+memebership as (
+  -- v1
+  select
+    date_trunc('day', call_block_time) as block_date,
+    cardinality(userArray) as member_count
+  from nexusmutual_ethereum.MemberRoles_call_addMembersBeforeLaunch
+  where contract_address = 0x055cc48f7968fd8640ef140610dd4038e1b03926
+    and call_success
+  union all
+  select
+    date_trunc('day', call_block_time) as block_date,
+    count(*) as member_count
+  from nexusmutual_ethereum.MemberRoles_call_kycVerdict
+  where contract_address = 0x055cc48f7968fd8640ef140610dd4038e1b03926
+    and call_success
+    and verdict
+  group by 1
+  union all
+  -- v2
+  select
+    date_trunc('day', call_block_time) as block_date,
+    count(*) as member_count
+  from nexusmutual_ethereum.MemberRoles_call_join
+  where contract_address = 0x055cc48f7968fd8640ef140610dd4038e1b03926
+    and call_success
+  group by 1
+  union all
+    select
+    date_trunc('day', call_block_time) as block_date,
+    -1 * count(*) as member_count
+  from nexusmutual_ethereum.MemberRoles_call_withdrawMembership
+  where contract_address = 0x055cc48f7968fd8640ef140610dd4038e1b03926
+    and call_success
+  group by 1
+)
+
+select
+  block_date,
+  sum(member_count) over (order by block_date) as running_member_count
+from memebership
+where block_date >= cast('{{Start Date}}' as timestamp)
+  and block_date <= cast('{{End Date}}' as timestamp)
+order by 1 desc
