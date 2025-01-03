@@ -1,31 +1,25 @@
-WITH
-  eth_injected AS (
-    SELECT
-      CAST(evt_block_time AS TIMESTAMP) AS ts,
-      CAST(value AS DOUBLE) * 1E-18 AS eth_injected
-    FROM
-      nexusmutual_ethereum.Ramm_evt_EthInjected
-  ),
-  cumulative_injected AS (
-    SELECT
-      ts,
-      eth_injected,
-      SUM(eth_injected) OVER (
-        ORDER BY
-          ts
-      ) AS cummulative_injected
-    FROM
-      eth_injected
-  )
-SELECT
-  ts,
+with
+
+eth_injected as (
+  select
+    date_trunc('day', evt_block_time) as block_date,
+    sum(value) / 1e18 as eth_injected
+  from nexusmutual_ethereum.Ramm_evt_EthInjected
+  group by 1
+),
+
+cumulative_injected as (
+  select
+    block_date,
+    eth_injected,
+    sum(eth_injected) over (order by block_date) as cummulative_injected
+  from eth_injected
+)
+
+select
+  block_date,
   eth_injected,
   cummulative_injected,
-  CAST(43850.0 AS DOUBLE) - cummulative_injected AS remaining_budget
-FROM
-  cumulative_injected
-WHERE
-  ts >= CAST('{{Start Date}}' AS TIMESTAMP)
-  AND ts <= CAST('{{End Date}}' AS TIMESTAMP)
-ORDER BY
-  ts DESC
+  cast(43850.0 as double) - cummulative_injected as remaining_budget
+from cumulative_injected
+order by 1 desc
