@@ -35,16 +35,25 @@ bv_diff_nxm_eth_swap_ext as (
     (eth_capital_pool_post_sale / nxm_supply_post_sale) - (eth_capital_pool_pre_sale / nxm_supply_pre_sale) as bv_diff_per_nxm,
     ((eth_capital_pool_post_sale / nxm_supply_post_sale) - (eth_capital_pool_pre_sale / nxm_supply_pre_sale)) * nxm_supply_post_sale as bv_diff
   from bv_diff_nxm_eth_swap
+),
+
+bv_profit as (
+  select
+    s.block_minute,
+    s.bv_diff_per_nxm,
+    s.bv_diff,
+    sum(s.bv_diff) over (order by s.block_minute) as bv_diff_cummulative_eth,
+    sum(s.bv_diff * p.avg_eth_usd_price) over (order by s.block_minute) as bv_diff_cummulative_usd
+  from bv_diff_nxm_eth_swap_ext s
+    inner join prices p on s.block_minute = p.block_minute
 )
 
 select
-  s.block_minute,
-  s.bv_diff_per_nxm,
-  s.bv_diff,
-  sum(s.bv_diff) over (order by s.block_minute) as bv_diff_cummulative,
-  sum(s.bv_diff * p.avg_eth_usd_price) over (order by s.block_minute) as bv_diff_cummulative_usd
-from bv_diff_nxm_eth_swap_ext s
-  inner join prices p on s.block_minute = p.block_minute
-where s.block_minute >= cast('{{Start Date}}' as timestamp)
-  and s.block_minute <= cast('{{End Date}}' as timestamp)
+  block_minute,
+  bv_diff_per_nxm,
+  bv_diff,
+  bv_diff_cummulative_eth,
+  bv_diff_cummulative_usd,
+  if('{{currency}}' = 'USD', bv_diff_cummulative_usd, bv_diff_cummulative_eth) as bv_diff_cummulative
+from bv_profit
 order by 1 desc
