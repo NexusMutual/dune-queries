@@ -32,7 +32,7 @@ select
   bv.eth_book_value,
   bv.usd_book_value,
   if('{{currency}}' = 'USD', s.nxm_eth_swap_price * bv.avg_eth_usd_price, s.nxm_eth_swap_price) as swap_price,
-  if('{{currency}}' = 'USD', bv.usd_book_value, bv.eth_book_value) as book_value,
+  if('{{currency}}' = 'USD', bv.usd_book_value, bv.eth_book_value) as book_value
 from book_value bv
   inner join swaps_below s on bv.block_date = s.block_date
 order by 1 desc
