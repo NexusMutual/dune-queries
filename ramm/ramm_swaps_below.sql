@@ -48,6 +48,6 @@ select
   usd_book_value,
   swap_price,
   book_value,
-  swap_price / book_value * 100 as redemption_pct
+  swap_price / book_value as redemption_pct
 from swaps_x_bv
 order by 1 desc
