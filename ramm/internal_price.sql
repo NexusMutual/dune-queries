@@ -24,6 +24,4 @@ select
   ip.internal_price_nxm * p.avg_eth_usd_price as internal_price_usd
 from internal_price ip
   inner join prices p on ip.block_minute = p.block_minute
-where ip.block_minute >= cast('{{Start Date}}' as timestamp)
-  and ip.block_minute <= cast('{{End Date}}' as timestamp)
 order by 1 desc
