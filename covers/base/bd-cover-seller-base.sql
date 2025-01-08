@@ -380,4 +380,4 @@ select
   cs.usd_premium,
   cs.median_usd_premium
 from daily_active_cover_aggs ac
-  inner join daily_cover_sales_aggs cs on ac.block_date = cs.block_date
+  inner join daily_cover_sales_aggs cs on ac.block_date = cs.block_date and ac.seller = cs.seller
