@@ -26,7 +26,7 @@ covers as (
     sum_assured,
     sum_assured as cover_amount,
     premium_asset,
-    premium
+    premium,
     cast(null as varchar) as seller
   --from query_3788367 -- covers v1 base (fallback) query
   from nexusmutual_ethereum.covers_v1
