@@ -54,7 +54,6 @@ covers as (
       when cover_owner = 0x666b8ebfbf4d5f0ce56962a25635cff563f13161 and product_type like 'Sherlock%' then 'Sherlock'
       when cover_owner = 0x5b453a19845e7492ee3a0df4ef085d4c75e5752b and product_type = 'Liquid Collective ETH Staking' then 'Liquid Collective'
       when cover_owner = 0x2557fe0959934f3814c6ee72ab46e6687b81b8ca and product_type = 'The Retail Mutual' then 'Follow On Cover'
-      when product_id in (195, 196) then 'Dialectic'
       --when ... then 'Native'
       else 'Nexus Mutual'
     end as seller
