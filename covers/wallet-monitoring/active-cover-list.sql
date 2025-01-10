@@ -2,70 +2,33 @@ with
 
 cover_base as (
   select distinct
-    cover_id, product_id, product_name, product_type, cover_start_date, cover_end_date, cover_asset, sum_assured, cover_owner, cover_ipfs_data, tx_hash
+    cover_id, product_id, product_name, product_type, cover_start_date, cover_end_date,
+    cover_asset, sum_assured, cover_owner, cover_ipfs_data
   --from query_3788370 -- covers v2 - base
   from nexusmutual_ethereum.covers_v2
+  --where product_id in (245, 246, 247) -- Entry / Essential / Elite Plan
   where cover_end_date >= current_date
-    and product_id not in (245, 246, 247) -- NM Cover
-    and product_id <> 227 -- Base DeFi Pass
-    --and cover_owner = 0x40329f3E27dD3fe228799b4A665F6f104c2Ab6b4 -- OpenCover
-    --and cover_ipfs_data <> ''
-  --limit 100
+    and product_id <> 227 -- all active covers except for Base DeFi Pass
+    and cover_id > {{max_cover_id}}
 ),
 
 cover_ipfs_data as (
   select
-    cover_id, product_id, product_name, product_type, cover_start_date, cover_end_date, cover_asset, sum_assured, cover_owner,
-    replace(replace(replace(replace(lower(
-      if(cover_ipfs_data <> '', http_get(concat('https://api.nexusmutual.io/ipfs/', cover_ipfs_data)))
-    ), 'walletaddress', 'wallet'), 'o;?wallet', 'wallet'), 'o;?\"wallet\"', 'wallet'), ' cover amount \r', 'amount') as cover_data, 
-    cover_ipfs_data,
-    tx_hash
+    cover_id, product_id, product_name, product_type,
+    cover_start_date, cover_end_date,
+    cover_asset, sum_assured, cover_owner,
+    if(cover_ipfs_data <> '', http_get(concat('https://api.nexusmutual.io/ipfs/', cover_ipfs_data))) as cover_data
   from cover_base
 ),
 
 cover_ipfs_data_ext as (
   select
-    cover_id, product_id, product_name, product_type, cover_start_date, cover_end_date, cover_asset, sum_assured, cover_owner,
-    case
-      when try(json_array_length(json_parse(cover_data))) is not null then
-        sequence(1, json_array_length(json_parse(cover_data)))
-      else
-        sequence(1, 1) -- for single JSON object, wrap it into a sequence of one element
-    end as idx,
-    json_parse(cover_data) as cover_data,
-    cover_ipfs_data,
-    tx_hash
+    cover_id, product_id, product_name, product_type,
+    cover_start_date, cover_end_date,
+    cover_asset, sum_assured, cover_owner,
+    regexp_split(json_extract_scalar(cover_data, '$.walletAddresses'), ',') as wallets
   from cover_ipfs_data
 ),
-
-/*
-select distinct
-  cover_id,
-  cover_start_date,
-  cover_end_date,
-  cover_asset,
-  sum_assured,
-  cover_owner,
-  coalesce(
-    json_extract_scalar(cover_data, '$.wallet'),
-    json_extract_scalar(json_array_element, '$.wallet')
-  ) as cover_data_address,
-  coalesce(
-    json_extract_scalar(cover_data, '$.amount'),
-    json_extract_scalar(json_array_element, '$.amount')
-  ) as amount,
-  cover_ipfs_data,
-  tx_hash,
-  cover_data
-from cover_ipfs_data_ext c
-  cross join unnest(idx) as u(id)
-  cross join lateral (
-    select json_array_get(cover_data, id - 1) as json_array_element
-  ) l
---where cover_id = 1639
-order by 1
-*/
 
 cover as (
   select
@@ -83,10 +46,9 @@ cover as (
     if(cover_asset = 'USDC', sum_assured, 0) as usdc_cover_amount,
     if(cover_asset = 'cbBTC', sum_assured, 0) as cbbtc_cover_amount,
     cover_owner,
-    --try(from_hex(trim(wallet))) as cover_data_address
-    from_hex(null) as cover_data_address
+    try(from_hex(trim(wallet))) as cover_data_address
   from cover_ipfs_data_ext c
-    --cross join unnest(wallets) as w(wallet)
+    cross join unnest(wallets) as w(wallet)
 ),
 
 latest_prices as (
