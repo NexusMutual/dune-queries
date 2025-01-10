@@ -48,7 +48,7 @@ cover as (
     cover_owner,
     try(from_hex(trim(wallet))) as cover_data_address
   from cover_ipfs_data_ext c
-    cross join unnest(wallets) as w(wallet)
+    left join unnest(coalesce(wallets, array[])) as w(wallet) on true
 ),
 
 latest_prices as (
