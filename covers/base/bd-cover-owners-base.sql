@@ -45,8 +45,7 @@ covers as (
     premium_asset,
     premium_incl_commission as premium,
     cover_owner
-  --from query_3788370 -- covers v2 base (fallback) query
-  from nexusmutual_ethereum.covers_v2
+  from query_4599092 -- covers v2 - base ref (fallback query)
   where is_migrated = false
 ),
 

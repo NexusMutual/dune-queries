@@ -19,8 +19,8 @@ claims_paid as (
     --cbBTC
     cbbtc_eth_claim_amount,
     cbbtc_usd_claim_amount
-  --from query_3911051 -- claims paid base (fallback) query
-  from nexusmutual_ethereum.claims_paid
+  from query_3911051 -- claims paid base (fallback) query
+  --from nexusmutual_ethereum.claims_paid
 ),
 
 claims_paid_agg as (
@@ -54,8 +54,7 @@ cover_tx_gas as (
     t.tx_fee_usd,
     t.tx_hash
   from gas_ethereum.fees t
-    --inner join query_3788370 c -- covers v2 base (fallback) query
-    inner join nexusmutual_ethereum.covers_v2 c
+    inner join query_4599092 c -- covers v2 - base ref (fallback query)
       on t.block_number = c.block_number
       and t.block_time = c.block_time
       and t.tx_hash = c.tx_hash
@@ -95,8 +94,8 @@ select
   coalesce(ctg.eth_tx_fee_total, 0) as eth_tx_fee_total,
   coalesce(ctg.usd_tx_fee_total, 0) as usd_tx_fee_total,
   coalesce(ctg.eth_tx_fee_total / ac.eth_premium, 0) as pct_eth_premium_tx_fee
---from query_3889661 ac -- BD active cover base
-from nexusmutual_ethereum.covers_daily_agg ac
+from query_3889661 ac -- BD active cover base
+--from nexusmutual_ethereum.covers_daily_agg ac
   left join cover_tx_gas_agg ctg on ac.block_date = ctg.block_date
   left join claims_paid_agg cp on ac.block_date = cp.claim_payout_date
 order by 1 desc

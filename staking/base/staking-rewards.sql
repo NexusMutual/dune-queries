@@ -17,8 +17,7 @@ covers as (
     block_number,
     trace_address,
     tx_hash
-  from nexusmutual_ethereum.covers_v2
-  --from query_3788370 -- covers v2 base (fallback) query
+  from query_4599092 -- covers v2 - base ref (fallback query)
 )
 
 select

@@ -89,8 +89,7 @@ staking_pool_fee_history as (
 
 covers as (
   select *
-  from nexusmutual_ethereum.covers_v2
-  --from query_3788370 -- covers v2 base (fallback) query
+  from query_4599092 -- covers v2 - base ref (fallback query)
 ),
 
 /*
