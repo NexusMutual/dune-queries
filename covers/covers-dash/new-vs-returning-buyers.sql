@@ -11,9 +11,11 @@ daily_avg_prices as (
     avg_nxm_usd_price
   --from query_3789851 -- prices base (fallback) query
   from nexusmutual_ethereum.capital_pool_prices
+  where block_date >= timestamp '2023-03-16' -- since v2
 ),
 
 covers as (
+  /*
   select
     cover_id,
     cover_start_date,
@@ -28,6 +30,7 @@ covers as (
   --from query_3788367 -- covers v1 base (fallback) query
   from nexusmutual_ethereum.covers_v1
   union all
+  */
   select distinct
     cover_id,
     cover_start_date,
@@ -40,7 +43,18 @@ covers as (
     if(cover_asset = 'USDC', sum_assured, 0) as usdc_cover_amount,
     if(cover_asset = 'cbBTC', sum_assured, 0) as cbbtc_cover_amount
   from query_4599092 -- covers v2 - base root (fallback query)
-  where is_migrated = false
+  --where is_migrated = false
+  where block_date >= timestamp '2023-03-16'
+    -- exclude syndicates / partners
+    and cover_owner not in (
+      0xe4994082a0e7f38b565e6c5f4afd608de5eddfbb, -- OC
+      0x40329f3e27dd3fe228799b4a665f6f104c2ab6b4, -- OC
+      0x5f2b6e70aa6a217e9ecd1ed7d0f8f38ce9a348a2, -- OC
+      0x8b86cf2684a3af9dd34defc62a18a96deadc40ff, -- TRM
+      0x666b8ebfbf4d5f0ce56962a25635cff563f13161, -- Sherlock
+      0x5b453a19845e7492ee3a0df4ef085d4c75e5752b, -- Liquid Collective
+      0x2557fe0959934f3814c6ee72ab46e6687b81b8ca  -- Ensuro
+    )
 ),
 
 cover_base as (
@@ -75,8 +89,6 @@ cover_totals as (
     eth_cover_amount + dai_eth_cover_amount + usdc_eth_cover_amount + cbbtc_eth_cover_amount as eth_cover_amount,
     row_number() over (partition by cover_owner order by cover_start_date) as first_seen
   from cover_base
-  where cover_start_date >= timestamp '{{Start Date}}'
-    and cover_start_date < timestamp '{{End Date}}'
 )
 
 select
@@ -84,7 +96,8 @@ select
   if(first_seen=1, 'new buyer', 'returning buyer') as buyer_type,
   count(distinct cover_owner) as cnt_buyers,
   count(distinct cover_id) as cnt_covers,
-  sum(if('{{display_currency}}' = 'USD', usd_cover_amount, eth_cover_amount)) as total_cover_amount
+  sum(usd_cover_amount) as usd_cover_amount,
+  sum(eth_cover_amount) as eth_cover_amount
 from cover_totals
 group by 1, 2
-order by 1
+order by 1, 2
