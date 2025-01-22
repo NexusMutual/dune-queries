@@ -42,7 +42,7 @@ covers as (
     sum_assured * partial_cover_amount / sum(partial_cover_amount) over (partition by cover_id) as cover_amount,
     premium_asset,
     premium_incl_commission as premium
-  from query_4599092 -- covers v2 - base ref (fallback query)
+  from query_4599092 -- covers v2 - base root (fallback query)
   where is_migrated = false
     and cover_owner in (select account from query_4200144) -- oc accounts
 ),

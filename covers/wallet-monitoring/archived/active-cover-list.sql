@@ -3,7 +3,7 @@ with
 cover_base as (
   select distinct
     cover_id, product_id, product_name, product_type, cover_start_date, cover_end_date, cover_asset, sum_assured, cover_owner, cover_ipfs_data, tx_hash
-  from query_4599092 -- covers v2 - base ref (fallback query)
+  from query_4599092 -- covers v2 - base root (fallback query)
   where cover_end_date >= current_date
     and product_id not in (245, 246, 247) -- NM Cover
     and product_id <> 227 -- Base DeFi Pass

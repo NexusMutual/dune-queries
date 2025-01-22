@@ -54,7 +54,7 @@ cover_tx_gas as (
     t.tx_fee_usd,
     t.tx_hash
   from gas_ethereum.fees t
-    inner join query_4599092 c -- covers v2 - base ref (fallback query)
+    inner join query_4599092 c -- covers v2 - base root (fallback query)
       on t.block_number = c.block_number
       and t.block_time = c.block_time
       and t.tx_hash = c.tx_hash

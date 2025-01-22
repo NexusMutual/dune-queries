@@ -45,7 +45,7 @@ covers as (
     premium_asset,
     premium_incl_commission as premium,
     cover_owner
-  from query_4599092 -- covers v2 - base ref (fallback query)
+  from query_4599092 -- covers v2 - base root (fallback query)
   where is_migrated = false
 ),
 

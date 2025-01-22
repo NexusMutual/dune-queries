@@ -39,7 +39,7 @@ covers as (
     if(cover_asset = 'DAI', sum_assured, 0) as dai_cover_amount,
     if(cover_asset = 'USDC', sum_assured, 0) as usdc_cover_amount,
     if(cover_asset = 'cbBTC', sum_assured, 0) as cbbtc_cover_amount
-  from query_4599092 -- covers v2 - base ref (fallback query)
+  from query_4599092 -- covers v2 - base root (fallback query)
   where is_migrated = false
 ),
 

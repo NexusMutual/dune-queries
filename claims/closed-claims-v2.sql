@@ -13,7 +13,7 @@ covers as (
     product_type,
     cover_asset,
     sum_assured
-  from query_4599092 -- covers v2 - base ref (fallback query)
+  from query_4599092 -- covers v2 - base root (fallback query)
 ),
 
 claims as (

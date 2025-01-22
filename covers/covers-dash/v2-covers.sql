@@ -22,7 +22,7 @@ covers as (
     sum(partial_cover_amount) over (partition by cover_id) as total_cover_amount,
     cover_owner,
     tx_hash
-  from query_4599092 -- covers v2 - base ref (fallback query)
+  from query_4599092 -- covers v2 - base root (fallback query)
 ),
 
 daily_avg_prices as (

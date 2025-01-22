@@ -57,7 +57,7 @@ covers as (
       --when ... then 'Native'
       else 'Nexus Mutual'
     end as seller
-  from query_4599092 -- covers v2 - base ref (fallback query)
+  from query_4599092 -- covers v2 - base root (fallback query)
   where is_migrated = false
 ),
 

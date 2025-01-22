@@ -34,7 +34,7 @@ commissions_ext as (
     if(c.premium_asset = 'NXM', c.commission * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as nxm_eth_commission,
     if(c.premium_asset = 'NXM', c.commission * p.avg_nxm_usd_price, 0) as nxm_usd_commission
   from daily_avg_prices p
-    inner join query_4599092 c -- covers v2 - base ref (fallback query)
+    inner join query_4599092 c -- covers v2 - base root (fallback query)
       on p.block_date = c.block_date
   where c.commission > 0
 ),

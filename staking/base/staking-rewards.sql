@@ -17,7 +17,7 @@ covers as (
     block_number,
     trace_address,
     tx_hash
-  from query_4599092 -- covers v2 - base ref (fallback query)
+  from query_4599092 -- covers v2 - base root (fallback query)
 )
 
 select
