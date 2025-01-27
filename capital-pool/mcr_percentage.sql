@@ -2,8 +2,7 @@ with
 
 capital_pool as (
   select *
-  --from query_3773633 -- Capital Pool base (fallback) query
-  from nexusmutual_ethereum.capital_pool_totals
+  from query_4627588 -- Capital Pool - base root
   where block_date >= timestamp '2019-11-06'
 ),
 

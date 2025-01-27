@@ -6,8 +6,7 @@ book_value as (
     cp.avg_eth_usd_price,
     cp.avg_capital_pool_usd_total / ns.total_nxm as usd_book_value,
     cp.avg_capital_pool_eth_total / ns.total_nxm as eth_book_value
-  --from query_3773633 cp -- Capital Pool base (fallback) query
-  from nexusmutual_ethereum.capital_pool_totals cp
+  from query_4627588 cp -- Capital Pool - base root
     inner join query_4514857 ns -- NXM supply base
       on cp.block_date = ns.block_date
 ),

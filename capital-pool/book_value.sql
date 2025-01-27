@@ -4,8 +4,7 @@ capital_pool as (
   select
     block_date,
     if('{{display_currency}}' = 'USD', avg_capital_pool_usd_total, avg_capital_pool_eth_total) as capital_pool_display_curr
-  --from query_3773633 -- Capital Pool base (fallback) query
-  from nexusmutual_ethereum.capital_pool_totals
+  from query_4627588 -- Capital Pool - base root
 )
 
 select
