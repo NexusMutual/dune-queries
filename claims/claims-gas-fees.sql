@@ -1,74 +1,45 @@
-WITH
-  vote_count AS (
-    SELECT
-      concat('V1_', CAST(claimId AS VARCHAR)) AS name,
-      claimId AS v1_claim_id,
-      NULL AS v2_claim_id,
-      evt_tx_hash,
-      CASE
-        WHEN verdict = 1 THEN true
-        WHEN verdict = -1 THEN false
-      END AS result,
-      CAST(tokens AS DOUBLE) * 1E-18 AS nxm_vote
-    FROM
-      nexusmutual_ethereum.ClaimsData_evt_VoteCast
-    UNION
-    SELECT
-      concat('V2_', CAST(assessmentId AS VARCHAR)) AS name,
-      NULL AS v1_claim_id,
-      assessmentId AS v2_claim_id,
-      evt_tx_hash,
-      accepted,
-      CAST(stakedAmount AS DOUBLE) * 1E-18 AS nxm_vote
-    FROM
-      nexusmutual_ethereum.Assessment_evt_VoteCast
-  ),
-  votes_with_gas_usage AS (
-    SELECT
-    DISTINCT
-      name,
-      v1_claim_id,
-      v2_claim_id,
-      CASE
-        WHEN v1_claim_id IS NOT NULL THEN AVG(gas_used * gas_price * 1E-18) OVER (
-          PARTITION BY
-            name
-        )
-        ELSE NULL
-      END AS v1_average_gas_cost,
-      CASE
-        WHEN v2_claim_id IS NOT NULL THEN AVG(gas_used * gas_price * 1E-18) OVER (
-          PARTITION BY
-            name
-        )
-        ELSE NULL
-      END AS v2_average_gas_cost,
-      CASE
-        WHEN v1_claim_id IS NOT NULL THEN AVG(CAST(gas_used AS double)) OVER (
-          PARTITION BY
-            name
-        )
-        ELSE NULL
-      END AS v1_gas_used,
-      CASE
-        WHEN v2_claim_id IS NOT NULL THEN AVG(CAST(gas_used AS double)) OVER (
-          PARTITION BY
-            name
-        )
-        ELSE NULL
-      END AS v2_gas_used
-    FROM
-      vote_count
-      INNER JOIN ethereum.transactions AS t ON vote_count.evt_tx_hash = t.hash
-    WHERE
-      block_time > CAST('2019-05-01' AS TIMESTAMP)
-  )
-SELECT
-*,
-AVG(v1_average_gas_cost) OVER () AS v1_average_gas_cost_all,
-AVG(v2_average_gas_cost) OVER () AS v2_average_gas_cost_all
-FROM
-  votes_with_gas_usage
-ORDER BY
-  v1_claim_id,
-  v2_claim_id
+with
+
+votes_count as (
+  select
+    evt_block_time as block_time,
+    evt_block_number as block_number,
+    'v1' as version,
+    claimId as claim_id,
+    if(verdict = 1, true, false) as result,
+    tokens / 1e18 as nxm_vote,
+    evt_tx_hash as tx_hash
+  from nexusmutual_ethereum.ClaimsData_evt_VoteCast
+  union all
+  select
+    evt_block_time as block_time,
+    evt_block_number as block_number,
+    'v2' as version,
+    assessmentId as claim_id,
+    accepted as result,
+    stakedAmount / 1e18 as nxm_vote,
+    evt_tx_hash as tx_hash
+  from nexusmutual_ethereum.Assessment_evt_VoteCast
+),
+
+votes_with_gas_usage as (
+  select
+    vc.version,
+    avg(t.tx_fee) as tx_fee_eth,
+    avg(t.tx_fee_usd) as tx_fee_usd
+  from gas_ethereum.fees t
+    inner join votes_count vc
+      on t.block_number = vc.block_number
+      and t.block_time = vc.block_time
+      and t.tx_hash = vc.tx_hash
+  where t.block_time >= timestamp '2019-05-01'
+  group by 1
+)
+
+select
+  if('{{display_currency}}' = 'USD', v1.tx_fee_usd, v1.tx_fee_eth) as avg_tx_fee_v1,
+  if('{{display_currency}}' = 'USD', v2.tx_fee_usd, v2.tx_fee_eth) as avg_tx_fee_v2
+from votes_with_gas_usage v1
+  cross join votes_with_gas_usage v2
+where v1.version = 'v1'
+  and v2.version = 'v2'
