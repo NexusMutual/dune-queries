@@ -33,7 +33,8 @@ claims as (
 vote_count as (
   select
     assessmentId as assessment_id,
-    max(evt_block_time) as last_vote,
+    min(evt_block_time) as first_vote_time,
+    max(evt_block_time) as last_vote_time,
     sum(if(accepted = true, 1, 0)) as yes_votes,
     sum(if(accepted = false, 1, 0)) as no_votes,
     sum(if(accepted = true, stakedAmount / 1e18, 0)) as yes_nxm_votes,
@@ -56,7 +57,7 @@ assessments as (
 ),
 
 completed_claims as (
-  select distinct
+  select
     c.submit_time,
     c.submit_date,
     c.cover_id,
@@ -69,10 +70,13 @@ completed_claims as (
     coalesce(vc.yes_nxm_votes, 0) as yes_nxm_votes,
     coalesce(vc.no_nxm_votes, 0) as no_nxm_votes,
     coalesce(a.assessor_rewards, 0) as assessor_rewards,
-    vc.last_vote
+    vc.last_vote_time
   from claims c
     left join vote_count vc on c.assessment_id = vc.assessment_id
     left join assessments a on c.assessment_id = a.assessment_id
+  where date_add('day', 3, coalesce(vc.first_vote_time, c.submit_time)) <= now()
+    and (vc.last_vote_time is null
+      or date_add('day', 1, vc.last_vote_time) <= now())
 ),
 
 prices as (
@@ -124,11 +128,8 @@ select
     else 0
   end as assessor_rewards_per_vote,
   cc.assessor_rewards,
-  cc.last_vote
+  cc.last_vote_time as last_vote
 from covers c
   inner join completed_claims cc on c.cover_id = cc.cover_id and coalesce(c.product_id, cc.product_id) = cc.product_id
   inner join prices p on cc.submit_date = p.block_date and cc.cover_asset = p.symbol
-where date_add('day', 3, cc.submit_time) <= now()
-  and (cc.last_vote is null
-    or date_add('day', 1, cc.last_vote) <= now())
 order by cc.submit_time desc

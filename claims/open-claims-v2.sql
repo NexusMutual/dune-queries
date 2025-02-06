@@ -33,26 +33,14 @@ claims as (
 vote_count as (
   select
     assessmentId as assessment_id,
-    max(evt_block_time) as last_vote,
+    min(evt_block_time) as first_vote_time,
+    max(evt_block_time) as last_vote_time,
     sum(if(accepted = true, 1, 0)) as yes_votes,
     sum(if(accepted = false, 1, 0)) as no_votes,
     sum(if(accepted = true, stakedAmount / 1e18, 0)) as yes_nxm_votes,
     sum(if(accepted = false, stakedAmount / 1e18, 0)) as no_nxm_votes
   from nexusmutual_ethereum.Assessment_evt_VoteCast
   group by 1
-),
-
-assessments as (
-  select assessment_id, assessor_rewards
-  from (
-    select
-      _0 as assessment_id,
-      output_totalRewardInNXM / 1e18 as assessor_rewards,
-      row_number() over (partition by call_block_time, call_tx_hash, _0 order by call_trace_address desc) as rn
-    from nexusmutual_ethereum.Assessment_call_assessments
-    where call_success
-  ) t
-  where rn = 1
 ),
 
 open_claims as (
@@ -69,9 +57,9 @@ open_claims as (
     coalesce(vc.yes_nxm_votes, 0) as yes_nxm_votes,
     coalesce(vc.no_nxm_votes, 0) as no_nxm_votes
   from claims c
-    inner join vote_count vc on c.assessment_id = vc.assessment_id
-    left join assessments a on c.assessment_id = a.assessment_id
-  where a.assessment_id is null
+    left join vote_count vc on c.assessment_id = vc.assessment_id
+  where date_add('day', 3, coalesce(vc.first_vote_time, c.submit_time)) > now()
+    or date_add('day', 1, vc.last_vote_time) > now()
 ),
 
 latest_prices as (
