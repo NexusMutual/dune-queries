@@ -19,8 +19,8 @@ staking_pools as (
     sp.pool_address,
     se.first_stake_event_date
   --from query_3859935 sp -- staking pools base (fallback) query
-  from query_4167546 sp -- staking pools - spell de-duped
   --from nexusmutual_ethereum.staking_pools sp
+  from query_4167546 sp -- staking pools - spell de-duped
     inner join (
       select
         pool_address,
@@ -148,8 +148,8 @@ stake_burn_per_tranche as (
     pt.total_tranche_staked_nxm,
     se.amount as burn_amount,
     se.amount * pt.total_tranche_staked_nxm / p.total_staked_nxm as burn_per_tranche
-  from staked_per_pool p
-    inner join staked_per_pool_tranche pt on p.pool_id = pt.pool_id and p.block_date = pt.block_date
+  from staked_per_pool_token p
+    inner join staked_per_pool_token_tranche pt on p.pool_id = pt.pool_id and p.block_date = pt.block_date
     inner join nexusmutual_ethereum.staking_events se on p.pool_address = se.pool_address and p.block_date = se.block_date
   where se.flow_type = 'stake burn'
 ),
@@ -162,14 +162,17 @@ staked_combined as (
     pt.tranche_id,
     pt.total_tranche_staked_nxm + coalesce(b.burn_per_tranche, 0) as total_tranche_staked_nxm,
     pt.pool_tranche_date_rn
-  from staked_per_pool_tranche pt
+  from staked_per_pool_token_tranche pt
     left join stake_burn_per_tranche b on pt.pool_id = b.pool_id and pt.tranche_id = b.tranche_id and pt.block_date >= b.block_date
 )
+
+select * from stake_burn_per_tranche
+
 
 select
   min(block_date) as block_date,
   pool_id,
-  pool_address,
+  --pool_address,
   total_staked_nxm
 from (
   select
@@ -181,7 +184,7 @@ from (
   where pool_id = 11
   group by 1, 2, 3
 ) t
-group by 2,3,4
+group by 2,3 --,4
 order by 1
 
 
