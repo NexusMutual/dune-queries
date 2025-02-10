@@ -15,7 +15,7 @@ latest_prices as (
 )
 
 select
-  date_trunc('year', r.block_date) as year_date,
+  year(r.block_date) as year_date,
   r.pool_id,
   spn.pool_name,
   case '{{currency}}'
