@@ -74,8 +74,7 @@ active_bucket as (
     staking_pool_id,
     product_id,
     count(*) as cover_count,
-    sum(eth_usd_cover_amount + dai_usd_cover_amount + usdc_usd_cover_amount + cbbtc_usd_cover_amount) as usd_cover_amount,
-    sum(eth_cover_amount + dai_eth_cover_amount + usdc_eth_cover_amount + cbbtc_eth_cover_amount) as eth_cover_amount
+    sum(nxm_cover_amount_per_pool) as nxm_cover_amount
   from query_4703493 -- active bucket - base (fallback query)
   group by 1, 2
 ),
@@ -83,7 +82,7 @@ active_bucket as (
 latest_prices as (
   select
     max(block_date) as block_date,
-    max_by(avg_eth_usd_price, block_date) as avg_eth_usd_price,
+    max_by(avg_nxm_eth_price, block_date) as avg_nxm_eth_price,
     max_by(avg_nxm_usd_price, block_date) as avg_nxm_usd_price
   --from query_3789851 -- prices base (fallback query)
   from nexusmutual_ethereum.capital_pool_prices
@@ -100,19 +99,19 @@ staking_totals_combined as (
     -- staked
     coalesce(sna.total_staked_nxm, 0) as staked_nxm,
     coalesce(sna.total_staked_nxm * p.avg_nxm_usd_price, 0) as staked_nxm_usd,
-    coalesce(sna.total_staked_nxm * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as staked_nxm_eth,
+    coalesce(sna.total_staked_nxm * p.avg_nxm_eth_price, 0) as staked_nxm_eth,
     -- allocated
     coalesce(sna.allocated_nxm, 0) as allocated_nxm,
     coalesce(sna.allocated_nxm * p.avg_nxm_usd_price, 0) as allocated_nxm_usd,
-    coalesce(sna.allocated_nxm * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as allocated_nxm_eth,
-    -- active cover
-    coalesce(ac.cover_count, 0) as cover_count_per_active_bucket,
-    coalesce(ac.usd_cover_amount, 0) as usd_cover_amount,
-    coalesce(ac.eth_cover_amount, 0) as eth_cover_amount,
-    coalesce(ac.usd_cover_amount / p.avg_nxm_usd_price, 0) as nxm_cover_amount
+    coalesce(sna.allocated_nxm * p.avg_nxm_eth_price, 0) as allocated_nxm_eth,
+    -- active bucket
+    coalesce(ab.cover_count, 0) as cover_count_per_active_bucket,
+    coalesce(ab.nxm_cover_amount * p.avg_nxm_usd_price, 0) as usd_cover_amount,
+    coalesce(ab.nxm_cover_amount * p.avg_nxm_eth_price, 0) as eth_cover_amount,
+    coalesce(ab.nxm_cover_amount, 0) as nxm_cover_amount
   from staking_pool_products spp
     inner join staked_nxm_allocated sna on spp.pool_id = sna.pool_id and spp.product_id = sna.product_id
-    left join active_bucket ac on spp.pool_id = ac.staking_pool_id and spp.product_id = ac.product_id
+    left join active_bucket ab on spp.pool_id = ab.staking_pool_id and spp.product_id = ab.product_id
     left join staking_pool_names spn on spp.pool_id = spn.pool_id
     cross join latest_prices p
 )
