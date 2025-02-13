@@ -19,7 +19,7 @@ select
     when 'ETH' then max_capacity_nxm_eth
     when 'USD' then max_capacity_nxm_usd
   end max_capacity,
-  cover_count_per_active_bucket as cover_count,
+  --cover_count_per_active_bucket as cover_count,
   case '{{currency}}'
     when 'NXM' then nxm_cover_amount
     when 'ETH' then eth_cover_amount
