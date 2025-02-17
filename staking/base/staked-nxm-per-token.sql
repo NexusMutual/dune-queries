@@ -6,8 +6,8 @@ staking_pools as (
     sp.pool_address,
     se.first_stake_event_date
   --from query_3859935 sp -- staking pools base (fallback) query
-  from query_4167546 sp -- staking pools - spell de-duped
   --from nexusmutual_ethereum.staking_pools sp
+  from query_4167546 sp -- staking pools - spell de-duped
     inner join (
       select
         pool_address,
@@ -52,8 +52,8 @@ staked_nxm_per_pool_n_token as (
         sum(se.amount) as total_amount,
         max(se.stake_end_date) as stake_expiry_date
       from staking_pool_day_sequence d
-        left join query_3619534 se -- staking deposit extensions base query
-        --left join nexusmutual_ethereum.staking_deposit_extensions se
+        --left join query_3619534 se -- staking deposit extensions base query
+        left join nexusmutual_ethereum.staking_deposit_extensions se
           on d.pool_address = se.pool_address
          and d.block_date >= se.stake_start_date
          and d.block_date < se.stake_end_date
