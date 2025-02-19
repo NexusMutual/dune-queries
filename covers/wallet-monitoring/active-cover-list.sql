@@ -25,7 +25,8 @@ cover_ipfs_data_ext as (
     cover_id, product_id, product_name, product_type,
     cover_start_date, cover_end_date,
     cover_asset, sum_assured, cover_owner,
-    regexp_split(json_extract_scalar(cover_data, '$.walletAddresses'), ',') as wallets
+    --regexp_split(json_extract_scalar(cover_data, '$.walletAddresses'), ',') as wallets
+    cast(json_extract(cover_data, '$.walletAddresses') as array(varchar)) as wallets
   from cover_ipfs_data
 ),
 
