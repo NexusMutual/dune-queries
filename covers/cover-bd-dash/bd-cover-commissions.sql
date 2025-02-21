@@ -55,7 +55,7 @@ commissions_agg as (
         0x5f2b6e70aa6a217e9ecd1ed7d0f8f38ce9a348a2,
         0x02bdacb2c3baa8a12d3957f3bd8637d6d2b35f10
       ) then 'OpenCover'
-      else cast(commission_destination as varchar)
+      else 'Other' --cast(commission_destination as varchar)
     end as commission_destination,
     sum(eth_eth_commission + dai_eth_commission + usdc_eth_commission + cbbtc_eth_commission + nxm_eth_commission) as eth_commission,
     sum(eth_usd_commission + dai_usd_commission + usdc_usd_commission + cbbtc_usd_commission + nxm_usd_commission) as usd_commission
