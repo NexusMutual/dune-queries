@@ -5,8 +5,6 @@ daily_avg_prices as (
     block_date,
     avg_eth_usd_price,
     avg_dai_usd_price,
-    avg_usdc_usd_price,
-    avg_cbbtc_usd_price,
     avg_nxm_eth_price,
     avg_nxm_usd_price
   --from query_3789851 -- prices base (fallback) query
@@ -31,7 +29,7 @@ covers as (
     cover_end_date,
     c.premium_asset,
     c.premium_incl_commission * p.avg_nxm_usd_price as premium_usd,
-    c.premium_incl_commission * p.avg_nxm_usd_price / p.avg_eth_usd_price as premium_eth
+    c.premium_incl_commission * p.avg_nxm_eth_price as premium_eth
   from query_4599092 c -- covers v2 - base root (fallback query)
     inner join daily_avg_prices p on c.block_date = p.block_date
   where c.is_migrated = false
