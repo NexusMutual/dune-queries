@@ -17,3 +17,9 @@ select
   amountOut,
   evt_tx_hash
 from nexusmutual_ethereum.swapoperator_evt_swapped
+
+
+--select distinct s.fromAsset, t.symbol
+select distinct s.toAsset, t.symbol
+from nexusmutual_ethereum.swapoperator_evt_swapped s
+  left join tokens.erc20 t on s.toAsset = t.contract_address and t.blockchain = 'ethereum'
