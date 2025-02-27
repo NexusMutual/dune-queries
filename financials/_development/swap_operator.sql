@@ -21,5 +21,41 @@ from nexusmutual_ethereum.swapoperator_evt_swapped
 
 --select distinct s.fromAsset, t.symbol
 select distinct s.toAsset, t.symbol
-from nexusmutual_ethereum.swapoperator_evt_swapped s
+from (
+    select * from  nexusmutual_ethereum.swapoperator_evt_swapped
+    union all
+    select * from  nexusmutual_ethereum_ethereum.swapoperator_evt_swapped
+  ) s
   left join tokens.erc20 t on s.toAsset = t.contract_address and t.blockchain = 'ethereum'
+
+
+select
+  evt_block_time as block_time,
+  from_hex(json_query("order", 'lax $.sellToken' omit quotes)) as sell_token,
+  from_hex(json_query("order", 'lax $.buyToken' omit quotes)) as buy_token,
+  from_hex(json_query("order", 'lax $.receiver' omit quotes)) as receiver,
+  cast(json_query("order", 'lax $.sellAmount') as uint256) as sell_amount,
+  cast(json_query("order", 'lax $.buyAmount') as uint256) as buy_amount,
+  cast(json_query("order", 'lax $.feeAmount') as uint256) as fee_amount,
+  cast(json_query("order", 'lax $.partiallyFillable') as boolean) as partially_fillable,
+  --"order",
+  evt_tx_hash as tx_hash
+from nexusmutual_ethereum_ethereum.swapoperator_evt_orderplaced
+
+
+select
+  evt_block_time as block_time,
+  filledAmount as filled_amount,
+  t.symbol,
+  t.amount,
+  from_hex(json_query("order", 'lax $.sellToken' omit quotes)) as sell_token,
+  from_hex(json_query("order", 'lax $.buyToken' omit quotes)) as buy_token,
+  from_hex(json_query("order", 'lax $.receiver' omit quotes)) as receiver,
+  cast(json_query("order", 'lax $.sellAmount') as uint256) as sell_amount,
+  cast(json_query("order", 'lax $.buyAmount') as uint256) as buy_amount,
+  cast(json_query("order", 'lax $.feeAmount') as uint256) as fee_amount,
+  cast(json_query("order", 'lax $.partiallyFillable') as boolean) as partially_fillable,
+  --"order",
+  evt_tx_hash as tx_hash
+from nexusmutual_ethereum_ethereum.swapoperator_evt_orderclosed c
+  left join tokens_ethereum.transfers t on c.evt_block_time = t.block_time and c.evt_tx_hash = t.tx_hash
