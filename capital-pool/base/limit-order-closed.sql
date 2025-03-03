@@ -1,6 +1,5 @@
 with
 
-
 swapped_raw as (
   select
     evt_block_time as block_time,
