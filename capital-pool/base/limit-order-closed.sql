@@ -1,6 +1,24 @@
 with
 
-order_closed as (
+
+swapped_raw as (
+  select
+    evt_block_time as block_time,
+    evt_block_number as block_number,
+    contract_address as swap_operator_contract,
+    fromAsset as sell_token,
+    toAsset as buy_token,
+    amountIn as sell_amount_raw,
+    amountOut as buy_amount_raw,
+    evt_tx_hash as tx_hash
+  from (
+      select * from  nexusmutual_ethereum.swapoperator_evt_swapped
+      union all
+      select * from  nexusmutual_ethereum_ethereum.swapoperator_evt_swapped
+    ) s
+),
+
+order_closed_raw as (
   select
     evt_block_time as block_time,
     evt_block_number as block_number,
@@ -15,6 +33,32 @@ order_closed as (
     --"order",
     evt_tx_hash as tx_hash
   from nexusmutual_ethereum_ethereum.swapoperator_evt_orderclosed
+),
+
+swapped_ext as (
+  select
+    s.block_time,
+    s.block_number,
+    s.swap_operator_contract,
+    0xcafea35ce5a2fc4ced4464da4349f81a122fd12b as capital_pool_contract,
+    case
+      when s.sell_token = 0x27F23c710dD3d878FE9393d93465FeD1302f2EbD then 'NXMTY'
+      when starts_with(st.symbol, 'W') then substr(st.symbol, 2)
+      else st.symbol
+    end as sell_token_symbol,
+    case
+      when s.buy_token = 0x27F23c710dD3d878FE9393d93465FeD1302f2EbD then 'NXMTY'
+      when starts_with(bt.symbol, 'W') then substr(bt.symbol, 2)
+      else bt.symbol
+    end as buy_token_symbol,
+    s.sell_amount_raw / power(10, coalesce(st.decimals, 18)) as sell_amount,
+    s.buy_amount_raw / power(10, coalesce(bt.decimals, 18)) as buy_amount,
+    s.sell_amount_raw,
+    s.buy_amount_raw,
+    s.tx_hash
+  from swapped_raw s
+    left join tokens.erc20 st on s.sell_token = st.contract_address and st.blockchain = 'ethereum'
+    left join tokens.erc20 bt on s.buy_token = bt.contract_address and bt.blockchain = 'ethereum'  
 ),
 
 order_closed_ext as (
@@ -32,10 +76,27 @@ order_closed_ext as (
     o.fee_amount as fee_amount_raw,
     o.partially_fillable,
     o.tx_hash
-  from order_closed o
+  from order_closed_raw o
     inner join tokens.erc20 st on o.sell_token = st.contract_address and st.blockchain = 'ethereum'
     inner join tokens.erc20 bt on o.buy_token = bt.contract_address and bt.blockchain = 'ethereum'
 )
+
+select
+  block_time,
+  block_number,
+  'full fill' as fill_type,
+  swap_operator_contract,
+  capital_pool_contract,
+  sell_token_symbol,
+  buy_token_symbol,
+  sell_amount,
+  buy_amount,
+  buy_amount as fill_amount,
+  false as partially_fillable,
+  tx_hash
+from swapped_ext
+
+union all
 
 select
   o.block_time,
