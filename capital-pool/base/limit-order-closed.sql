@@ -39,6 +39,7 @@ order_closed_ext as (
 
 select
   o.block_time,
+  o.block_number,
   case
     when o.filled_amount_raw = 0 and o.sell_token_symbol = t.symbol and o.sell_amount_raw = t.amount_raw then 'no fill'
     when o.filled_amount_raw > 0 and o.buy_token_symbol = t.symbol and o.buy_amount_raw <= t.amount_raw then 'full fill'

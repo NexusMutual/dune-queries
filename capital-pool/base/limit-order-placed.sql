@@ -41,6 +41,7 @@ order_placed_ext as (
 
 select
   o.block_time,
+  o.block_number,
   t."from" as capital_pool_contract,
   o.receiver as  swap_operator_contract,
   o.sell_token_symbol,
