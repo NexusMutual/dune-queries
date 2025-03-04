@@ -34,8 +34,8 @@ fx_impact as (
 
 select
   block_month,
-  p.eth_usd_price_start,
-  p.eth_usd_price_end,
+  eth_usd_price_start,
+  eth_usd_price_end,
   dai_fx_change,
   usdc_fx_change,
   cover_re_fx_change,
