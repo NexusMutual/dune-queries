@@ -28,7 +28,7 @@ capital_pool as (
   from nexusmutual_ethereum.capital_pool_totals
   where day(block_date) = 1
   order by 1 desc
-  limit 12 -- rolling 12 months
+  limit 12 -- 12 months rolling
 ),
 
 investment_returns as (
