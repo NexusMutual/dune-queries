@@ -94,9 +94,21 @@ investment_returns as (
 
 select
   block_date,
+  -- capital pool total
   capital_pool,
   capital_pool_return,
   capital_pool_apy,
+  -- aave net return
+  aweth_return + debt_usdc_return as aave_net_return,
+  (aweth_return + debt_usdc_return) / aweth_prev as aave_net_pct,
+  power(1 + ((aweth_return + debt_usdc_return) / aweth_prev), 12) - 1 as aweth_apy,
+  -- eth investment returns
+  steth_return + reth_return + nxmty * (1-0.0015) + (aweth_return + debt_usdc_return) as eth_inv_returns,
+  (steth_return + reth_return + nxmty * (1-0.0015) + (aweth_return + debt_usdc_return))
+   / ((capital_pool_prev + capital_pool) / 2) as eth_inv_pct,
+  power(1 + ((steth_return + reth_return + nxmty * (1-0.0015) + (aweth_return + debt_usdc_return))
+   / ((capital_pool_prev + capital_pool) / 2)), 12) - 1 as eth_inv_apy,
+  -- eth denominated
   eth,
   eth_return,
   eth_apy,
@@ -106,24 +118,25 @@ select
   reth,
   reth_return,
   reth_apy,
-  nxmty,
+  nxmty * (1-0.0015) as nxmty, -- minus Enxyme fee
   nxmty_return,
   nxmty_apy,
+  cbbtc,
+  cbbtc_return,
+  cbbtc_apy,
+  aweth,
+  aweth_return,
+  aweth_apy,
+  -- stablecoin denominated
   dai,
   dai_return,
   dai_apy,
   usdc,
   usdc_return,
   usdc_apy,
-  cbbtc,
-  cbbtc_return,
-  cbbtc_apy,
   cover_re,
   cover_re_return,
   cover_re_apy,
-  aweth,
-  aweth_return,
-  aweth_apy,
   debt_usdc,
   debt_usdc_return,
   debt_usdc_apy
