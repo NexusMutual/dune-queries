@@ -2,25 +2,74 @@ with
 
 capital_pool as (
   select
-    block_date,
-    avg_capital_pool_eth_total as capital_pool,
-    lead(avg_capital_pool_eth_total, 1) over (order by block_date desc) as capital_pool_prev,
-    eth_total as eth,
-    lead(eth_total, 1) over (order by block_date desc) as eth_prev,
-    steth_total as steth,
-    lead(steth_total, 1) over (order by block_date desc) as steth_prev,
-    avg_reth_eth_total as reth,
-    lead(avg_reth_eth_total, 1) over (order by block_date desc) as reth_prev,
-    nxmty_eth_total as nxmty,
-    lead(nxmty_eth_total, 1) over (order by block_date desc) as nxmty_prev,
-    aave_collateral_weth_total as aweth,
-    lead(aave_collateral_weth_total, 1) over (order by block_date desc) as aweth_prev,
-    avg_aave_debt_usdc_eth_total debt_usdc,
-    lead(avg_aave_debt_usdc_eth_total, 1) over (order by block_date desc) as debt_usdc_prev
-  from query_4627588 -- Capital Pool - base root
-  where day(block_date) = 1
+    date_trunc('month', block_date) as block_month,
+    capital_pool,
+    lead(capital_pool, 1) over (order by block_date desc) as capital_pool_prev,
+    eth,
+    lead(eth, 1) over (order by block_date desc) as eth_prev,
+    steth,
+    lead(steth, 1) over (order by block_date desc) as steth_prev,
+    reth,
+    lead(reth, 1) over (order by block_date desc) as reth_prev,
+    nxmty,
+    lead(nxmty, 1) over (order by block_date desc) as nxmty_prev,
+    aweth,
+    lead(aweth, 1) over (order by block_date desc) as aweth_prev,
+    debt_usdc,
+    lead(debt_usdc, 1) over (order by block_date desc) as debt_usdc_prev
+  from (
+    select
+      block_date,
+      avg_capital_pool_eth_total as capital_pool,
+      eth_total as eth,
+      steth_total as steth,
+      avg_reth_eth_total as reth,
+      nxmty_eth_total as nxmty,
+      aave_collateral_weth_total as aweth,
+      avg_aave_debt_usdc_eth_total as debt_usdc,
+      row_number() over (partition by date_trunc('month', block_date) order by block_date desc) as rn
+    from query_4627588 -- Capital Pool - base root
+  ) t
+  where t.rn = 1
   order by 1 desc
   limit 12 -- 12 months rolling
+),
+
+prices as (
+  select
+    block_date,
+    avg_eth_usd_price,
+    avg_usdc_usd_price
+  from query_4627588 -- Capital Pool - base root
+),
+
+aweth_withdrawals as (
+  select
+    date_trunc('month', block_time) as block_month,
+    sum(amount) as aweth_eth,
+    sum(amount_usd) as aweth_usd
+  from aave_ethereum.supply
+  where block_time >= timestamp '2024-05-23'
+    and coalesce(on_behalf_of, depositor) = 0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e -- Advisory Board multisig
+    and version = '3'
+    and transaction_type = 'withdraw'
+    and symbol = 'WETH'
+  group by 1
+),
+
+usdc_debt_repayments as (
+  select
+    date_trunc('month', b.block_time) as block_month,
+    -1 * sum(b.amount / p.avg_eth_usd_price) as usdc_debt_eth,
+    -1 * sum(b.amount_usd) as usdc_debt_usd
+  from aave_ethereum.borrow b
+    inner join prices p on date_trunc('day', b.block_time) = p.block_date
+  where b.block_time >= timestamp '2024-05-23'
+    and coalesce(b.on_behalf_of, b.borrower) = 0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e -- Advisory Board multisig
+    and b.version = '3'
+    and b.transaction_type = 'repay'
+    and b.symbol = 'USDC'
+  group by 1
 ),
 
 investment_returns as (
@@ -69,11 +118,13 @@ select
   -- capital pool total
   capital_pool,
   capital_pool_return,
-  capital_pool_apy,
+  capital_pool_pct, -- taking pct change instead of apy
   -- aave net return
-  aweth_return + debt_usdc_return as aave_net_return,
+  aweth_return + debt_usdc_return as aave_net,
+  'xx' as aave_net_return,
   coalesce(power(1 + ((aweth_return + debt_usdc_return) / nullif(aweth_prev, 0)), 12) - 1, 0) as aweth_net_apy,
   -- eth investment returns
+  'xx' as eth_inv,
   steth_return + reth_return + nxmty * (1-0.0015) + (aweth_return + debt_usdc_return) as eth_inv_returns,
   coalesce(power(1 + ((steth_return + reth_return + nxmty * (1-0.0015) + (aweth_return + debt_usdc_return))
    / nullif(((capital_pool_prev + capital_pool) / 2), 0)), 12) - 1, 0) as eth_inv_apy,
