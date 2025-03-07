@@ -4,19 +4,19 @@ capital_pool as (
   select
     date_trunc('month', block_date) as block_month,
     capital_pool,
-    lead(capital_pool, 1) over (order by block_date desc) as capital_pool_prev,
+    lag(capital_pool, 1) over (order by block_date) as capital_pool_prev,
     eth,
-    lead(eth, 1) over (order by block_date desc) as eth_prev,
+    lag(eth, 1) over (order by block_date) as eth_prev,
     steth,
-    lead(steth, 1) over (order by block_date desc) as steth_prev,
+    lag(steth, 1) over (order by block_date) as steth_prev,
     reth,
-    lead(reth, 1) over (order by block_date desc) as reth_prev,
+    lag(reth, 1) over (order by block_date) as reth_prev,
     nxmty,
-    lead(nxmty, 1) over (order by block_date desc) as nxmty_prev,
+    lag(nxmty, 1) over (order by block_date) as nxmty_prev,
     aweth,
-    lead(aweth, 1) over (order by block_date desc) as aweth_prev,
+    lag(aweth, 1) over (order by block_date) as aweth_prev,
     debt_usdc,
-    lead(debt_usdc, 1) over (order by block_date desc) as debt_usdc_prev
+    lag(debt_usdc, 1) over (order by block_date) as debt_usdc_prev
   from (
     select
       block_date,
