@@ -25,7 +25,7 @@ capital_pool as (
     lead(aave_collateral_weth_total, 1) over (order by block_date desc) as aweth_prev,
     avg_aave_debt_usdc_eth_total debt_usdc,
     lead(avg_aave_debt_usdc_eth_total, 1) over (order by block_date desc) as debt_usdc_prev
-  from nexusmutual_ethereum.capital_pool_totals
+  from query_4627588 -- Capital Pool - base root
   where day(block_date) = 1
   order by 1 desc
   limit 12 -- 12 months rolling
