@@ -80,7 +80,7 @@ select
   -- aave net return
   aweth_return + debt_usdc_return as aave_net_return,
   coalesce((aweth_return + debt_usdc_return) / nullif(aweth_prev, 0), 0) as aave_net_pct,
-  coalesce(power(1 + ((aweth_return + debt_usdc_return) / nullif(aweth_prev, 0)), 12) - 1, 0) as aweth_apy,
+  coalesce(power(1 + ((aweth_return + debt_usdc_return) / nullif(aweth_prev, 0)), 12) - 1, 0) as aweth_net_apy,
   -- eth investment returns
   steth_return + reth_return + nxmty * (1-0.0015) + (aweth_return + debt_usdc_return) as eth_inv_returns,
   coalesce((steth_return + reth_return + nxmty * (1-0.0015) + (aweth_return + debt_usdc_return))
