@@ -1,12 +1,20 @@
 with
 
+prices as (
+  select
+    block_date,
+    avg_eth_usd_price,
+    avg_usdc_usd_price
+  from query_4627588 -- Capital Pool - base root
+),
+
 capital_pool as (
   select
     date_trunc('month', block_date) as block_month,
     capital_pool,
     lag(capital_pool, 1) over (order by block_date) as capital_pool_prev,
-    eth,
-    lag(eth, 1) over (order by block_date) as eth_prev,
+    --eth,
+    --lag(eth, 1) over (order by block_date) as eth_prev,
     steth,
     lag(steth, 1) over (order by block_date) as steth_prev,
     reth,
@@ -21,7 +29,7 @@ capital_pool as (
     select
       block_date,
       avg_capital_pool_eth_total as capital_pool,
-      eth_total as eth,
+      --eth_total as eth,
       steth_total as steth,
       avg_reth_eth_total as reth,
       nxmty_eth_total as nxmty,
@@ -35,65 +43,103 @@ capital_pool as (
   limit 12 -- 12 months rolling
 ),
 
-prices as (
-  select
-    block_date,
-    avg_eth_usd_price,
-    avg_usdc_usd_price
-  from query_4627588 -- Capital Pool - base root
-),
-
-aweth_withdrawals as (
+aweth_collateral as (
   select
     date_trunc('month', block_time) as block_month,
-    sum(amount) as aweth_eth,
-    sum(amount_usd) as aweth_usd
+    sum(if(transaction_type = 'deposit', amount)) as aweth_deposit_eth,
+    sum(if(transaction_type = 'deposit', amount_usd)) as aweth_deposit_usd,
+    sum(if(transaction_type = 'withdraw', amount)) as aweth_withdraw_eth,
+    sum(if(transaction_type = 'withdraw', amount_usd)) as aweth_withdraw_usd
   from aave_ethereum.supply
   where block_time >= timestamp '2024-05-23'
     and coalesce(on_behalf_of, depositor) = 0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e -- Advisory Board multisig
     and version = '3'
-    and transaction_type = 'withdraw'
     and symbol = 'WETH'
   group by 1
 ),
 
-usdc_debt_repayments as (
+usdc_debt as (
   select
     date_trunc('month', b.block_time) as block_month,
-    -1 * sum(b.amount / p.avg_eth_usd_price) as usdc_debt_eth,
-    -1 * sum(b.amount_usd) as usdc_debt_usd
+    sum(if(b.transaction_type = 'borrow', b.amount) / p.avg_eth_usd_price) as debt_usdc_borrow_eth,
+    sum(if(b.transaction_type = 'borrow', b.amount_usd)) as debt_usdc_borrow_usd,
+    -1 * sum(if(b.transaction_type = 'repay', b.amount) / p.avg_eth_usd_price) as debt_usdc_repay_eth,
+    -1 * sum(if(b.transaction_type = 'repay', b.amount_usd)) as debt_usdc_repay_usd
   from aave_ethereum.borrow b
     inner join prices p on date_trunc('day', b.block_time) = p.block_date
   where b.block_time >= timestamp '2024-05-23'
     and coalesce(b.on_behalf_of, b.borrower) = 0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e -- Advisory Board multisig
     and b.version = '3'
-    and b.transaction_type = 'repay'
     and b.symbol = 'USDC'
   group by 1
 ),
 
-capital_pool_aave_adjustments as (
+steth_sales as (
+  select
+    block_time,
+    block_date,
+    fill_type,
+    sell_amount,
+    buy_amount,
+    fill_amount,
+    tx_hash
+  from nexusmutual_ethereum.swap_order_closed
+  where sell_token_symbol = 'stETH'
+    and buy_token_symbol = 'ETH'
+    and fill_type <> 'no fill'
+),
+
+steth_sales_adjusted as (
+  select
+    block_time,
+    block_date,
+    fill_type,
+    sell_amount - fill_amount as sell_amount,
+    buy_amount,
+    fill_amount,
+    tx_hash
+  from steth_sales
+  where fill_type = 'funds returned'
+),
+
+steth_sales_agg as (
+  select
+    date_trunc('month', s.block_date) as block_month,
+    -1 * sum(coalesce(sa.sell_amount, s.sell_amount)) as sell_amount,
+    sum(s.fill_amount) as fill_amount,
+    -1 * sum(coalesce(sa.sell_amount, s.sell_amount) - s.fill_amount) as disposal_loss
+  from steth_sales s
+    left join steth_sales_adjusted sa on sa.block_time = s.block_time and sa.tx_hash = s.tx_hash
+  where s.fill_type <> 'funds returned'
+  group by 1
+),
+
+capital_pool_enriched as (
   select
     cp.block_month,
     cp.capital_pool,
     cp.capital_pool_prev,
-    cp.eth,
-    cp.eth_prev,
+    --cp.eth,
+    --cp.eth_prev,
     cp.steth,
     cp.steth_prev,
+    coalesce(s.sell_amount, 0) as steth_sale,
     cp.reth,
     cp.reth_prev,
     cp.nxmty,
     cp.nxmty_prev,
     cp.aweth,
     cp.aweth_prev,
-    coalesce(w.aweth_eth, 0) as aweth_withdrawal,
+    coalesce(aave_c.aweth_deposit_eth, 0) as aweth_deposit_eth,
+    coalesce(aave_c.aweth_withdraw_eth, 0) as aweth_withdraw_eth,
     cp.debt_usdc,
     cp.debt_usdc_prev,
-    coalesce(r.usdc_debt_eth, 0) as debt_usdc_repayment
+    coalesce(aave_d.debt_usdc_borrow_eth, 0) as debt_usdc_borrow_eth,
+    coalesce(aave_d.debt_usdc_repay_eth, 0) as debt_usdc_repay_eth
   from capital_pool cp
-    left join aweth_withdrawals w on cp.block_month = w.block_month
-    left join usdc_debt_repayments r on cp.block_month = r.block_month
+    left join aweth_collateral aave_c on cp.block_month = aave_c.block_month
+    left join usdc_debt aave_d on cp.block_month = aave_d.block_month
+    left join steth_sales_agg s on cp.block_month = s.block_month
 ),
 
 investment_returns as (
@@ -104,16 +150,17 @@ investment_returns as (
     capital_pool - capital_pool_prev as capital_pool_return,
     coalesce((capital_pool - capital_pool_prev) / nullif(capital_pool_prev, 0), 0) as capital_pool_pct,
     coalesce(power(1 + ((capital_pool - capital_pool_prev) / nullif(capital_pool_prev, 0)), 12) - 1, 0) as capital_pool_apy,
-    eth,
-    eth_prev,
-    eth - eth_prev as eth_return,
-    coalesce((eth - eth_prev) / nullif(eth_prev, 0), 0) as eth_pct,
-    coalesce(power(1 + ((eth - eth_prev) / nullif(eth_prev, 0)), 12) - 1, 0) as eth_apy,
+    --eth,
+    --eth_prev,
+    --eth - eth_prev as eth_return,
+    --coalesce((eth - eth_prev) / nullif(eth_prev, 0), 0) as eth_pct,
+    --coalesce(power(1 + ((eth - eth_prev) / nullif(eth_prev, 0)), 12) - 1, 0) as eth_apy,
     steth,
     steth_prev,
-    steth - steth_prev as steth_return,
-    coalesce((steth - steth_prev) / nullif(steth_prev, 0), 0) as steth_pct,
-    coalesce(power(1 + ((steth - steth_prev) / nullif(steth_prev, 0)), 12) - 1, 0) as steth_apy,
+    steth_sale,
+    steth - steth_sale - steth_prev as steth_return,
+    coalesce((steth - steth_sale - steth_prev) / nullif(steth_prev, 0), 0) as steth_pct,
+    coalesce(power(1 + ((steth - steth_sale - steth_prev) / nullif(steth_prev, 0)), 12) - 1, 0) as steth_apy,
     reth,
     reth_prev,
     reth - reth_prev as reth_return,
@@ -121,22 +168,24 @@ investment_returns as (
     coalesce(power(1 + ((reth - reth_prev) / nullif(reth_prev, 0)), 12) - 1, 0) as reth_apy,
     nxmty,
     nxmty_prev,
-    nxmty - nxmty_prev as nxmty_return,
+    (nxmty - nxmty_prev) * (1-0.0015) as nxmty_return, -- minus Enzyme fee
     coalesce((nxmty - nxmty_prev) / nullif(nxmty_prev, 0), 0) as nxmty_pct,
     coalesce(power(1 + ((nxmty - nxmty_prev) / nullif(nxmty_prev, 0)), 12) - 1, 0) as nxmty_apy,
     aweth,
     aweth_prev,
-    aweth_withdrawal,
-    aweth - aweth_withdrawal - aweth_prev as aweth_return,
-    coalesce((aweth - aweth_withdrawal - aweth_prev) / nullif(aweth_prev, 0), 0) as aweth_pct,
-    coalesce(power(1 + ((aweth - aweth_withdrawal - aweth_prev) / nullif(aweth_prev, 0)), 12) - 1, 0) as aweth_apy,
+    aweth_deposit_eth,
+    aweth_withdraw_eth,
+    aweth - aweth_deposit_eth - aweth_withdraw_eth - aweth_prev as aweth_return,
+    coalesce((aweth - aweth_deposit_eth - aweth_withdraw_eth - aweth_prev) / nullif(aweth_prev, 0), 0) as aweth_pct,
+    coalesce(power(1 + ((aweth - aweth_deposit_eth - aweth_withdraw_eth - aweth_prev) / nullif(aweth_prev, 0)), 12) - 1, 0) as aweth_apy,
     debt_usdc,
     debt_usdc_prev,
-    debt_usdc_repayment
-    debt_usdc - debt_usdc_repayment - debt_usdc_prev as debt_usdc_return,
-    coalesce((debt_usdc - debt_usdc_repayment - debt_usdc_prev) / nullif(debt_usdc_prev, 0), 0) as debt_usdc_pct,
-    coalesce(power(1 + ((debt_usdc - debt_usdc_repayment - debt_usdc_prev) / nullif(debt_usdc_prev, 0)), 12) - 1, 0) as debt_usdc_apy
-  from capital_pool_aave_adjustments
+    debt_usdc_borrow_eth,
+    debt_usdc_repay_eth,
+    debt_usdc - debt_usdc_borrow_eth - debt_usdc_repay_eth - debt_usdc_prev as debt_usdc_return,
+    coalesce((debt_usdc - debt_usdc_borrow_eth - debt_usdc_repay_eth - debt_usdc_prev) / nullif(debt_usdc_prev, 0), 0) as debt_usdc_pct,
+    coalesce(power(1 + ((debt_usdc - debt_usdc_borrow_eth - debt_usdc_repay_eth - debt_usdc_prev) / nullif(debt_usdc_prev, 0)), 12) - 1, 0) as debt_usdc_apy
+  from capital_pool_enriched
 )
 
 select
@@ -144,33 +193,36 @@ select
   -- capital pool total
   capital_pool,
   capital_pool_return,
-  capital_pool_pct, -- taking pct change instead of apy
+  capital_pool_pct,
+  capital_pool_apy,
   -- eth investments
-  eth,
-  eth_return,
-  eth_apy,
+  --eth,
+  --eth_return,
+  --eth_apy,
   steth,
+  steth_sale,
   steth_return,
   steth_apy,
   reth,
   reth_return,
   reth_apy,
-  nxmty * (1-0.0015) as nxmty, -- minus Enzyme fee
+  nxmty,
   nxmty_return,
   nxmty_apy,
-  steth_return + reth_return + nxmty * (1-0.0015) + (aweth_return + debt_usdc_return) as eth_inv_returns,
-  coalesce(power(1 + ((steth_return + reth_return + nxmty * (1-0.0015) + (aweth_return + debt_usdc_return))
+  steth_return + reth_return + nxmty_return + (aweth_return + debt_usdc_return) as eth_inv_returns,
+  coalesce(power(1 + ((steth_return + reth_return + nxmty_return + (aweth_return + debt_usdc_return))
    / nullif(((capital_pool_prev + capital_pool) / 2), 0)), 12) - 1, 0) as eth_inv_apy,
   -- aave positions
   aweth,
-  aweth_withdrawal,
+  aweth_deposit_eth,
+  aweth_withdraw_eth,
   aweth_return,
   aweth_apy,
   debt_usdc,
-  debt_usdc_repayment,
+  debt_usdc_borrow_eth,
+  debt_usdc_repay_eth,
   debt_usdc_return,
   debt_usdc_apy,
-  debt_usdc_repayment,
   aweth_return + debt_usdc_return as aave_net_return,
   coalesce(power(1 + ((aweth_return + debt_usdc_return) / nullif(aweth_prev, 0)), 12) - 1, 0) as aweth_net_apy
 from investment_returns
