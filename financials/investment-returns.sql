@@ -52,6 +52,21 @@ capital_pool as (
   limit 12 -- 12 months rolling
 ),
 
+kiln_rewards as (
+  select
+    date_trunc('month', seq_date) as block_month,
+    kiln_rewards,
+    lag(kiln_rewards, 1) over (order by seq_date) as kiln_rewards_prev
+  from (
+    select
+      seq_date,
+      kiln_rewards,
+      row_number() over (partition by date_trunc('month', seq_date) order by seq_date desc) as rn
+    from query_4830965 -- kiln rewards
+  ) t
+  where rn = 1
+),
+
 prices_start_end as (
   select
     date_trunc('month', block_date) as block_month,
@@ -163,8 +178,8 @@ capital_pool_enriched as (
     coalesce(s.sell_amount, 0) as steth_sale,
     cp.reth,
     cp.reth_prev,
-    cp.nxmty,
-    cp.nxmty_prev,
+    cp.nxmty + coalesce(kr.kiln_rewards, 0) as nxmty,
+    cp.nxmty_prev + coalesce(kr.kiln_rewards_prev, 0) as nxmty_prev,
     cp.aweth,
     cp.aweth_prev,
     coalesce(aave_c.aweth_deposit_eth, 0) as aweth_deposit_eth,
@@ -184,6 +199,7 @@ capital_pool_enriched as (
     left join aweth_collateral aave_c on cp.block_month = aave_c.block_month
     left join usdc_debt aave_d on cp.block_month = aave_d.block_month
     left join steth_sales_agg s on cp.block_month = s.block_month
+    left join kiln_rewards kr on cp.block_month = kr.block_month
 ),
 
 investment_returns as (
