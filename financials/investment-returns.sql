@@ -109,8 +109,8 @@ aweth_collateral as (
 usdc_debt as (
   select
     date_trunc('month', b.block_time) as block_month,
-    sum(if(b.transaction_type = 'borrow', b.amount) / p.avg_eth_usd_price) as debt_usdc_borrow_eth,
-    sum(if(b.transaction_type = 'borrow', b.amount_usd)) as debt_usdc_borrow_usd,
+    -1 * sum(if(b.transaction_type = 'borrow', b.amount) / p.avg_eth_usd_price) as debt_usdc_borrow_eth,
+    -1 * sum(if(b.transaction_type = 'borrow', b.amount_usd)) as debt_usdc_borrow_usd,
     -1 * sum(if(b.transaction_type = 'repay', b.amount) / p.avg_eth_usd_price) as debt_usdc_repay_eth,
     -1 * sum(if(b.transaction_type = 'repay', b.amount_usd)) as debt_usdc_repay_usd
   from aave_ethereum.borrow b
