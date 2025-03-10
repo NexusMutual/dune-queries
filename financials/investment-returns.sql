@@ -24,7 +24,13 @@ capital_pool as (
     aweth,
     lag(aweth, 1) over (order by block_date) as aweth_prev,
     debt_usdc,
-    lag(debt_usdc, 1) over (order by block_date) as debt_usdc_prev
+    lag(debt_usdc, 1) over (order by block_date) as debt_usdc_prev,
+    dai,
+    lag(dai, 1) over (order by block_date) as dai_prev,
+    usdc,
+    lag(usdc, 1) over (order by block_date) as usdc_prev,
+    cover_re,
+    lag(cover_re, 1) over (order by block_date) as cover_re_prev
   from (
     select
       block_date,
@@ -35,12 +41,42 @@ capital_pool as (
       nxmty_eth_total as nxmty,
       aave_collateral_weth_total as aweth,
       avg_aave_debt_usdc_eth_total as debt_usdc,
+      avg_dai_eth_total as dai,
+      avg_usdc_eth_total as usdc,
+      avg_cover_re_usdc_eth_total as cover_re,
       row_number() over (partition by date_trunc('month', block_date) order by block_date desc) as rn
     from query_4627588 -- Capital Pool - base root
   ) t
   where t.rn = 1
   order by 1 desc
   limit 12 -- 12 months rolling
+),
+
+prices_start_end as (
+  select
+    date_trunc('month', block_date) as block_month,
+    lag(avg_eth_usd_price, 1) over (order by block_date) as eth_usd_price_start, -- start: last of the previous month
+    avg_eth_usd_price as eth_usd_price_end -- end: last of the month
+  from (
+    select
+      block_date,
+      avg_eth_usd_price,
+      row_number() over (partition by date_trunc('month', block_date) order by block_date desc) as rn
+    from prices
+  ) t
+  where rn = 1
+),
+
+stables_fx_impact as (
+  select
+    s.block_month,
+    -- stables expressed in ETH
+    s.dai_prev * p.eth_usd_price_start / p.eth_usd_price_end - s.dai_prev as dai_fx_change,
+    s.usdc_prev * p.eth_usd_price_start / p.eth_usd_price_end - s.usdc_prev as usdc_fx_change,
+    s.cover_re_prev * p.eth_usd_price_start / p.eth_usd_price_end - s.cover_re_prev as cover_re_fx_change,
+    s.debt_usdc_prev * p.eth_usd_price_start / p.eth_usd_price_end - s.debt_usdc_prev as debt_usdc_fx_change
+  from capital_pool s
+    inner join prices_start_end p on s.block_month = p.block_month
 ),
 
 aweth_collateral as (
@@ -119,6 +155,7 @@ capital_pool_enriched as (
     cp.block_month,
     cp.capital_pool,
     cp.capital_pool_prev,
+    -- eth denomiated assets
     --cp.eth,
     --cp.eth_prev,
     cp.steth,
@@ -135,8 +172,15 @@ capital_pool_enriched as (
     cp.debt_usdc,
     cp.debt_usdc_prev,
     coalesce(aave_d.debt_usdc_borrow_eth, 0) as debt_usdc_borrow_eth,
-    coalesce(aave_d.debt_usdc_repay_eth, 0) as debt_usdc_repay_eth
+    coalesce(aave_d.debt_usdc_repay_eth, 0) as debt_usdc_repay_eth,
+    -- stablecoin denominated assets
+    fx.dai_fx_change,
+    fx.usdc_fx_change,
+    fx.cover_re_fx_change,
+    fx.debt_usdc_fx_change,
+    fx.dai_fx_change + fx.usdc_fx_change + fx.cover_re_fx_change + fx.debt_usdc_fx_change as fx_change
   from capital_pool cp
+    inner join stables_fx_impact fx on cp.block_month = fx.block_month
     left join aweth_collateral aave_c on cp.block_month = aave_c.block_month
     left join usdc_debt aave_d on cp.block_month = aave_d.block_month
     left join steth_sales_agg s on cp.block_month = s.block_month
@@ -150,6 +194,7 @@ investment_returns as (
     capital_pool - capital_pool_prev as capital_pool_return,
     coalesce((capital_pool - capital_pool_prev) / nullif(capital_pool_prev, 0), 0) as capital_pool_pct,
     coalesce(power(1 + ((capital_pool - capital_pool_prev) / nullif(capital_pool_prev, 0)), 12) - 1, 0) as capital_pool_apy,
+    -- eth investments
     --eth,
     --eth_prev,
     --eth - eth_prev as eth_return,
@@ -171,6 +216,7 @@ investment_returns as (
     (nxmty - nxmty_prev) * (1-0.0015) as nxmty_return, -- minus Enzyme fee
     coalesce((nxmty - nxmty_prev) / nullif(nxmty_prev, 0), 0) as nxmty_pct,
     coalesce(power(1 + ((nxmty - nxmty_prev) / nullif(nxmty_prev, 0)), 12) - 1, 0) as nxmty_apy,
+    -- aave positions
     aweth,
     aweth_prev,
     aweth_deposit_eth,
@@ -182,20 +228,26 @@ investment_returns as (
     debt_usdc_prev,
     debt_usdc_borrow_eth,
     debt_usdc_repay_eth,
-    debt_usdc - debt_usdc_borrow_eth - debt_usdc_repay_eth - debt_usdc_prev as debt_usdc_return,
-    coalesce((debt_usdc - debt_usdc_borrow_eth - debt_usdc_repay_eth - debt_usdc_prev) / nullif(debt_usdc_prev, 0), 0) as debt_usdc_pct,
-    coalesce(power(1 + ((debt_usdc - debt_usdc_borrow_eth - debt_usdc_repay_eth - debt_usdc_prev) / nullif(debt_usdc_prev, 0)), 12) - 1, 0) as debt_usdc_apy
+    debt_usdc - (debt_usdc_prev + debt_usdc_fx_change + debt_usdc_borrow_eth + debt_usdc_repay_eth) as debt_usdc_return,
+    coalesce((debt_usdc - (debt_usdc_prev + debt_usdc_fx_change + debt_usdc_borrow_eth + debt_usdc_repay_eth)) / nullif(debt_usdc_prev, 0), 0) as debt_usdc_pct,
+    coalesce(power(1 + ((debt_usdc - (debt_usdc_prev + debt_usdc_fx_change + debt_usdc_borrow_eth + debt_usdc_repay_eth)) / nullif(debt_usdc_prev, 0)), 12) - 1, 0) as debt_usdc_apy,
+    -- stablecoins fx impact
+    dai_fx_change,
+    usdc_fx_change,
+    cover_re_fx_change,
+    debt_usdc_fx_change,
+    fx_change
   from capital_pool_enriched
 )
 
 select
-  block_month,
+  date_format(block_month, '%Y-%m') as block_month,
   -- capital pool total
   capital_pool,
   capital_pool_return,
   capital_pool_pct,
   capital_pool_apy,
-  -- eth investments
+  -- individual eth investments
   --eth,
   --eth_return,
   --eth_apy,
@@ -209,9 +261,6 @@ select
   nxmty,
   nxmty_return,
   nxmty_apy,
-  steth_return + reth_return + nxmty_return + (aweth_return + debt_usdc_return) as eth_inv_returns,
-  coalesce(power(1 + ((steth_return + reth_return + nxmty_return + (aweth_return + debt_usdc_return))
-   / nullif(((capital_pool_prev + capital_pool) / 2), 0)), 12) - 1, 0) as eth_inv_apy,
   -- aave positions
   aweth,
   aweth_deposit_eth,
@@ -224,6 +273,16 @@ select
   debt_usdc_return,
   debt_usdc_apy,
   aweth_return + debt_usdc_return as aave_net_return,
-  coalesce(power(1 + ((aweth_return + debt_usdc_return) / nullif(aweth_prev, 0)), 12) - 1, 0) as aweth_net_apy
+  coalesce(power(1 + ((aweth_return + debt_usdc_return) / nullif(aweth_prev, 0)), 12) - 1, 0) as aweth_net_apy,
+  -- total eth investment returns
+  steth_return + reth_return + nxmty_return + (aweth_return + debt_usdc_return) as eth_inv_returns,
+  coalesce(power(1 + ((steth_return + reth_return + nxmty_return + (aweth_return + debt_usdc_return))
+   / nullif(((capital_pool_prev + capital_pool) / 2), 0)), 12) - 1, 0) as eth_inv_apy,
+  -- stablecoins fx impact
+  dai_fx_change,
+  usdc_fx_change,
+  cover_re_fx_change,
+  debt_usdc_fx_change,
+  fx_change
 from investment_returns
 order by 1 desc
