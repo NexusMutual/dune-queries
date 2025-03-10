@@ -13,8 +13,6 @@ capital_pool as (
     date_trunc('month', block_date) as block_month,
     capital_pool,
     lag(capital_pool, 1) over (order by block_date) as capital_pool_prev,
-    --eth,
-    --lag(eth, 1) over (order by block_date) as eth_prev,
     steth,
     lag(steth, 1) over (order by block_date) as steth_prev,
     reth,
@@ -35,7 +33,6 @@ capital_pool as (
     select
       block_date,
       avg_capital_pool_eth_total as capital_pool,
-      --eth_total as eth,
       steth_total as steth,
       avg_reth_eth_total as reth,
       nxmty_eth_total as nxmty,
@@ -171,8 +168,6 @@ capital_pool_enriched as (
     cp.capital_pool,
     cp.capital_pool_prev,
     -- eth denomiated assets
-    --cp.eth,
-    --cp.eth_prev,
     cp.steth,
     cp.steth_prev,
     coalesce(s.sell_amount, 0) as steth_sale,
@@ -207,15 +202,8 @@ investment_returns as (
     block_month,
     capital_pool,
     capital_pool_prev,
-    capital_pool - capital_pool_prev as capital_pool_return,
     coalesce((capital_pool - capital_pool_prev) / nullif(capital_pool_prev, 0), 0) as capital_pool_pct,
-    coalesce(power(1 + ((capital_pool - capital_pool_prev) / nullif(capital_pool_prev, 0)), 12) - 1, 0) as capital_pool_apy,
     -- eth investments
-    --eth,
-    --eth_prev,
-    --eth - eth_prev as eth_return,
-    --coalesce((eth - eth_prev) / nullif(eth_prev, 0), 0) as eth_pct,
-    --coalesce(power(1 + ((eth - eth_prev) / nullif(eth_prev, 0)), 12) - 1, 0) as eth_apy,
     steth,
     steth_prev,
     steth_sale,
@@ -259,14 +247,10 @@ investment_returns as (
 select
   date_format(block_month, '%Y-%m') as block_month,
   -- capital pool total
-  capital_pool,
-  capital_pool_return,
+  capital_pool_prev as capital_pool_start,
+  capital_pool as capital_pool_end,
   capital_pool_pct,
-  capital_pool_apy,
   -- individual eth investments
-  --eth,
-  --eth_return,
-  --eth_apy,
   steth,
   steth_sale,
   steth_return,
