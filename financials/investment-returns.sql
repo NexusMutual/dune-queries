@@ -165,8 +165,8 @@ steth_sales_agg as (
 capital_pool_enriched as (
   select
     cp.block_month,
-    cp.capital_pool,
-    cp.capital_pool_prev,
+    cp.capital_pool + coalesce(kr.kiln_rewards, 0) as capital_pool,
+    cp.capital_pool_prev + coalesce(kr.kiln_rewards_prev, 0) as capital_pool_prev,
     -- eth denomiated assets
     cp.steth,
     cp.steth_prev,
