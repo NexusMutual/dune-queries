@@ -31,9 +31,17 @@ member_fees as (
     usd_member_fee
   from query_4836646 -- member fees
   where block_month = timestamp '2025-02-01'
-)
+),
 
 cash_surplus (label, eth_val, apy) as (
+  select
+    'Cash Surplus',
+    (select eth_inv_returns + fx_change from investment_returns)
+    + (select eth_premiums_minus_claims from premiums_claims)
+    + (select eth_member_fee from member_fees),
+    null
+  union all 
+  select 'Investments', eth_inv_returns + fx_change, null from investment_returns union all
   select 'Investment Returns', eth_inv_returns, eth_inv_apy from investment_returns union all
   select 'Stablecoin Impact', fx_change, null from investment_returns union all
   select 'Premiums - Claims', eth_premiums_minus_claims, null from premiums_claims union all
