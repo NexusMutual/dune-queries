@@ -245,7 +245,8 @@ investment_returns as (
 )
 
 select
-  date_format(block_month, '%Y-%m') as block_month,
+  --date_format(block_month, '%Y-%m') as block_month,
+  block_month,
   -- capital pool total
   capital_pool_prev as capital_pool_start,
   capital_pool as capital_pool_end,
