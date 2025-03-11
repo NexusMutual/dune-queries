@@ -15,9 +15,19 @@ investment_returns as (
   where block_month = '2025-02'
 ),
 
+premiums_claims as (
+  select
+    cover_month,
+    eth_premiums_minus_claims,
+    usd_premiums_minus_claims
+  from query_4836553 -- premiums - claims
+  where cover_month = timestamp '2025-02-01'
+),
+
 cash_surplus (label, eth_val, apy) as (
   select 'Investment Returns', eth_inv_returns, eth_inv_apy from investment_returns union all
-  select 'Stablecoin Impact', fx_change, null from investment_returns
+  select 'Stablecoin Impact', fx_change, null from investment_returns union all
+  select 'Premiums - Claims', eth_premiums_minus_claims, null from premiums_claims
 )
 
 select
