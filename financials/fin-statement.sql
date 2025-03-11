@@ -12,7 +12,7 @@ investment_returns as (
     eth_inv_apy,
     fx_change
   from query_4770697 -- investement returns
-  where block_month = '2025-02'
+  where block_month = timestamp '2025-02-01'
 ),
 
 premiums_claims as (
