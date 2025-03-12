@@ -129,7 +129,7 @@ select
     when 'Withdrawals' then -1 * eth_eth_volume
     -- balance sheet
     when 'Balance Sheet' then eth_capital_pool
-    when 'ETH Denominated Assets' then eth_eth + eth_steth + eth_reth + eth_cbbtc + eth_nxmty + eth_aweth
+    when 'Crypto Denominated Assets' then eth_eth + eth_steth + eth_reth + eth_cbbtc + eth_nxmty + eth_aweth
     when 'ETH' then eth_eth
     when 'stETH' then eth_steth
     when 'rETH' then eth_reth

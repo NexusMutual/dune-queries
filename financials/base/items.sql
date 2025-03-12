@@ -34,7 +34,7 @@ with items (fi_id, scope, label, label_tab) as (
   (1210, 'rs', 'Contributions', '&nbsp; &nbsp; Contributions'),
   (1220, 'rs', 'Withdrawals', '&nbsp; &nbsp; Withdrawals'),
   (2000, 'bs', 'Balance Sheet', '<b>Balance Sheet</b>'),
-  (2100, 'bs', 'ETH Denominated Assets', '&nbsp; ⌄ ETH Denominated Assets'),
+  (2100, 'bs', 'Crypto Denominated Assets', '&nbsp; ⌄ Crypto Denominated Assets'),
   (2110, 'bs', 'ETH', '&nbsp; &nbsp; ETH'),
   (2120, 'bs', 'stETH', '&nbsp; &nbsp; stETH'),
   (2130, 'bs', 'rETH', '&nbsp; &nbsp; rETH'),
