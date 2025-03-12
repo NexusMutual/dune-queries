@@ -29,7 +29,7 @@ with items (fi_id, scope, label, label_tab) as (
   (1116, 'rs', 'Stablecoin Impact', '&nbsp; &nbsp; &nbsp; &nbsp; Stablecoin Impact'),
   (1120, 'rs', 'Premiums - Claims', '&nbsp; &nbsp; Premiums - Claims'),
   (1130, 'rs', 'Membership Fees', '&nbsp; &nbsp; Membership Fees'),
-  (1140, 'rs', 'Reserve Movement', '&nbsp; &nbsp; Reserve Movement'),
+  --(1140, 'rs', 'Reserve Movement', '&nbsp; &nbsp; Reserve Movement'),
   (1200, 'rs', 'Capital Movement', '&nbsp; Capital Movement'),
   (1210, 'rs', 'Contributions', '&nbsp; &nbsp; Contributions'),
   (1220, 'rs', 'Withdrawals', '&nbsp; &nbsp; Withdrawals'),
