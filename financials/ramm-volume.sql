@@ -24,11 +24,11 @@ volume_transacted as (
 select
   date_trunc('month', v.block_date) as block_month,
   -- totals
-  sum(abs(v.nxm_in - v.nxm_out)) as nxm_nxm,
-  sum(abs(v.nxm_in - v.nxm_out) * p.avg_nxm_eth_price) as eth_nxm,
-  sum(abs(v.nxm_in - v.nxm_out) * p.avg_nxm_usd_price) as usd_nxm,
-  sum(abs(v.eth_in - v.eth_out)) as eth_eth,
-  sum(abs(v.eth_in - v.eth_out) * p.avg_eth_usd_price) as usd_eth,
+  sum(abs(v.nxm_in - v.nxm_out)) as nxm_nxm_volume,
+  sum(abs(v.nxm_in - v.nxm_out) * p.avg_nxm_eth_price) as eth_nxm_volume,
+  sum(abs(v.nxm_in - v.nxm_out) * p.avg_nxm_usd_price) as usd_nxm_volume,
+  sum(abs(v.eth_in - v.eth_out)) as eth_eth_volume,
+  sum(abs(v.eth_in - v.eth_out) * p.avg_eth_usd_price) as usd_eth_volume,
   -- in/out separately
   sum(v.nxm_in) as nxm_in,
   sum(v.eth_out) as eth_eth_out,
