@@ -44,7 +44,7 @@ capital_pool as (
       avg_steth_usd_total as usd_steth,
       avg_reth_usd_total as usd_reth,
       avg_nxmty_usd_total as usd_nxmty,
-      aave_collateral_weth_total as usd_aweth,
+      avg_aave_collateral_weth_usd_total as usd_aweth,
       avg_aave_debt_usdc_usd_total as usd_debt_usdc,
       avg_dai_usd_total as usd_dai,
       avg_usdc_usd_total as usd_usdc,
