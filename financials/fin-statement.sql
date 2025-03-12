@@ -32,13 +32,13 @@ member_fees as (
   where block_month = timestamp '2025-02-01'
 ),
 
-ramm_volume as (
+capital_movement as (
   select
     block_month,
-    eth_nxm_volume,
-    usd_nxm_volume,
-    eth_eth_volume,
-    usd_eth_volume
+    eth_eth_in,
+    eth_usd_in,
+    eth_eth_out,
+    eth_usd_out
   from query_4841361 -- ramm volume
   where block_month = timestamp '2025-02-01'
 ),
@@ -80,10 +80,10 @@ fin_combined as (
     pc.usd_premiums_minus_claims,
     mf.eth_member_fee,
     mf.usd_member_fee,
-    rv.eth_nxm_volume,
-    rv.usd_nxm_volume,
-    rv.eth_eth_volume,
-    rv.usd_eth_volume,
+    cm.eth_eth_in,
+    cm.eth_usd_in,
+    cm.eth_eth_out,
+    cm.eth_usd_out,
     bs.eth_capital_pool,
     bs.eth_eth,
     bs.eth_steth,
@@ -109,7 +109,7 @@ fin_combined as (
   from investment_returns ir
     cross join premiums_claims pc
     cross join member_fees mf
-    cross join ramm_volume rv
+    cross join capital_movement cm
     cross join balance_sheet bs
 )
 
@@ -117,16 +117,16 @@ select
   i.label_tab,
   case i.label
     -- revenue
-    when 'Revenue Statement' then eth_inv_returns + fx_change + eth_premiums_minus_claims + eth_member_fee + eth_nxm_volume - eth_eth_volume
+    when 'Revenue Statement' then eth_inv_returns + fx_change + eth_premiums_minus_claims + eth_member_fee + eth_eth_in + eth_eth_out
     when 'Cash Surplus' then eth_inv_returns + fx_change + eth_premiums_minus_claims + eth_member_fee
     when 'Investments' then eth_inv_returns + fx_change
     when 'Investment Returns' then eth_inv_returns
     when 'Stablecoin Impact' then fx_change
     when 'Premiums - Claims' then eth_premiums_minus_claims
     when 'Membership Fees' then eth_member_fee
-    when 'Capital Movement' then eth_nxm_volume - eth_eth_volume
-    when 'Contributions' then eth_nxm_volume
-    when 'Withdrawals' then -1 * eth_eth_volume
+    when 'Capital Movement' then eth_eth_in + eth_eth_out
+    when 'Contributions' then eth_eth_in
+    when 'Withdrawals' then eth_eth_out
     -- balance sheet
     when 'Balance Sheet' then eth_capital_pool
     when 'Crypto Denominated Assets' then eth_eth + eth_steth + eth_reth + eth_cbbtc + eth_nxmty + eth_aweth
