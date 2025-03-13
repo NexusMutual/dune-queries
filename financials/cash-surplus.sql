@@ -44,6 +44,57 @@ premium_aggs as (
   group by 1
 ),
 
+memebership as (
+  -- v1
+  select
+    1 as version,
+    date_trunc('day', call_block_time) as block_date,
+    cardinality(userArray) as member_count
+  from nexusmutual_ethereum.MemberRoles_call_addMembersBeforeLaunch
+  where contract_address = 0x055cc48f7968fd8640ef140610dd4038e1b03926
+    and call_success
+  union all
+  select
+    1 as version,
+    date_trunc('day', call_block_time) as block_date,
+    count(*) as member_count
+  from nexusmutual_ethereum.MemberRoles_call_kycVerdict
+  where contract_address = 0x055cc48f7968fd8640ef140610dd4038e1b03926
+    and call_success
+    and verdict
+  group by 2
+  union all
+  -- v2
+  select
+    2 as version,
+    date_trunc('day', call_block_time) as block_date,
+    count(*) as member_count
+  from nexusmutual_ethereum.MemberRoles_call_join
+  where contract_address = 0x055cc48f7968fd8640ef140610dd4038e1b03926
+    and call_success
+  group by 2
+  union all
+  select
+    2 as version,
+    date_trunc('day', call_block_time) as block_date,
+    -1 * count(*) as member_count
+  from nexusmutual_ethereum.MemberRoles_call_withdrawMembership
+  where contract_address = 0x055cc48f7968fd8640ef140610dd4038e1b03926
+    and call_success
+  group by 2
+),
+
+membership_agg as (
+  select
+    date_trunc('month', m.block_date) as block_month,
+    sum(m.member_count) as member_count,
+    sum(m.member_count * 0.0020) as eth_member_fee,
+    sum(m.member_count * 0.0020 * p.avg_eth_usd_price) as usd_member_fee
+  from memebership m
+    inner join daily_avg_prices p on m.block_date = p.block_date
+  group by 1
+),
+
 claims_paid as (
   select
     version,
@@ -81,8 +132,9 @@ select
   p.usd_premium,
   coalesce(cp.eth_claim_paid, 0) as eth_claim_paid,
   coalesce(cp.usd_claim_paid, 0) as usd_claim_paid,
-  p.eth_premium - coalesce(cp.eth_claim_paid, 0) as eth_premiums_minus_claims,
-  p.usd_premium - coalesce(cp.usd_claim_paid, 0) as usd_premiums_minus_claims
+  coalesce(m.eth_member_fee, 0) as eth_member_fee,
+  coalesce(m.usd_member_fee, 0) as usd_member_fee
 from premium_aggs p
+  left join membership_agg m on p.cover_month = m.block_month
   left join claims_paid_agg cp on p.cover_month = cp.claim_payout_month
 order by 1 desc
