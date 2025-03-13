@@ -10,7 +10,8 @@ investment_returns as (
     block_month,
     eth_inv_returns,
     usd_inv_returns,
-    eth_fx_change
+    eth_fx_change,
+    usd_fx_change
   from query_4770697 -- investement returns
   where block_month = timestamp '2025-02-01'
 ),
@@ -78,6 +79,7 @@ fin_combined as (
     ir.eth_inv_returns,
     ir.usd_inv_returns,
     ir.eth_fx_change,
+    ir.usd_fx_change,
     pc.eth_premiums_minus_claims,
     pc.usd_premiums_minus_claims,
     mf.eth_member_fee,
@@ -146,11 +148,11 @@ select
   end as eth_val,
   case i.label
     -- revenue
-    when 'Revenue Statement' then usd_inv_returns + usd_premiums_minus_claims + usd_member_fee + usd_eth_in + usd_eth_out
-    when 'Cash Surplus' then usd_inv_returns + usd_premiums_minus_claims + usd_member_fee
-    when 'Investments' then usd_inv_returns
+    when 'Revenue Statement' then usd_inv_returns + usd_fx_change + usd_premiums_minus_claims + usd_member_fee + usd_eth_in + usd_eth_out
+    when 'Cash Surplus' then usd_inv_returns + usd_fx_change + usd_premiums_minus_claims + usd_member_fee
+    when 'Investments' then usd_inv_returns + usd_fx_change
     when 'Investment Returns' then usd_inv_returns
-    when 'FX Impact' then null
+    when 'FX Impact' then usd_fx_change
     when 'Premiums - Claims' then usd_premiums_minus_claims
     when 'Membership Fees' then usd_member_fee
     when 'Capital Movement' then usd_eth_in + usd_eth_out
