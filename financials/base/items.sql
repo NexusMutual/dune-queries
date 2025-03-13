@@ -26,7 +26,7 @@ with items (fi_id, scope, label, label_tab) as (
   (1100, 'rs', 'Cash Surplus', '&nbsp; Cash Surplus'),
   (1110, 'rs', 'Investments', '&nbsp; &nbsp; ⌄ Investments'),
   (1113, 'rs', 'Investment Returns', '&nbsp; &nbsp; &nbsp; &nbsp; Investment Returns'),
-  (1116, 'rs', 'Stablecoin Impact', '&nbsp; &nbsp; &nbsp; &nbsp; Stablecoin Impact'),
+  (1116, 'rs', 'FX Impact', '&nbsp; &nbsp; &nbsp; &nbsp; FX Impact'),
   (1120, 'rs', 'Premiums - Claims', '&nbsp; &nbsp; Premiums - Claims'),
   (1130, 'rs', 'Membership Fees', '&nbsp; &nbsp; Membership Fees'),
   --(1140, 'rs', 'Reserve Movement', '&nbsp; &nbsp; Reserve Movement'),

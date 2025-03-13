@@ -123,7 +123,7 @@ select
     when 'Cash Surplus' then eth_inv_returns + eth_fx_change + eth_premiums_minus_claims + eth_member_fee
     when 'Investments' then eth_inv_returns + eth_fx_change
     when 'Investment Returns' then eth_inv_returns
-    when 'Stablecoin Impact' then eth_fx_change
+    when 'FX Impact' then eth_fx_change
     when 'Premiums - Claims' then eth_premiums_minus_claims
     when 'Membership Fees' then eth_member_fee
     when 'Capital Movement' then eth_eth_in + eth_eth_out
@@ -150,7 +150,7 @@ select
     when 'Cash Surplus' then usd_inv_returns + usd_premiums_minus_claims + usd_member_fee
     when 'Investments' then usd_inv_returns
     when 'Investment Returns' then usd_inv_returns
-    when 'Stablecoin Impact' then null
+    when 'FX Impact' then null
     when 'Premiums - Claims' then usd_premiums_minus_claims
     when 'Membership Fees' then usd_member_fee
     when 'Capital Movement' then usd_eth_in + usd_eth_out
