@@ -7,7 +7,7 @@ prices as (
   from query_4627588 -- Capital Pool - base root
 ),
 
-eth_capital_pool as (
+capital_pool as (
   select
     date_trunc('month', block_date) as block_month,
     -- === ETH ===
@@ -118,7 +118,7 @@ stables_fx_impact as (
     s.eth_usdc_prev * p.eth_usd_price_start / p.eth_usd_price_end - s.eth_usdc_prev as eth_usdc_fx_change,
     s.eth_cover_re_prev * p.eth_usd_price_start / p.eth_usd_price_end - s.eth_cover_re_prev as eth_cover_re_fx_change,
     s.eth_debt_usdc_prev * p.eth_usd_price_start / p.eth_usd_price_end - s.eth_debt_usdc_prev as eth_debt_usdc_fx_change
-  from eth_capital_pool s
+  from capital_pool s
     inner join prices_start_end p on s.block_month = p.block_month
 ),
 
@@ -244,7 +244,7 @@ capital_pool_enriched as (
     cp.usd_debt_usdc_prev,
     coalesce(aave_d.usd_debt_usdc_borrow, 0) as usd_debt_usdc_borrow,
     coalesce(aave_d.usd_debt_usdc_repay, 0) as usd_debt_usdc_repay
-  from eth_capital_pool cp
+  from capital_pool cp
     inner join stables_fx_impact fx on cp.block_month = fx.block_month
     left join aweth_collateral aave_c on cp.block_month = aave_c.block_month
     left join usdc_debt aave_d on cp.block_month = aave_d.block_month
