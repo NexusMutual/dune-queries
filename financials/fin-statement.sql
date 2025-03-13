@@ -9,6 +9,7 @@ investment_returns as (
   select
     block_month,
     eth_inv_returns,
+    usd_inv_returns,
     eth_fx_change
   from query_4770697 -- investement returns
   where block_month = timestamp '2025-02-01'
@@ -36,9 +37,9 @@ capital_movement as (
   select
     block_month,
     eth_eth_in,
-    eth_usd_in,
+    usd_eth_in,
     eth_eth_out,
-    eth_usd_out
+    usd_eth_out
   from query_4841361 -- ramm volume
   where block_month = timestamp '2025-02-01'
 ),
@@ -75,15 +76,16 @@ balance_sheet as (
 fin_combined as (
   select
     ir.eth_inv_returns,
+    ir.usd_inv_returns,
     ir.eth_fx_change,
     pc.eth_premiums_minus_claims,
     pc.usd_premiums_minus_claims,
     mf.eth_member_fee,
     mf.usd_member_fee,
     cm.eth_eth_in,
-    cm.eth_usd_in,
+    cm.usd_eth_in,
     cm.eth_eth_out,
-    cm.eth_usd_out,
+    cm.usd_eth_out,
     bs.eth_capital_pool,
     bs.eth_eth,
     bs.eth_steth,
@@ -142,7 +144,33 @@ select
     when 'Cover Re' then eth_cover_re
     when 'Aave debtUSDC' then eth_debt_usdc
   end as eth_val,
-  null as usd_val
+  case i.label
+    -- revenue
+    when 'Revenue Statement' then usd_inv_returns + usd_premiums_minus_claims + usd_member_fee + usd_eth_in + usd_eth_out
+    when 'Cash Surplus' then usd_inv_returns + usd_premiums_minus_claims + usd_member_fee
+    when 'Investments' then usd_inv_returns
+    when 'Investment Returns' then usd_inv_returns
+    when 'Stablecoin Impact' then null
+    when 'Premiums - Claims' then usd_premiums_minus_claims
+    when 'Membership Fees' then usd_member_fee
+    when 'Capital Movement' then usd_eth_in + usd_eth_out
+    when 'Contributions' then usd_eth_in
+    when 'Withdrawals' then usd_eth_out
+    -- balance sheet
+    when 'Balance Sheet' then usd_capital_pool
+    when 'Crypto Denominated Assets' then usd_eth + usd_steth + usd_reth + usd_cbbtc + usd_nxmty + usd_aweth
+    when 'ETH' then usd_eth
+    when 'stETH' then usd_steth
+    when 'rETH' then usd_reth
+    when 'cbBTC' then usd_cbbtc
+    when 'Enzyme Vault' then usd_nxmty
+    when 'Aave aEthWETH' then usd_aweth
+    when 'Stablecoin Denominated Assets' then usd_dai + usd_usdc + usd_cover_re + usd_debt_usdc
+    when 'DAI' then usd_dai
+    when 'USDC' then usd_usdc
+    when 'Cover Re' then usd_cover_re
+    when 'Aave debtUSDC' then usd_debt_usdc
+  end as usd_val
 from fin_combined fc
   cross join items i
 order by i.fi_id
