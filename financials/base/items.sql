@@ -51,7 +51,8 @@ with items (fi_id, scope, label, label_tab) as (
   (2210, 'bs', 'DAI', '&nbsp; &nbsp; &nbsp; DAI'),
   (2220, 'bs', 'USDC', '&nbsp; &nbsp; &nbsp; USDC'),
   (2230, 'bs', 'Cover Re', '&nbsp; &nbsp; &nbsp; Cover Re'),
-  (2240, 'bs', 'Aave debtUSDC', '&nbsp; &nbsp; &nbsp; Aave debtUSDC')
+  (2240, 'bs', 'Aave debtUSDC', '&nbsp; &nbsp; &nbsp; Aave debtUSDC'),
+  (2300, 'bs', 'Total Balance', '&nbsp; Total Balance')
 )
 
 select fi_id, scope, label, label_tab
