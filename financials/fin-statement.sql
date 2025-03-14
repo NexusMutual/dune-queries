@@ -9,29 +9,36 @@ investment_returns as (
   select
     block_month,
     eth_inv_returns,
+    eth_steth_return,
+    eth_reth_return,
+    eth_nxmty_return,
+    eth_aave_net_return,
+    eth_aweth_return,
+    eth_debt_usdc_return,
     usd_inv_returns,
+    usd_steth_return,
+    usd_reth_return,
+    usd_nxmty_return,
+    usd_aave_net_return,
+    usd_aweth_return,
+    usd_debt_usdc_return,
     eth_fx_change,
     usd_fx_change
   from query_4770697 -- investement returns
   where block_month = timestamp '2025-02-01'
 ),
 
-premiums_claims as (
+cash_surplus as (
   select
     cover_month,
-    eth_premiums_minus_claims,
-    usd_premiums_minus_claims
-  from query_4836553 -- premiums - claims
-  where cover_month = timestamp '2025-02-01'
-),
-
-member_fees as (
-  select
-    block_month,
+    eth_premium,
+    usd_premium,
+    eth_claim_paid,
+    usd_claim_paid,
     eth_member_fee,
     usd_member_fee
-  from query_4836646 -- member fees
-  where block_month = timestamp '2025-02-01'
+  from query_4836553 -- cash surplus
+  where cover_month = timestamp '2025-02-01'
 ),
 
 capital_movement as (
@@ -77,13 +84,27 @@ balance_sheet as (
 fin_combined as (
   select
     ir.eth_inv_returns,
+    ir.eth_steth_return,
+    ir.eth_reth_return,
+    ir.eth_nxmty_return,
+    ir.eth_aave_net_return,
+    ir.eth_aweth_return,
+    ir.eth_debt_usdc_return,
     ir.usd_inv_returns,
+    ir.usd_steth_return,
+    ir.usd_reth_return,
+    ir.usd_nxmty_return,
+    ir.usd_aave_net_return,
+    ir.usd_aweth_return,
+    ir.usd_debt_usdc_return,
     ir.eth_fx_change,
     ir.usd_fx_change,
-    pc.eth_premiums_minus_claims,
-    pc.usd_premiums_minus_claims,
-    mf.eth_member_fee,
-    mf.usd_member_fee,
+    cs.eth_premium,
+    cs.usd_premium,
+    cs.eth_claim_paid,
+    cs.usd_claim_paid,
+    cs.eth_member_fee,
+    cs.usd_member_fee,
     cm.eth_eth_in,
     cm.usd_eth_in,
     cm.eth_eth_out,
@@ -111,8 +132,7 @@ fin_combined as (
     bs.usd_cbbtc,
     bs.usd_cover_re
   from investment_returns ir
-    cross join premiums_claims pc
-    cross join member_fees mf
+    cross join cash_surplus cs
     cross join capital_movement cm
     cross join balance_sheet bs
 )
@@ -121,16 +141,24 @@ select
   i.label_tab,
   case i.label
     -- revenue
-    when 'Revenue Statement' then eth_inv_returns + eth_fx_change + eth_premiums_minus_claims + eth_member_fee + eth_eth_in + eth_eth_out
-    when 'Cash Surplus' then eth_inv_returns + eth_fx_change + eth_premiums_minus_claims + eth_member_fee
-    when 'Investments' then eth_inv_returns + eth_fx_change
-    when 'Investment Returns' then eth_inv_returns
-    when 'FX Impact' then eth_fx_change
-    when 'Premiums - Claims' then eth_premiums_minus_claims
+    when 'Revenue Statement' then null
+    when 'Cash Surplus' then eth_premium + eth_member_fee + eth_claim_paid
+    when 'Premiums' then eth_premium
     when 'Membership Fees' then eth_member_fee
+    when 'Claims - Reimbursements' then eth_claim_paid
+    when 'Investments Total' then eth_inv_returns + eth_fx_change
+    when 'Total ETH Earned' then eth_inv_returns
+    when 'stETH Return' then eth_steth_return
+    when 'rETH Return' then eth_reth_return
+    when 'Enzyme Vault Return' then eth_nxmty_return
+    when 'Aave Net Return' then eth_aave_net_return
+    when 'aEthWETH Return' then eth_aweth_return
+    when 'debtUSDC Return' then eth_debt_usdc_return
+    when 'FX Impact' then eth_fx_change
     when 'Capital Movement' then eth_eth_in + eth_eth_out
     when 'Contributions' then eth_eth_in
     when 'Withdrawals' then eth_eth_out
+    when 'Total Cash Movement' then eth_premium + eth_member_fee + eth_claim_paid + eth_inv_returns + eth_fx_change + eth_eth_in + eth_eth_out
     -- balance sheet
     when 'Balance Sheet' then eth_capital_pool
     when 'Crypto Denominated Assets' then eth_eth + eth_steth + eth_reth + eth_cbbtc + eth_nxmty + eth_aweth
@@ -148,16 +176,24 @@ select
   end as eth_val,
   case i.label
     -- revenue
-    when 'Revenue Statement' then usd_inv_returns + usd_fx_change + usd_premiums_minus_claims + usd_member_fee + usd_eth_in + usd_eth_out
-    when 'Cash Surplus' then usd_inv_returns + usd_fx_change + usd_premiums_minus_claims + usd_member_fee
-    when 'Investments' then usd_inv_returns + usd_fx_change
-    when 'Investment Returns' then usd_inv_returns
-    when 'FX Impact' then usd_fx_change
-    when 'Premiums - Claims' then usd_premiums_minus_claims
+    when 'Revenue Statement' then null
+    when 'Cash Surplus' then usd_premium + usd_member_fee + usd_claim_paid
+    when 'Premiums' then usd_premium
     when 'Membership Fees' then usd_member_fee
+    when 'Claims - Reimbursements' then usd_claim_paid
+    when 'Investments Total' then usd_inv_returns + usd_fx_change
+    when 'Total ETH Earned' then usd_inv_returns
+    when 'stETH Return' then usd_steth_return
+    when 'rETH Return' then usd_reth_return
+    when 'Enzyme Vault Return' then usd_nxmty_return
+    when 'Aave Net Return' then usd_aave_net_return
+    when 'aEthWETH Return' then usd_aweth_return
+    when 'debtUSDC Return' then usd_debt_usdc_return
+    when 'FX Impact' then usd_fx_change
     when 'Capital Movement' then usd_eth_in + usd_eth_out
     when 'Contributions' then usd_eth_in
     when 'Withdrawals' then usd_eth_out
+    when 'Total Cash Movement' then usd_premium + usd_member_fee + usd_claim_paid + usd_inv_returns + usd_fx_change + usd_eth_in + usd_eth_out
     -- balance sheet
     when 'Balance Sheet' then usd_capital_pool
     when 'Crypto Denominated Assets' then usd_eth + usd_steth + usd_reth + usd_cbbtc + usd_nxmty + usd_aweth
