@@ -92,42 +92,42 @@ select
     -- revenue
     when 'Revenue Statement' then null
     when 'Cash Surplus' then eth_premium + eth_member_fee + eth_claim_paid
-    when 'Premiums' then eth_premium
-    when 'Membership Fees' then eth_member_fee
-    when 'Claims - Reimbursements' then eth_claim_paid
+    when 'Premiums' then coalesce(nullif(eth_premium, 0), 1e-6)
+    when 'Membership Fees' then coalesce(nullif(eth_member_fee, 0), 1e-6)
+    when 'Claims - Reimbursements' then coalesce(nullif(eth_claim_paid, 0), 1e-6)
     when 'Investments Total' then eth_inv_returns + eth_fx_change
-    when 'Total ETH Earned' then eth_inv_returns
-    when 'stETH Return' then eth_steth_return
-    when 'rETH Return' then eth_reth_return
-    when 'Enzyme Vault Return' then eth_nxmty_return
-    when 'Aave Net Return' then eth_aave_net_return
-    when 'aEthWETH Return' then eth_aweth_return
-    when 'debtUSDC Return' then eth_debt_usdc_return
-    when 'FX Impact' then eth_fx_change
+    when 'Total ETH Earned' then coalesce(nullif(eth_inv_returns, 0), 1e-6)
+    when 'stETH Return' then coalesce(nullif(eth_steth_return, 0), 1e-6)
+    when 'rETH Return' then coalesce(nullif(eth_reth_return, 0), 1e-6)
+    when 'Enzyme Vault Return' then coalesce(nullif(eth_nxmty_return, 0), 1e-6)
+    when 'Aave Net Return' then coalesce(nullif(eth_aave_net_return, 0), 1e-6)
+    when 'aEthWETH Return' then coalesce(nullif(eth_aweth_return, 0), 1e-6)
+    when 'debtUSDC Return' then coalesce(nullif(eth_debt_usdc_return, 0), 1e-6)
+    when 'FX Impact' then coalesce(nullif(eth_fx_change, 0), 1e-6)
     when 'Capital Movement' then eth_eth_in + eth_eth_out
-    when 'Contributions' then eth_eth_in
-    when 'Withdrawals' then eth_eth_out
+    when 'Contributions' then coalesce(nullif(eth_eth_in, 0), 1e-6)
+    when 'Withdrawals' then coalesce(nullif(eth_eth_out, 0), 1e-6)
     when 'Total Cash Movement' then eth_premium + eth_member_fee + eth_claim_paid + eth_inv_returns + eth_fx_change + eth_eth_in + eth_eth_out
   end as eth_val,
   case i.label
     -- revenue
     when 'Revenue Statement' then null
     when 'Cash Surplus' then usd_premium + usd_member_fee + usd_claim_paid
-    when 'Premiums' then usd_premium
-    when 'Membership Fees' then usd_member_fee
-    when 'Claims - Reimbursements' then usd_claim_paid
+    when 'Premiums' then coalesce(nullif(usd_premium, 0), 1e-6)
+    when 'Membership Fees' then coalesce(nullif(usd_member_fee, 0), 1e-6)
+    when 'Claims - Reimbursements' then coalesce(nullif(usd_claim_paid, 0), 1e-6)
     when 'Investments Total' then usd_inv_returns + usd_fx_change
-    when 'Total ETH Earned' then usd_inv_returns
-    when 'stETH Return' then usd_steth_return
-    when 'rETH Return' then usd_reth_return
-    when 'Enzyme Vault Return' then usd_nxmty_return
-    when 'Aave Net Return' then usd_aave_net_return
-    when 'aEthWETH Return' then usd_aweth_return
-    when 'debtUSDC Return' then usd_debt_usdc_return
-    when 'FX Impact' then usd_fx_change
+    when 'Total ETH Earned' then coalesce(nullif(usd_inv_returns, 0), 1e-6)
+    when 'stETH Return' then coalesce(nullif(usd_steth_return, 0), 1e-6)
+    when 'rETH Return' then coalesce(nullif(usd_reth_return, 0), 1e-6)
+    when 'Enzyme Vault Return' then coalesce(nullif(usd_nxmty_return, 0), 1e-6)
+    when 'Aave Net Return' then coalesce(nullif(usd_aave_net_return, 0), 1e-6)
+    when 'aEthWETH Return' then coalesce(nullif(usd_aweth_return, 0), 1e-6)
+    when 'debtUSDC Return' then coalesce(nullif(usd_debt_usdc_return, 0), 1e-6)
+    when 'FX Impact' then coalesce(nullif(usd_fx_change, 0), 1e-6)
     when 'Capital Movement' then usd_eth_in + usd_eth_out
-    when 'Contributions' then usd_eth_in
-    when 'Withdrawals' then usd_eth_out
+    when 'Contributions' then coalesce(nullif(usd_eth_in, 0), 1e-6)
+    when 'Withdrawals' then coalesce(nullif(usd_eth_out, 0), 1e-6)
     when 'Total Cash Movement' then usd_premium + usd_member_fee + usd_claim_paid + usd_inv_returns + usd_fx_change + usd_eth_in + usd_eth_out
   end as usd_val
 from fin_combined fc
