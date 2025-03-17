@@ -1,5 +1,13 @@
 with
 
+params as (
+  select cast(case '{{month}}'
+      when 'current month' then cast(date_trunc('month', current_date) as varchar)
+      when 'last month' then cast(date_add('month', -1, date_trunc('month', current_date)) as varchar)
+      else '{{month}}'
+    end as timestamp) as report_month
+),
+
 items as (
   select fi_id, label, label_tab
   from query_4832890 -- fin items
@@ -32,7 +40,7 @@ balance_sheet as (
     usd_cbbtc,
     usd_cover_re
   from query_4841979 -- balance sheet - base
-  where block_month = timestamp '2025-02-01'
+  where block_month in (select report_month from params)
 )
 
 select

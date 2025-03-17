@@ -1,5 +1,13 @@
 with
 
+params as (
+  select cast(case '{{month}}'
+      when 'current month' then cast(date_trunc('month', current_date) as varchar)
+      when 'last month' then cast(date_add('month', -1, date_trunc('month', current_date)) as varchar)
+      else '{{month}}'
+    end as timestamp) as report_month
+),
+
 items as (
   select fi_id, label, label_tab
   from query_4832890 -- fin items
@@ -26,7 +34,7 @@ investment_returns as (
     eth_fx_change,
     usd_fx_change
   from query_4770697 -- investement returns
-  where block_month = timestamp '2025-02-01'
+  where block_month in (select report_month from params)
 ),
 
 cash_surplus as (
@@ -39,7 +47,7 @@ cash_surplus as (
     eth_member_fee,
     usd_member_fee
   from query_4836553 -- cash surplus
-  where cover_month = timestamp '2025-02-01'
+  where cover_month in (select report_month from params)
 ),
 
 capital_movement as (
@@ -50,7 +58,7 @@ capital_movement as (
     eth_eth_out,
     usd_eth_out
   from query_4841361 -- ramm volume
-  where block_month = timestamp '2025-02-01'
+  where block_month in (select report_month from params)
 ),
 
 fin_combined as (
