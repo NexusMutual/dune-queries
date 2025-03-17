@@ -120,8 +120,8 @@ claims_paid as (
 claims_paid_agg as (
   select
     date_trunc('month', claim_payout_date) as claim_payout_month,
-    sum(eth_usd_claim_amount + dai_usd_claim_amount + usdc_usd_claim_amount + cbbtc_usd_claim_amount) as usd_claim_paid,
-    sum(eth_eth_claim_amount + dai_eth_claim_amount + usdc_eth_claim_amount + cbbtc_eth_claim_amount) as eth_claim_paid
+    -1 * sum(eth_usd_claim_amount + dai_usd_claim_amount + usdc_usd_claim_amount + cbbtc_usd_claim_amount) as usd_claim_paid,
+    -1 * sum(eth_eth_claim_amount + dai_eth_claim_amount + usdc_eth_claim_amount + cbbtc_eth_claim_amount) as eth_claim_paid
   from claims_paid
   group by 1
 )
