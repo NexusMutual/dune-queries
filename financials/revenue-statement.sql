@@ -95,7 +95,7 @@ select
     when 'Premiums' then coalesce(nullif(eth_premium, 0), 1e-6)
     when 'Membership Fees' then coalesce(nullif(eth_member_fee, 0), 1e-6)
     when 'Claims - Reimbursements' then coalesce(nullif(eth_claim_paid, 0), 1e-6)
-    when 'Investments Total' then eth_inv_returns + eth_fx_change
+    when 'Investments Return Total' then eth_inv_returns + eth_fx_change
     when 'Total ETH Earned' then coalesce(nullif(eth_inv_returns, 0), 1e-6)
     when 'stETH Return' then coalesce(nullif(eth_steth_return, 0), 1e-6)
     when 'rETH Return' then coalesce(nullif(eth_reth_return, 0), 1e-6)
@@ -116,7 +116,7 @@ select
     when 'Premiums' then coalesce(nullif(usd_premium, 0), 1e-6)
     when 'Membership Fees' then coalesce(nullif(usd_member_fee, 0), 1e-6)
     when 'Claims - Reimbursements' then coalesce(nullif(usd_claim_paid, 0), 1e-6)
-    when 'Investments Total' then usd_inv_returns + usd_fx_change
+    when 'Investments Return Total' then usd_inv_returns + usd_fx_change
     when 'Total ETH Earned' then coalesce(nullif(usd_inv_returns, 0), 1e-6)
     when 'stETH Return' then coalesce(nullif(usd_steth_return, 0), 1e-6)
     when 'rETH Return' then coalesce(nullif(usd_reth_return, 0), 1e-6)

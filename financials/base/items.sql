@@ -26,7 +26,7 @@ with items (fi_id, scope, label, label_tab) as (
   (1110, 'rs', 'Premiums', '&nbsp; &nbsp; &nbsp; Premiums'),
   (1120, 'rs', 'Membership Fees', '&nbsp; &nbsp; &nbsp; Membership Fees'),
   (1130, 'rs', 'Claims - Reimbursements', '&nbsp; &nbsp; &nbsp; Claims - Reimbursements'),
-  (1200, 'rs', 'Investments Total', '&nbsp; ⌄ Investments Total'),
+  (1200, 'rs', 'Investments Return Total', '&nbsp; ⌄ Investments Return Total'),
   (1200, 'rs', 'Total ETH Earned', '&nbsp; &nbsp; &nbsp; Total ETH Earned'),
   (1210, 'rs', 'stETH Return', '&nbsp; &nbsp; &nbsp; &nbsp; stETH Return'),
   (1220, 'rs', 'rETH Return', '&nbsp; &nbsp; &nbsp; &nbsp; rETH Return'),
