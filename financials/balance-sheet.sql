@@ -18,6 +18,7 @@ balance_sheet as (
   select
     block_month,
     eth_capital_pool,
+    eth_capital_pool_prev,
     eth_eth,
     eth_steth,
     eth_reth,
@@ -29,6 +30,7 @@ balance_sheet as (
     eth_cbbtc,
     eth_cover_re,
     usd_capital_pool,
+    usd_capital_pool_prev,
     usd_eth,
     usd_steth,
     usd_reth,
@@ -47,6 +49,7 @@ select
   i.label_tab,
   case i.label
     when 'Balance Sheet' then null
+    when 'Opening Balance' then coalesce(nullif(eth_capital_pool_prev, 0), 1e-6)
     when 'Crypto Denominated Assets' then eth_eth + eth_steth + eth_reth + eth_cbbtc + eth_nxmty + eth_aweth
     when 'ETH' then coalesce(nullif(eth_eth, 0), 1e-6)
     when 'stETH' then coalesce(nullif(eth_steth, 0), 1e-6)
@@ -59,10 +62,11 @@ select
     when 'USDC' then coalesce(nullif(eth_usdc, 0), 1e-6)
     when 'Cover Re' then coalesce(nullif(eth_cover_re, 0), 1e-6)
     when 'Aave debtUSDC' then coalesce(nullif(eth_debt_usdc, 0), 1e-6)
-    when 'Total Balance' then coalesce(nullif(eth_capital_pool, 0), 1e-6)
+    when 'Closing Balance' then coalesce(nullif(eth_capital_pool, 0), 1e-6)
   end as eth_val,
   case i.label
     when 'Balance Sheet' then null
+    when 'Opening Balance' then coalesce(nullif(usd_capital_pool_prev, 0), 1e-6)
     when 'Crypto Denominated Assets' then usd_eth + usd_steth + usd_reth + usd_cbbtc + usd_nxmty + usd_aweth
     when 'ETH' then coalesce(nullif(usd_eth, 0), 1e-6)
     when 'stETH' then coalesce(nullif(usd_steth, 0), 1e-6)
@@ -75,7 +79,7 @@ select
     when 'USDC' then coalesce(nullif(usd_usdc, 0), 1e-6)
     when 'Cover Re' then coalesce(nullif(usd_cover_re, 0), 1e-6)
     when 'Aave debtUSDC' then coalesce(nullif(usd_debt_usdc, 0), 1e-6)
-    when 'Total Balance' then coalesce(nullif(usd_capital_pool, 0), 1e-6)
+    when 'Closing Balance' then coalesce(nullif(usd_capital_pool, 0), 1e-6)
   end as usd_val
 from balance_sheet bs
   cross join items i

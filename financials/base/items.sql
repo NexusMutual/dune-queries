@@ -40,6 +40,7 @@ with items (fi_id, scope, label, label_tab) as (
   (1320, 'rs', 'Withdrawals', '&nbsp; &nbsp; &nbsp; Withdrawals'),
   (1400, 'rs', 'Total Cash Movement', '&nbsp; Total Cash Movement'),
   (2000, 'bs', 'Balance Sheet', '<b>Balance Sheet</b>'),
+  (2050, 'bs', 'Opening Balance', '&nbsp; Opening Balance'),
   (2100, 'bs', 'Crypto Denominated Assets', '&nbsp; ⌄ Crypto Denominated Assets'),
   (2110, 'bs', 'ETH', '&nbsp; &nbsp; &nbsp; ETH'),
   (2120, 'bs', 'stETH', '&nbsp; &nbsp; &nbsp; stETH'),
@@ -52,7 +53,7 @@ with items (fi_id, scope, label, label_tab) as (
   (2220, 'bs', 'USDC', '&nbsp; &nbsp; &nbsp; USDC'),
   (2230, 'bs', 'Cover Re', '&nbsp; &nbsp; &nbsp; Cover Re'),
   (2240, 'bs', 'Aave debtUSDC', '&nbsp; &nbsp; &nbsp; Aave debtUSDC'),
-  (2300, 'bs', 'Total Balance', '&nbsp; Total Balance')
+  (2300, 'bs', 'Closing Balance', '&nbsp; Closing Balance')
 )
 
 select fi_id, scope, label, label_tab
