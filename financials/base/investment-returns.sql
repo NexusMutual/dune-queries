@@ -51,8 +51,10 @@ capital_pool as (
 kiln_rewards as (
   select
     date_trunc('month', t.seq_date) as block_month,
-    t.kiln_rewards as eth_kiln_rewards,
-    lag(t.kiln_rewards, 1) over (order by t.seq_date) as eth_kiln_rewards_prev
+    t.kiln_rewards as eth_kiln_rewards_total,
+    lag(t.kiln_rewards, 1, 0) over (order by t.seq_date) as eth_kiln_rewards_total_prev,
+    t.kiln_rewards - lag(t.kiln_rewards, 1, 0) over (order by t.seq_date) as eth_kiln_rewards,
+    lag(t.kiln_rewards, 1, 0) over (order by t.seq_date) - lag(t.kiln_rewards, 2, 0) over (order by t.seq_date) as eth_kiln_rewards_prev
   from (
       select
         seq_date,
