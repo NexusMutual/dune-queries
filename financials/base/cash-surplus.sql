@@ -124,17 +124,28 @@ claims_paid_agg as (
     -1 * sum(eth_eth_claim_amount + dai_eth_claim_amount + usdc_eth_claim_amount + cbbtc_eth_claim_amount) as eth_claim_paid
   from claims_paid
   group by 1
+),
+
+claim_reimbursements_agg as (
+  select
+    block_month,
+    eth_reimbursement,
+    usd_reimbursement
+  from query_4877015 -- claim reimbursements
 )
 
 select
   p.cover_month,
   p.eth_premium,
   p.usd_premium,
+  coalesce(m.eth_member_fee, 0) as eth_member_fee,
+  coalesce(m.usd_member_fee, 0) as usd_member_fee,
   coalesce(cp.eth_claim_paid, 0) as eth_claim_paid,
   coalesce(cp.usd_claim_paid, 0) as usd_claim_paid,
-  coalesce(m.eth_member_fee, 0) as eth_member_fee,
-  coalesce(m.usd_member_fee, 0) as usd_member_fee
+  coalesce(cr.eth_reimbursement, 0) as eth_reimbursement,
+  coalesce(cr.usd_reimbursement, 0) as usd_reimbursement
 from premium_aggs p
   left join membership_agg m on p.cover_month = m.block_month
   left join claims_paid_agg cp on p.cover_month = cp.claim_payout_month
+  left join claim_reimbursements_agg cr on p.cover_month = cr.block_month
 order by 1 desc
