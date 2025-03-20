@@ -40,25 +40,16 @@ capital_pool as (
     from query_4627588 -- Capital Pool - base root
   ) t
   where t.rn = 1
-  order by 1 desc
-  limit 12 -- 12 months rolling
+  --order by 1 desc
+  --limit 12 -- 12 months rolling
 ),
 
 kiln_rewards as (
   select
-    date_trunc('month', t.seq_date) as block_month,
-    t.kiln_rewards as eth_kiln_rewards_total,
-    lag(t.kiln_rewards, 1, 0) over (order by t.seq_date) as eth_kiln_rewards_total_prev,
-    t.kiln_rewards - lag(t.kiln_rewards, 1, 0) over (order by t.seq_date) as eth_kiln_rewards,
-    lag(t.kiln_rewards, 1, 0) over (order by t.seq_date) - lag(t.kiln_rewards, 2, 0) over (order by t.seq_date) as eth_kiln_rewards_prev
-  from (
-      select
-        seq_date,
-        kiln_rewards,
-        row_number() over (partition by date_trunc('month', seq_date) order by seq_date desc) as rn
-      from query_4830965 -- kiln rewards
-    ) t
-  where t.rn = 1
+    block_month,
+    eth_kiln_rewards,
+    eth_kiln_rewards_prev
+  from query_4872828 -- kiln rewards monthly
 ),
 
 prices_start_end as (
