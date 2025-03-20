@@ -57,9 +57,8 @@ reimbursement_ext as (
 
 select
   date_trunc('month', block_date) as block_month,
-  product_name,
   sum(eth_usd_reimbursement_amount + dai_usd_reimbursement_amount + usdc_usd_reimbursement_amount) as usd_reimbursement,
   sum(eth_eth_reimbursement_amount + dai_eth_reimbursement_amount + usdc_eth_reimbursement_amount) as eth_reimbursement
 from reimbursement_ext
-group by 1, 2
+group by 1
 order by 1 desc
