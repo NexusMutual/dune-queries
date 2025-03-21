@@ -40,25 +40,20 @@ reimbursement_transfers as (
   where p_eth.symbol = 'ETH'
     and p_eth.blockchain is null
     and p_eth.contract_address is null
-),
-
-reimbursement_ext as (
-  select
-    block_date,
-    product_name,
-    if(symbol in ('ETH', 'WETH'), amount_eth, 0) as eth_eth_reimbursement_amount,
-    if(symbol in ('ETH', 'WETH'), amount_usd, 0) as eth_usd_reimbursement_amount,
-    if(symbol = 'DAI', amount_eth, 0) as dai_eth_reimbursement_amount,
-    if(symbol = 'DAI', amount_usd, 0) as dai_usd_reimbursement_amount,
-    if(symbol = 'USDC', amount_eth, 0) as usdc_eth_reimbursement_amount,
-    if(symbol = 'USDC', amount_usd, 0) as usdc_usd_reimbursement_amount
-  from reimbursement_transfers
 )
 
 select
-  date_trunc('month', block_date) as block_month,
-  sum(eth_usd_reimbursement_amount + dai_usd_reimbursement_amount + usdc_usd_reimbursement_amount) as usd_reimbursement,
-  sum(eth_eth_reimbursement_amount + dai_eth_reimbursement_amount + usdc_eth_reimbursement_amount) as eth_reimbursement
-from reimbursement_ext
-group by 1
-order by 1 desc
+  block_time,
+  block_date,
+  block_number,
+  product_name,
+  symbol,
+  amount,
+  if(symbol in ('ETH', 'WETH'), amount_eth, 0) as eth_eth_reimbursement_amount,
+  if(symbol in ('ETH', 'WETH'), amount_usd, 0) as eth_usd_reimbursement_amount,
+  if(symbol = 'DAI', amount_eth, 0) as dai_eth_reimbursement_amount,
+  if(symbol = 'DAI', amount_usd, 0) as dai_usd_reimbursement_amount,
+  if(symbol = 'USDC', amount_eth, 0) as usdc_eth_reimbursement_amount,
+  if(symbol = 'USDC', amount_usd, 0) as usdc_usd_reimbursement_amount,
+  tx_hash
+from reimbursement_transfers
