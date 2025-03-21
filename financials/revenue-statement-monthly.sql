@@ -42,10 +42,12 @@ cash_surplus as (
     cover_month,
     eth_premium,
     usd_premium,
+    eth_member_fee,
+    usd_member_fee,
     eth_claim_paid,
     usd_claim_paid,
-    eth_member_fee,
-    usd_member_fee
+    eth_reimbursement,
+    usd_reimbursement
   from query_4836553 -- cash surplus
   where cover_month >= date_add('month', -12, current_date)
 ),
@@ -65,14 +67,14 @@ select
   ir.block_month,
   -- === ETH ===
   -- subtotals
-  cs.eth_premium + cs.eth_member_fee + cs.eth_claim_paid as eth_cash_surplus,
+  cs.eth_premium + cs.eth_member_fee + cs.eth_claim_paid + cs.eth_reimbursement as eth_cash_surplus,
   ir.eth_inv_returns + ir.eth_fx_change as eth_inv_returns_total,
   cm.eth_eth_in + cm.eth_eth_out as eth_capital_movement,
-  cs.eth_premium + cs.eth_member_fee + cs.eth_claim_paid + ir.eth_inv_returns + ir.eth_fx_change + cm.eth_eth_in + cm.eth_eth_out as eth_cash_movement_total,
+  cs.eth_premium + cs.eth_member_fee + cs.eth_claim_paid + cs.eth_reimbursement + ir.eth_inv_returns + ir.eth_fx_change + cm.eth_eth_in + cm.eth_eth_out as eth_cash_movement_total,
   -- cash surplus
   cs.eth_premium,
   cs.eth_member_fee,
-  cs.eth_claim_paid,
+  cs.eth_claim_paid + cs.eth_reimbursement as eth_claim_paid,
   -- inv returns
   ir.eth_inv_returns,
   ir.eth_steth_return,
@@ -93,14 +95,14 @@ select
   cm.eth_eth_out,
   -- === USD ===
   -- subtotals
-  cs.usd_premium + cs.usd_member_fee + cs.usd_claim_paid as usd_cash_surplus,
+  cs.usd_premium + cs.usd_member_fee + cs.usd_claim_paid + cs.usd_reimbursement as usd_cash_surplus,
   ir.usd_inv_returns + ir.usd_fx_change as usd_inv_returns_total,
   cm.usd_eth_in + cm.usd_eth_out as usd_capital_movement,
-  cs.usd_premium + cs.usd_member_fee + cs.usd_claim_paid + ir.usd_inv_returns + ir.usd_fx_change + cm.usd_eth_in + cm.usd_eth_out as usd_cash_movement_total,
+  cs.usd_premium + cs.usd_member_fee + cs.usd_claim_paid + cs.usd_reimbursement + ir.usd_inv_returns + ir.usd_fx_change + cm.usd_eth_in + cm.usd_eth_out as usd_cash_movement_total,
   -- cash surplus
   cs.usd_premium,
   cs.usd_member_fee,
-  cs.usd_claim_paid,
+  cs.usd_claim_paid + cs.usd_reimbursement as usd_claim_paid,
   -- inv returns
   ir.usd_inv_returns,
   ir.usd_steth_return,

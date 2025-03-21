@@ -101,18 +101,8 @@ claims_paid as (
     cover_id,
     claim_id,
     coalesce(claim_payout_date, claim_date) as claim_payout_date,
-    --ETH
-    eth_eth_claim_amount,
-    eth_usd_claim_amount,
-    --DAI
-    dai_eth_claim_amount,
-    dai_usd_claim_amount,
-    --USDC
-    usdc_eth_claim_amount,
-    usdc_usd_claim_amount,
-    --cbBTC
-    cbbtc_eth_claim_amount,
-    cbbtc_usd_claim_amount
+    eth_usd_claim_amount + dai_usd_claim_amount + usdc_usd_claim_amount + cbbtc_usd_claim_amount as usd_claim_paid,
+    eth_eth_claim_amount + dai_eth_claim_amount + usdc_eth_claim_amount + cbbtc_eth_claim_amount as eth_claim_paid
   from query_3911051 -- claims paid base (fallback query)
   --from nexusmutual_ethereum.claims_paid
 ),
@@ -120,18 +110,27 @@ claims_paid as (
 claims_paid_agg as (
   select
     date_trunc('month', claim_payout_date) as claim_payout_month,
-    -1 * sum(eth_usd_claim_amount + dai_usd_claim_amount + usdc_usd_claim_amount + cbbtc_usd_claim_amount) as usd_claim_paid,
-    -1 * sum(eth_eth_claim_amount + dai_eth_claim_amount + usdc_eth_claim_amount + cbbtc_eth_claim_amount) as eth_claim_paid
+    -1 * sum(usd_claim_paid) as usd_claim_paid,
+    -1 * sum(eth_claim_paid) as eth_claim_paid
   from claims_paid
   group by 1
 ),
 
+claim_reimbursements as (
+  select
+    block_date,
+    eth_usd_reimbursement_amount + dai_usd_reimbursement_amount + usdc_usd_reimbursement_amount as usd_reimbursement,
+    eth_eth_reimbursement_amount + dai_eth_reimbursement_amount + usdc_eth_reimbursement_amount as eth_reimbursement
+  from query_4877015 -- claim reimbursements
+),
+
 claim_reimbursements_agg as (
   select
-    block_month,
-    eth_reimbursement,
-    usd_reimbursement
-  from query_4877015 -- claim reimbursements
+    date_trunc('month', block_date) as block_month,
+    sum(usd_reimbursement) as usd_reimbursement,
+    sum(eth_reimbursement) as eth_reimbursement
+  from claim_reimbursements
+  group by 1
 )
 
 select
