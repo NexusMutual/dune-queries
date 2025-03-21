@@ -283,6 +283,8 @@ investment_returns_ext as (
 select
   --date_format(block_month, '%Y-%m') as block_month,
   ir.block_month,
+  p.eth_usd_price_start,
+  p.eth_usd_price_end,
   -- === ETH ===
   -- capital pool total
   ir.eth_capital_pool_start,
@@ -323,7 +325,7 @@ select
   ir.eth_fx_change,
   -- === USD ===
   -- capital pool total
-  ir.eth_capital_pool_start * p.eth_usd_price_end as usd_capital_pool_start,
+  ir.eth_capital_pool_start * p.eth_usd_price_start as usd_capital_pool_start,
   ir.eth_capital_pool_end * p.eth_usd_price_end as usd_capital_pool_end,
   ir.eth_capital_pool_pct as usd_capital_pool_pct,
   -- individual eth investments

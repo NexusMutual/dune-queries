@@ -83,7 +83,7 @@ select
   cp.eth_cbbtc,
   cp.eth_cover_re,
   (cp.eth_capital_pool + coalesce(kr.eth_kiln_rewards, 0)) * p.eth_usd_price_end as usd_capital_pool,
-  (cp.eth_capital_pool_prev + coalesce(kr.eth_kiln_rewards_prev, 0)) * p.eth_usd_price_end as usd_capital_pool_prev,
+  (cp.eth_capital_pool_prev + coalesce(kr.eth_kiln_rewards_prev, 0)) * p.eth_usd_price_start as usd_capital_pool_prev,
   cp.eth_eth * p.eth_usd_price_end as usd_eth,
   cp.eth_steth * p.eth_usd_price_end as usd_steth,
   cp.eth_reth * p.eth_usd_price_end as usd_reth,
