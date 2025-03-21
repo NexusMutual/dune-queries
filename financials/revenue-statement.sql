@@ -17,6 +17,8 @@ items as (
 investment_returns as (
   select
     block_month,
+    eth_capital_pool_start,
+    eth_capital_pool_end,
     eth_inv_returns,
     eth_steth_return,
     eth_reth_return,
@@ -24,6 +26,8 @@ investment_returns as (
     eth_aave_net_return,
     eth_aweth_return,
     eth_debt_usdc_return,
+    usd_capital_pool_start,
+    usd_capital_pool_end,
     usd_inv_returns,
     usd_steth_return,
     usd_reth_return,
@@ -65,6 +69,8 @@ capital_movement as (
 
 fin_combined as (
   select
+    ir.eth_capital_pool_start,
+    ir.eth_capital_pool_end,
     ir.eth_inv_returns,
     ir.eth_steth_return,
     ir.eth_reth_return,
@@ -72,6 +78,8 @@ fin_combined as (
     ir.eth_aave_net_return,
     ir.eth_aweth_return,
     ir.eth_debt_usdc_return,
+    ir.usd_capital_pool_start,
+    ir.usd_capital_pool_end,
     ir.usd_inv_returns,
     ir.usd_steth_return,
     ir.usd_reth_return,
@@ -92,7 +100,14 @@ fin_combined as (
     cm.eth_eth_in,
     cm.usd_eth_in,
     cm.eth_eth_out,
-    cm.usd_eth_out
+    cm.usd_eth_out,
+    -- ETH totals
+    cs.eth_premium + cs.eth_member_fee + cs.eth_claim_paid + cs.eth_reimbursement as eth_cash_surplus,
+    ir.eth_inv_returns + ir.eth_fx_change as eth_inv_returns_total,
+    cm.eth_eth_in + cm.eth_eth_out as eth_capital_movement,
+    cs.eth_premium + cs.eth_member_fee + cs.eth_claim_paid + cs.eth_reimbursement + ir.eth_inv_returns + ir.eth_fx_change + cm.eth_eth_in + cm.eth_eth_out as eth_cash_movement,
+    -- USD totals
+    0 as x
   from investment_returns ir
     cross join cash_surplus cs
     cross join capital_movement cm
@@ -103,11 +118,11 @@ select
   case i.label
     -- revenue
     when 'Revenue Statement' then null
-    when 'Cash Surplus' then eth_premium + eth_member_fee + eth_claim_paid + eth_reimbursement
+    when 'Cash Surplus' then coalesce(nullif(eth_cash_surplus, 0), 1e-6)
     when 'Premiums' then coalesce(nullif(eth_premium, 0), 1e-6)
     when 'Membership Fees' then coalesce(nullif(eth_member_fee, 0), 1e-6)
     when 'Claims - Reimbursements' then coalesce(nullif(eth_claim_paid + eth_reimbursement, 0), 1e-6)
-    when 'Investments Return Total' then eth_inv_returns + eth_fx_change
+    when 'Investments Return Total' then coalesce(nullif(eth_inv_returns_total, 0), 1e-6)
     when 'Total ETH Earned' then coalesce(nullif(eth_inv_returns, 0), 1e-6)
     when 'stETH Return' then coalesce(nullif(eth_steth_return, 0), 1e-6)
     when 'rETH Return' then coalesce(nullif(eth_reth_return, 0), 1e-6)
@@ -116,10 +131,12 @@ select
     when 'aEthWETH Return' then coalesce(nullif(eth_aweth_return, 0), 1e-6)
     when 'debtUSDC Return' then coalesce(nullif(eth_debt_usdc_return, 0), 1e-6)
     when 'FX Impact' then coalesce(nullif(eth_fx_change, 0), 1e-6)
-    when 'Capital Movement' then eth_eth_in + eth_eth_out
+    when 'Capital Movement' then coalesce(nullif(eth_capital_movement, 0), 1e-6)
     when 'Contributions' then coalesce(nullif(eth_eth_in, 0), 1e-6)
     when 'Withdrawals' then coalesce(nullif(eth_eth_out, 0), 1e-6)
-    when 'Total Cash Movement' then eth_premium + eth_member_fee + eth_claim_paid + eth_reimbursement + eth_inv_returns + eth_fx_change + eth_eth_in + eth_eth_out
+    when 'Total Cash Movement' then coalesce(nullif(eth_cash_movement, 0), 1e-6)
+    when 'Reconcilation Difference' then eth_capital_pool_end - eth_capital_pool_start - eth_cash_movement
+    when 'Total Cash Movement After Rec Diff' then eth_capital_pool_end - eth_capital_pool_start
   end as eth_val,
   case i.label
     -- revenue

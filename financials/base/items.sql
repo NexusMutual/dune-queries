@@ -39,6 +39,8 @@ with items (fi_id, scope, label, label_tab) as (
   (1310, 'rs', 'Contributions', '&nbsp; &nbsp; &nbsp; Contributions'),
   (1320, 'rs', 'Withdrawals', '&nbsp; &nbsp; &nbsp; Withdrawals'),
   (1400, 'rs', 'Total Cash Movement', '&nbsp; Total Cash Movement'),
+  (1410, 'rs', 'Reconcilation Difference', '&nbsp; Reconcilation Difference'),
+  (1420, 'rs', 'Total Cash Movement After Rec Diff', '&nbsp; Total Cash Movement After Rec Diff'),
   (2000, 'bs', 'Balance Sheet', '<b>Balance Sheet</b>'),
   (2050, 'bs', 'Opening Balance', '&nbsp; Opening Balance'),
   (2100, 'bs', 'Crypto Denominated Assets', '&nbsp; ⌄ Crypto Denominated Assets'),
