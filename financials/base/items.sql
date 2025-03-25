@@ -41,6 +41,7 @@ with items (fi_id, scope, label, label_tab) as (
   (1400, 'rs', 'Total Cash Movement', '&nbsp; Total Cash Movement'),
   (1410, 'rs', 'Reconcilation Difference', '&nbsp; Reconcilation Difference'),
   (1420, 'rs', 'Total Cash Movement After Rec Diff', '&nbsp; Total Cash Movement After Rec Diff'),
+  
   (2000, 'bs', 'Balance Sheet', '<b>Balance Sheet</b>'),
   (2050, 'bs', 'Opening Balance', '&nbsp; Opening Balance'),
   (2100, 'bs', 'Crypto Denominated Assets', '&nbsp; ⌄ Crypto Denominated Assets'),
@@ -55,7 +56,15 @@ with items (fi_id, scope, label, label_tab) as (
   (2220, 'bs', 'USDC', '&nbsp; &nbsp; &nbsp; USDC'),
   (2230, 'bs', 'Cover Re', '&nbsp; &nbsp; &nbsp; Cover Re'),
   (2240, 'bs', 'Aave debtUSDC', '&nbsp; &nbsp; &nbsp; Aave debtUSDC'),
-  (2300, 'bs', 'Closing Balance', '&nbsp; Closing Balance')
+  (2300, 'bs', 'Closing Balance', '&nbsp; Closing Balance'),
+  
+  (2400, 'bs', 'NXM Movement', '<b>NXM Movement</b>'),
+  (2500, 'bs', 'Opening NXM', '&nbsp; Opening NXM'),
+  (2510, 'bs', 'NXM Burned from Cover Purchases', '&nbsp; &nbsp; NXM Burned from Cover Purchases'),
+  (2520, 'bs', 'NXM Minted as Rewards (from staking, claims and governance)', '&nbsp; &nbsp; NXM Minted as Rewards (from staking, claims and governance)'),
+  (2530, 'bs', 'NXM Minted from Contributions', '&nbsp; &nbsp; NXM Minted from Contributions'),
+  (2540, 'bs', 'NXM Burned from Withdrawals', '&nbsp; &nbsp; NXM Burned from Withdrawals'),
+  (2600, 'bs', 'Closing NXM', '&nbsp; Closing NXM')
 )
 
 select fi_id, scope, label, label_tab
