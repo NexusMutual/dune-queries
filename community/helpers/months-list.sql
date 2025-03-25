@@ -1,6 +1,6 @@
 select
   case
-    when cast(d.seq_date as timestamp) = date_trunc('month', current_date) then 'current month'
+    when cast(d.seq_date as timestamp) = date_trunc('month', current_date) then 'current MTD ⏳'
     when cast(d.seq_date as timestamp) = date_add('month', -1, date_trunc('month', current_date)) then 'last month'
     else cast(d.seq_date as varchar)
   end as period_date

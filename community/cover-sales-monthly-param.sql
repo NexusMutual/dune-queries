@@ -2,7 +2,7 @@ with
 
 params as (
   select cast(case '{{month}}'
-      when 'current month' then cast(date_trunc('month', current_date) as varchar)
+      when 'current MTD ⏳' then cast(date_trunc('month', current_date) as varchar)
       when 'last month' then cast(date_add('month', -1, date_trunc('month', current_date)) as varchar)
       else '{{month}}'
     end as timestamp) as period_date
