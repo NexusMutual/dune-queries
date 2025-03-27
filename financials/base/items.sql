@@ -61,6 +61,7 @@ with items (fi_id, scope, label, label_tab) as (
   (2400, 'bs', 'NXM Movement', '<b>NXM Movement</b>'),
   (2500, 'bs', 'Opening NXM', '&nbsp; Opening NXM'),
   (2510, 'bs', 'NXM Burned from Cover Purchases', '&nbsp; &nbsp; NXM Burned from Cover Purchases'),
+  (2515, 'bs', 'NXM Burned from Claims', '&nbsp; &nbsp; NXM Burned from Claims'),
   (2520, 'bs', 'NXM Minted as Rewards (from staking, claims and governance)', '&nbsp; &nbsp; NXM Minted as Rewards (from staking, claims and governance)'),
   (2530, 'bs', 'NXM Minted from Contributions', '&nbsp; &nbsp; NXM Minted from Contributions'),
   (2540, 'bs', 'NXM Burned from Withdrawals', '&nbsp; &nbsp; NXM Burned from Withdrawals'),
