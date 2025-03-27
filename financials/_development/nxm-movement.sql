@@ -13,7 +13,7 @@ cover_buy_movements as (
   select
     c.block_date,
     c.cover_id,
-    -1 * bf.amount / 1e18 as nxm_cover_buy_burn,
+    bf.amount / 1e18 as nxm_cover_buy_burn,
     bf.amount / 1e18 * 0.5 as nxm_rewards_mint,
     c.tx_hash
   from query_4599092 c -- covers v2 - base root (fallback query)
@@ -28,7 +28,7 @@ cover_buy_movements as (
 cover_buy_movements_agg as (
   select
     date_trunc('month', block_date) as block_month,
-    sum(nxm_cover_buy_burn) as nxm_cover_buy_burn,
+    -1 * sum(nxm_cover_buy_burn) as nxm_cover_buy_burn,
     sum(nxm_rewards_mint) as nxm_rewards_mint
   from cover_buy_movements
   group by 1
