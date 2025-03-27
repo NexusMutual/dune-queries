@@ -27,10 +27,13 @@ cover_buy_movements as (
 
 cover_buy_movements_agg as (
   select
-    date_trunc('month', block_date) as block_month,
-    -1 * sum(nxm_cover_buy_burn) as nxm_cover_buy_burn,
-    sum(nxm_rewards_mint) as nxm_rewards_mint
-  from cover_buy_movements
+    date_trunc('month', cbm.block_date) as block_month,
+    -1 * sum(cbm.nxm_cover_buy_burn * p.avg_nxm_eth_price) as eth_nxm_cover_buy_burn,
+    -1 * sum(cbm.nxm_cover_buy_burn * p.avg_nxm_usd_price) as usd_nxm_cover_buy_burn,
+    sum(cbm.nxm_rewards_mint * p.avg_nxm_eth_price) as eth_nxm_rewards_mint,
+    sum(cbm.nxm_rewards_mint * p.avg_nxm_usd_price) as usd_nxm_rewards_mint
+  from cover_buy_movements cbm
+    inner join daily_avg_prices p on cbm.block_date = p.block_date
   group by 1
 ),
 
@@ -69,9 +72,11 @@ assessor_rewards as (
 
 assessor_rewards_agg as (
   select
-    date_trunc('month', block_date) as block_month,
-    sum(nxm_assessor_rewards) as nxm_assessor_rewards
-  from assessor_rewards
+    date_trunc('month', ar.block_date) as block_month,
+    sum(ar.nxm_assessor_rewards * p.avg_nxm_eth_price) as eth_nxm_assessor_rewards,
+    sum(ar.nxm_assessor_rewards * p.avg_nxm_usd_price) as usd_nxm_assessor_rewards
+  from assessor_rewards ar
+    inner join daily_avg_prices p on ar.block_date = p.block_date
   group by 1
 ),
 
@@ -87,9 +92,11 @@ gov_rewards as (
 
 gov_rewards_agg as (
   select
-    date_trunc('month', block_date) as block_month,
-    sum(nxm_gov_rewards) as nxm_gov_rewards
-  from gov_rewards
+    date_trunc('month', gr.block_date) as block_month,
+    sum(gr.nxm_gov_rewards * p.avg_nxm_eth_price) as eth_nxm_gov_rewards,
+    sum(gr.nxm_gov_rewards * p.avg_nxm_usd_price) as usd_nxm_gov_rewards
+  from gov_rewards gr
+    inner join daily_avg_prices p on gr.block_date = p.block_date
   group by 1
 ),
 
@@ -105,12 +112,16 @@ capital_movement as (
 
 select
   cbm.block_month,
-  cbm.nxm_cover_buy_burn,
-  cbm.nxm_rewards_mint,
-  cp.eth_claim_paid,
-  cp.usd_claim_paid,
-  ar.nxm_assessor_rewards,
-  gr.nxm_gov_rewards,
+  cbm.eth_nxm_cover_buy_burn,
+  cbm.usd_nxm_cover_buy_burn,
+  cbm.eth_nxm_rewards_mint,
+  cbm.usd_nxm_rewards_mint,
+  coalesce(cp.eth_claim_paid, 0) as eth_claim_paid,
+  coalesce(cp.usd_claim_paid, 0) as usd_claim_paid,
+  coalesce(ar.eth_nxm_assessor_rewards, 0) as eth_nxm_assessor_rewards,
+  coalesce(ar.usd_nxm_assessor_rewards, 0) as usd_nxm_assessor_rewards,
+  coalesce(gr.eth_nxm_gov_rewards, 0) as eth_nxm_gov_rewards,
+  coalesce(gr.usd_nxm_gov_rewards, 0) as usd_nxm_gov_rewards,
   cm.eth_nxm_in,
   cm.usd_nxm_in,
   cm.eth_nxm_out,
