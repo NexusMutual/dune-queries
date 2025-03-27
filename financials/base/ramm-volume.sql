@@ -30,12 +30,16 @@ select
   sum(abs(v.eth_in + v.eth_out)) as eth_eth_volume,
   sum(abs(v.eth_in + v.eth_out) * p.avg_eth_usd_price) as usd_eth_volume,
   -- in/out separately
-  sum(v.nxm_in) as nxm_in,
+  sum(v.nxm_in) as nxm_nxm_in,
+  sum(v.nxm_in * p.avg_nxm_eth_price) as nxm_eth_in,
+  sum(v.nxm_in * p.avg_nxm_usd_price) as nxm_usd_in,
   sum(v.eth_out) as eth_eth_out,
   sum(v.eth_out * p.avg_eth_usd_price) as usd_eth_out,
   sum(v.eth_in) as eth_eth_in,
   sum(v.eth_in * p.avg_eth_usd_price) as usd_eth_in,
-  sum(v.nxm_out) as nxm_out
+  sum(v.nxm_out) as nxm_nxm_out,
+  sum(v.nxm_out * p.avg_nxm_eth_price) as nxm_eth_out,
+  sum(v.nxm_out * p.avg_nxm_usd_price) as nxm_usd_out
 from volume_transacted v
   inner join daily_avg_prices p on v.block_date = p.block_date
 group by 1
