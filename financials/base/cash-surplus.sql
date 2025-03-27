@@ -103,8 +103,8 @@ claims_paid as (
     coalesce(claim_payout_date, claim_date) as claim_payout_date,
     eth_usd_claim_amount + dai_usd_claim_amount + usdc_usd_claim_amount + cbbtc_usd_claim_amount as usd_claim_paid,
     eth_eth_claim_amount + dai_eth_claim_amount + usdc_eth_claim_amount + cbbtc_eth_claim_amount as eth_claim_paid
-  from query_3911051 -- claims paid base (fallback query)
-  --from nexusmutual_ethereum.claims_paid
+  --from query_3911051 -- claims paid base (fallback query)
+  from nexusmutual_ethereum.claims_paid
 ),
 
 claims_paid_agg as (
