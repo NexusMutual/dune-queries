@@ -1,15 +1,5 @@
 with
 
-prices as (
-  select
-    block_date,
-    avg_eth_usd_price,
-    avg_nxm_eth_price,
-    avg_nxm_usd_price
-  --from query_3789851 -- prices base (fallback) query
-  from nexusmutual_ethereum.capital_pool_prices
-),
-
 nxm_supply as (
   select
     date_trunc('month', block_date) as block_month,
