@@ -17,6 +17,15 @@ Balance Sheet
     - ETH, stETH, rETH, cbBTC etc
 - Stablecoin Denominated Assets
     - DAI, USDC, Cover Re etc
+
+NXM Movement
+- Opening NXM
+    - NXM Burned from Cover Purchases
+    - NXM Burned from Claims
+    - NXM Minted as Rewards (from staking, claims and governance)
+    - NXM Minted from Contributions
+    - NXM Burned from Withdrawals
+- Closing NXM
 */
 
 with items (fi_id, scope, label, label_tab) as (
@@ -58,14 +67,14 @@ with items (fi_id, scope, label, label_tab) as (
   (2240, 'bs', 'Aave debtUSDC', '&nbsp; &nbsp; &nbsp; Aave debtUSDC'),
   (2300, 'bs', 'Closing Balance', '&nbsp; Closing Balance'),
   
-  (2400, 'bs', 'NXM Movement', '<b>NXM Movement</b>'),
-  (2500, 'bs', 'Opening NXM', '&nbsp; Opening NXM'),
-  (2510, 'bs', 'NXM Burned from Cover Purchases', '&nbsp; &nbsp; NXM Burned from Cover Purchases'),
-  (2515, 'bs', 'NXM Burned from Claims', '&nbsp; &nbsp; NXM Burned from Claims'),
-  (2520, 'bs', 'NXM Minted as Rewards (from staking, claims and governance)', '&nbsp; &nbsp; NXM Minted as Rewards (from staking, claims and governance)'),
-  (2530, 'bs', 'NXM Minted from Contributions', '&nbsp; &nbsp; NXM Minted from Contributions'),
-  (2540, 'bs', 'NXM Burned from Withdrawals', '&nbsp; &nbsp; NXM Burned from Withdrawals'),
-  (2600, 'bs', 'Closing NXM', '&nbsp; Closing NXM')
+  (3000, 'nm', 'NXM Movement', '<b>NXM Movement</b>'),
+  (3050, 'nm', 'Opening NXM', '&nbsp; Opening NXM'),
+  (3110, 'nm', 'NXM Burned from Cover Purchases', '&nbsp; &nbsp; NXM Burned from Cover Purchases'),
+  (3120, 'nm', 'NXM Burned from Claims', '&nbsp; &nbsp; NXM Burned from Claims'),
+  (3130, 'nm', 'NXM Minted as Rewards (from staking, claims and governance)', '&nbsp; &nbsp; NXM Minted as Rewards (from staking, claims and governance)'),
+  (3140, 'nm', 'NXM Minted from Contributions', '&nbsp; &nbsp; NXM Minted from Contributions'),
+  (3150, 'nm', 'NXM Burned from Withdrawals', '&nbsp; &nbsp; NXM Burned from Withdrawals'),
+  (3200, 'nm', 'Closing NXM', '&nbsp; Closing NXM')
 )
 
 select fi_id, scope, label, label_tab
