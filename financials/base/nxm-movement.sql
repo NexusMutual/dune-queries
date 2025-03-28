@@ -109,8 +109,8 @@ gov_rewards_agg as (
 capital_movement as (
   select
     block_month,
-    nxm_nxm_in as nxm_in,
-    nxm_nxm_out as nxm_out
+    nxm_nxm_in as nxm_withdrawal,
+    nxm_nxm_out as nxm_contribution
   from query_4841361 -- ramm volume
 )
 
@@ -123,8 +123,8 @@ select
   coalesce(sbc.nxm_claim_burn, 0) as nxm_claim_burn,
   coalesce(ar.nxm_assessor_rewards, 0) as nxm_assessor_rewards,
   coalesce(gr.nxm_gov_rewards, 0) as nxm_gov_rewards,
-  cm.nxm_in,
-  cm.nxm_out
+  cm.nxm_contribution,
+  cm.nxm_withdrawal
 from nxm_supply ns
   inner join cover_buy_movements_agg cbm on ns.block_month = cbm.block_month
   inner join capital_movement cm on ns.block_month = cm.block_month

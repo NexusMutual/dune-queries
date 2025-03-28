@@ -14,9 +14,9 @@ volume_transacted as (
   select
     date_trunc('day', block_time) as block_date,
     coalesce(sum(case when token_in = 'ETH' then amount_in end), 0) as eth_in,
-    coalesce(sum(case when token_in = 'NXM' then amount_in end), 0) as nxm_in,
+    -1 * coalesce(sum(case when token_in = 'NXM' then amount_in end), 0) as nxm_in,
     -1 * coalesce(sum(case when token_out = 'ETH' then amount_out end), 0) as eth_out,
-    -1 * coalesce(sum(case when token_out = 'NXM' then amount_out end), 0) as nxm_out
+    coalesce(sum(case when token_out = 'NXM' then amount_out end), 0) as nxm_out
   from query_4498669 -- RAMM swaps - base
   group by 1
 )
