@@ -1,12 +1,28 @@
 with
 
-daily_avg_prices as (
+prices as (
   select
     block_date,
+    avg_eth_usd_price,
     avg_nxm_eth_price,
     avg_nxm_usd_price
   --from query_3789851 -- prices base (fallback) query
   from nexusmutual_ethereum.capital_pool_prices
+),
+
+nxm_supply as (
+  select
+    date_trunc('month', block_date) as block_month,
+    lag(total_nxm, 1) over (order by block_date) as nxm_supply_start,
+    total_nxm as nxm_supply_end
+  from (  
+    select
+      block_date,
+      total_nxm,
+      row_number() over (partition by date_trunc('month', block_date) order by block_date desc) as rn
+    from query_4514857 -- NXM supply base
+  ) t
+  where rn = 1
 ),
 
 cover_buy_movements as (
@@ -33,7 +49,7 @@ cover_buy_movements_agg as (
     sum(cbm.nxm_rewards_mint * p.avg_nxm_eth_price) as eth_nxm_rewards_mint,
     sum(cbm.nxm_rewards_mint * p.avg_nxm_usd_price) as usd_nxm_rewards_mint
   from cover_buy_movements cbm
-    inner join daily_avg_prices p on cbm.block_date = p.block_date
+    inner join prices p on cbm.block_date = p.block_date
   group by 1
 ),
 
@@ -76,7 +92,7 @@ assessor_rewards_agg as (
     sum(ar.nxm_assessor_rewards * p.avg_nxm_eth_price) as eth_nxm_assessor_rewards,
     sum(ar.nxm_assessor_rewards * p.avg_nxm_usd_price) as usd_nxm_assessor_rewards
   from assessor_rewards ar
-    inner join daily_avg_prices p on ar.block_date = p.block_date
+    inner join prices p on ar.block_date = p.block_date
   group by 1
 ),
 
@@ -96,7 +112,7 @@ gov_rewards_agg as (
     sum(gr.nxm_gov_rewards * p.avg_nxm_eth_price) as eth_nxm_gov_rewards,
     sum(gr.nxm_gov_rewards * p.avg_nxm_usd_price) as usd_nxm_gov_rewards
   from gov_rewards gr
-    inner join daily_avg_prices p on gr.block_date = p.block_date
+    inner join prices p on gr.block_date = p.block_date
   group by 1
 ),
 
@@ -108,27 +124,63 @@ capital_movement as (
     eth_nxm_out,
     usd_nxm_out
   from query_4841361 -- ramm volume
+),
+
+prices_start_end as (
+  select
+    date_trunc('month', block_date) as block_month,
+    -- start: last of the previous month
+    lag(avg_eth_usd_price, 1) over (order by block_date) as eth_usd_price_start,
+    lag(avg_nxm_eth_price, 1) over (order by block_date) as nxm_eth_price_start,
+    lag(avg_nxm_usd_price, 1) over (order by block_date) as nxm_usd_price_start,
+    -- end: last of the month
+    avg_eth_usd_price as eth_usd_price_end,
+    avg_nxm_eth_price as nxm_eth_price_end,
+    avg_nxm_usd_price as nxm_usd_price_end
+  from (
+    select
+      block_date,
+      avg_eth_usd_price,
+      avg_nxm_eth_price,
+      avg_nxm_usd_price,
+      row_number() over (partition by date_trunc('month', block_date) order by block_date desc) as rn
+    from prices
+  ) t
+  where rn = 1
 )
 
 select
-  cbm.block_month,
+  ns.block_month,
+  -- prices
+  p.eth_usd_price_start,
+  p.nxm_eth_price_start,
+  p.nxm_usd_price_start,
+  p.eth_usd_price_end,
+  p.nxm_eth_price_end,
+  p.nxm_usd_price_end,
+  -- ETH
+  ns.nxm_supply_start * p.nxm_eth_price_start as eth_nxm_supply_start,
+  ns.nxm_supply_end * p.nxm_eth_price_end as eth_nxm_supply_end,
   cbm.eth_nxm_cover_buy_burn,
-  cbm.usd_nxm_cover_buy_burn,
   cbm.eth_nxm_rewards_mint,
-  cbm.usd_nxm_rewards_mint,
   coalesce(cp.eth_claim_paid, 0) as eth_claim_paid,
-  coalesce(cp.usd_claim_paid, 0) as usd_claim_paid,
   coalesce(ar.eth_nxm_assessor_rewards, 0) as eth_nxm_assessor_rewards,
-  coalesce(ar.usd_nxm_assessor_rewards, 0) as usd_nxm_assessor_rewards,
   coalesce(gr.eth_nxm_gov_rewards, 0) as eth_nxm_gov_rewards,
-  coalesce(gr.usd_nxm_gov_rewards, 0) as usd_nxm_gov_rewards,
   cm.eth_nxm_in,
-  cm.usd_nxm_in,
   cm.eth_nxm_out,
+  -- USD
+  cbm.usd_nxm_cover_buy_burn,
+  cbm.usd_nxm_rewards_mint,
+  coalesce(cp.usd_claim_paid, 0) as usd_claim_paid,
+  coalesce(ar.usd_nxm_assessor_rewards, 0) as usd_nxm_assessor_rewards,
+  coalesce(gr.usd_nxm_gov_rewards, 0) as usd_nxm_gov_rewards,
+  cm.usd_nxm_in,
   cm.usd_nxm_out
-from cover_buy_movements_agg cbm
-  inner join capital_movement cm on cbm.block_month = cm.block_month
-  left join claims_paid_agg cp on cbm.block_month = cp.claim_payout_month
-  left join assessor_rewards_agg ar on cbm.block_month = ar.block_month
-  left join gov_rewards_agg gr on cbm.block_month = gr.block_month
+from nxm_supply ns
+  inner join prices_start_end p on ns.block_month = p.block_month
+  inner join cover_buy_movements_agg cbm on ns.block_month = cbm.block_month
+  inner join capital_movement cm on ns.block_month = cm.block_month
+  left join claims_paid_agg cp on ns.block_month = cp.claim_payout_month
+  left join assessor_rewards_agg ar on ns.block_month = ar.block_month
+  left join gov_rewards_agg gr on ns.block_month = gr.block_month
 order by 1 desc
