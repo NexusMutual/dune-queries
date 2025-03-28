@@ -169,6 +169,8 @@ select
   cm.eth_nxm_in,
   cm.eth_nxm_out,
   -- USD
+  ns.nxm_supply_start * p.nxm_usd_price_start as usd_nxm_supply_start,
+  ns.nxm_supply_end * p.nxm_usd_price_end as usd_nxm_supply_end,
   cbm.usd_nxm_cover_buy_burn,
   cbm.usd_nxm_rewards_mint,
   coalesce(cp.usd_claim_paid, 0) as usd_claim_paid,
