@@ -1,11 +1,18 @@
-with renewals as (
+with
+
+covers as (
+  select distinct cover_id, cover_owner, cover_start_date, cover_end_date, commission_destination
+  from query_4599092
+),
+
+renewals as (
   select
     cover_owner,
     count(cover_id) as total_covers,
     min(cover_start_date) as first_cover_date,
     max(cover_end_date) as last_cover_date,
     date_diff('month', min(cover_start_date), max(cover_end_date)) as coverage_months
-  from query_4599092
+  from covers
   where commission_destination not in (
       -- OpenCover:
       0xe4994082a0e7f38b565e6c5f4afd608de5eddfbb,
