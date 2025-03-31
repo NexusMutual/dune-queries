@@ -128,9 +128,9 @@ select
   cm.nxm_contribution,
   cm.nxm_withdrawal
 from nxm_supply ns
-  inner join staking_rewards_mint_agg srm on ns.block_date = srm.block_date
-  inner join cover_buy_burn_agg cbm on ns.block_date = cbm.block_date
-  inner join capital_movement cm on ns.block_date = cm.block_date
+  left join staking_rewards_mint_agg srm on ns.block_date = srm.block_date
+  left join cover_buy_burn_agg cbm on ns.block_date = cbm.block_date
+  left join capital_movement cm on ns.block_date = cm.block_date
   left join stake_burn_for_claims_agg sbc on ns.block_date = sbc.block_date
   left join assessor_rewards_agg ar on ns.block_date = ar.block_date
   left join gov_rewards_agg gr on ns.block_date = gr.block_date
