@@ -121,7 +121,7 @@ select
   ns.nxm_burn,
   ns.total_nxm,
   srm.nxm_reward_mint,
-  cbm.nxm_cover_buy_burn,
+  coalesce(cbm.nxm_cover_buy_burn, 0) as nxm_cover_buy_burn,
   coalesce(sbc.nxm_claim_burn, 0) as nxm_claim_burn,
   coalesce(ar.nxm_assessor_rewards, 0) as nxm_assessor_rewards,
   coalesce(gr.nxm_gov_rewards, 0) as nxm_gov_rewards,
