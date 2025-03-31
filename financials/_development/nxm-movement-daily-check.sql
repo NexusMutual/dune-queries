@@ -5,7 +5,7 @@ nxm_supply as (
     block_date,
     nxm_mint,
     nxm_burn,
-    total_nxm
+    total_nxm as nxm_supply
   from query_4514857 -- NXM supply base
 ),
 
@@ -117,9 +117,9 @@ capital_movement as (
 
 select
   ns.block_date,
+  ns.nxm_supply,
   ns.nxm_mint,
   ns.nxm_burn,
-  ns.total_nxm,
   srm.nxm_reward_mint,
   coalesce(cbm.nxm_cover_buy_burn, 0) as nxm_cover_buy_burn,
   coalesce(sbc.nxm_claim_burn, 0) as nxm_claim_burn,
