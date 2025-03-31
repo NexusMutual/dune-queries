@@ -15,12 +15,29 @@ nxm_supply as (
   where rn = 1
 ),
 
-cover_buy_movements as (
+staking_rewards_mint as (
+  select
+    block_date,
+    cover_id,
+    reward_amount_expected_total,
+    tx_hash
+  --from query_4067736 -- staking rewards base
+  from nexusmutual_ethereum.staking_rewards
+),
+
+staking_rewards_mint_agg as (
+  select
+    date_trunc('month', block_date) as block_month,
+    sum(reward_amount_expected_total) as nxm_reward_mint
+  from staking_rewards_mint
+  group by 1
+),
+
+cover_buy_burn as (
   select
     c.block_date,
     c.cover_id,
     bf.amount / 1e18 as nxm_cover_buy_burn,
-    bf.amount / 1e18 * 0.5 as nxm_rewards_mint,
     c.tx_hash
   from query_4599092 c -- covers v2 - base root (fallback query)
     inner join nexusmutual_ethereum.tokencontroller_call_burnfrom bf
@@ -31,12 +48,11 @@ cover_buy_movements as (
     and c.premium_asset = 'NXM'
 ),
 
-cover_buy_movements_agg as (
+cover_buy_burn_agg as (
   select
     date_trunc('month', block_date) as block_month,
-    -1 * sum(nxm_cover_buy_burn) as nxm_cover_buy_burn,
-    sum(nxm_rewards_mint) as nxm_rewards_mint
-  from cover_buy_movements
+    -1 * sum(nxm_cover_buy_burn) as nxm_cover_buy_burn
+  from cover_buy_burn
   group by 1
 ),
 
@@ -108,15 +124,16 @@ select
   ns.block_month,
   ns.nxm_supply_start,
   ns.nxm_supply_end,
+  srm.nxm_reward_mint,
   cbm.nxm_cover_buy_burn,
-  cbm.nxm_rewards_mint,
   coalesce(sbc.nxm_claim_burn, 0) as nxm_claim_burn,
   coalesce(ar.nxm_assessor_rewards, 0) as nxm_assessor_rewards,
   coalesce(gr.nxm_gov_rewards, 0) as nxm_gov_rewards,
   cm.nxm_contribution,
   cm.nxm_withdrawal
 from nxm_supply ns
-  inner join cover_buy_movements_agg cbm on ns.block_month = cbm.block_month
+  inner join staking_rewards_mint_agg srm on ns.block_month = srm.block_month
+  inner join cover_buy_burn_agg cbm on ns.block_month = cbm.block_month
   inner join capital_movement cm on ns.block_month = cm.block_month
   left join stake_burn_for_claims_agg sbc on ns.block_month = sbc.block_month
   left join assessor_rewards_agg ar on ns.block_month = ar.block_month
