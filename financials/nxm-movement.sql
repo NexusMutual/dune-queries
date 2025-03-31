@@ -19,7 +19,7 @@ nxm_movement as (
     nxm_supply_start,
     nxm_supply_end,
     nxm_cover_buy_burn,
-    nxm_rewards_mint,
+    nxm_reward_mint,
     nxm_claim_burn,
     nxm_assessor_rewards,
     nxm_gov_rewards,
@@ -36,7 +36,7 @@ select
     when 'Opening NXM' then coalesce(nullif(nxm_supply_start, 0), 1e-6)
     when 'NXM Burned from Cover Purchases' then coalesce(nullif(nxm_cover_buy_burn, 0), 1e-6)
     when 'NXM Burned from Claims' then coalesce(nullif(nxm_claim_burn, 0), 1e-6)
-    when 'NXM Minted as Rewards (from staking, claims and governance)' then nxm_rewards_mint + nxm_assessor_rewards + nxm_gov_rewards
+    when 'NXM Minted as Rewards (from staking, claims and governance)' then nxm_reward_mint + nxm_assessor_rewards + nxm_gov_rewards
     when 'NXM Minted from Contributions' then coalesce(nullif(nxm_contribution, 0), 1e-6)
     when 'NXM Burned from Withdrawals' then coalesce(nullif(nxm_withdrawal, 0), 1e-6)
     when 'Closing NXM' then coalesce(nullif(nxm_supply_end, 0), 1e-6)
