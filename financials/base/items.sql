@@ -71,7 +71,7 @@ with items (fi_id, scope, label, label_tab) as (
   (3050, 'nm', 'Opening NXM', '&nbsp; Opening NXM'),
   (3110, 'nm', 'NXM Burned from Cover Purchases', '&nbsp; &nbsp; NXM Burned from Cover Purchases'),
   (3120, 'nm', 'NXM Burned from Claims', '&nbsp; &nbsp; NXM Burned from Claims'),
-  (3130, 'nm', 'NXM Minted as Rewards (from staking, claims and governance)', '&nbsp; &nbsp; NXM Minted as Rewards (from staking, claims and governance)'),
+  (3130, 'nm', 'NXM Minted as Rewards', '&nbsp; &nbsp; NXM Minted as Rewards'),
   (3140, 'nm', 'NXM Minted from Contributions', '&nbsp; &nbsp; NXM Minted from Contributions'),
   (3150, 'nm', 'NXM Burned from Withdrawals', '&nbsp; &nbsp; NXM Burned from Withdrawals'),
   (3200, 'nm', 'Closing NXM', '&nbsp; Closing NXM')
