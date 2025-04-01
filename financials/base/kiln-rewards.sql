@@ -3,11 +3,11 @@ with
 constants as (
   select 
     181.45 as kiln_first_round,
-    176.5212 as kiln_current,
+    190.881 as kiln_current,
     date '2023-08-30' as kiln_deposit_date,
     date '2024-04-24' as kiln_claim_start_date,
     date '2024-04-26' as kiln_claim_end_date,
-    date '2025-03-04' as latest_date -- ICN generated
+    date '2025-04-01' as latest_date -- ICN generated
 ),
 
 date_sequence as (
