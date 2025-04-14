@@ -24,15 +24,18 @@ transfer_in as (
     t.block_number,
     date_trunc('day', t.block_time) as block_date,
     'in' as transfer_type,
+    t."to" as to_address,
+    t."from" as from_address,
+    c_to.protocol_contract_type as to_address_type,
+    coalesce(c_from.protocol_contract_type, 'external') as from_address_type,
     t.symbol,
     t.amount,
     t.contract_address as token_contract_address,
-    t."to" as protocol_contract_address,
-    c.protocol_contract_type,
     t.unique_key,
     t.tx_hash
   from tokens_ethereum.transfers t
-    inner join nexusmutual_contracts c on t."to" = c.protocol_contract_address
+    inner join nexusmutual_contracts c_to on t."to" = c_to.protocol_contract_address
+    left join nexusmutual_contracts c_from on t."from" = c_from.protocol_contract_address
   where t.block_time >= timestamp '2019-05-01'
     and t.symbol in ('ETH', 'DAI', 'stETH', 'rETH', 'USDC', 'cbBTC')
 ),
@@ -43,15 +46,18 @@ transfer_out as (
     t.block_number,
     date_trunc('day', t.block_time) as block_date,
     'out' as transfer_type,
+    t."to" as to_address,
+    t."from" as from_address,
+    coalesce(c_to.protocol_contract_type, 'external') as to_address_type,
+    c_from.protocol_contract_type as from_address_type,
     t.symbol,
     -1 * t.amount as amount,
     t.contract_address as token_contract_address,
-    t."from" as protocol_contract_address,
-    c.protocol_contract_type,
     t.unique_key,
     t.tx_hash
   from tokens_ethereum.transfers t
-    inner join nexusmutual_contracts c on t."from" = c.protocol_contract_address
+    inner join nexusmutual_contracts c_from on t."from" = c_from.protocol_contract_address
+    left join nexusmutual_contracts c_to on t."to" = c_to.protocol_contract_address
   where t.block_time >= timestamp '2019-05-01'
     and t.symbol in ('ETH', 'DAI', 'stETH', 'rETH', 'USDC', 'cbBTC')
 ),
@@ -62,15 +68,18 @@ transfer_nxmty_in as (
     t.block_number,
     date_trunc('day', t.block_time) as block_date,
     'in' as transfer_type,
+    t."to" as to_address,
+    t."from" as from_address,
+    c_to.protocol_contract_type as to_address_type,
+    coalesce(c_from.protocol_contract_type, 'external') as from_address_type,
     'NXMTY' as symbol,
     cast(t.amount_raw as double) / 1e18 as amount,
     t.contract_address as token_contract_address,
-    t."to" as protocol_contract_address,
-    c.protocol_contract_type,
     t.unique_key,
     t.tx_hash
   from tokens_ethereum.transfers t
-    inner join nexusmutual_contracts c on t."to" = c.protocol_contract_address
+    inner join nexusmutual_contracts c_to on t."to" = c_to.protocol_contract_address
+    left join nexusmutual_contracts c_from on t."from" = c_from.protocol_contract_address
   where t.block_time >= timestamp '2022-05-27'
     and t.contract_address = 0x27f23c710dd3d878fe9393d93465fed1302f2ebd --NXMTY
 ),
@@ -81,31 +90,34 @@ transfer_nxmty_out as (
     t.block_number,
     date_trunc('day', t.block_time) as block_date,
     'out' as transfer_type,
+    t."to" as to_address,
+    t."from" as from_address,
+    coalesce(c_to.protocol_contract_type, 'external') as to_address_type,
+    c_from.protocol_contract_type as from_address_type,
     'NXMTY' as symbol,
     -1 * cast(t.amount_raw as double) / 1e18 as amount,
     t.contract_address as token_contract_address,
-    t."from" as protocol_contract_address,
-    c.protocol_contract_type,
     t.unique_key,
     t.tx_hash
   from tokens_ethereum.transfers t
-    inner join nexusmutual_contracts c on t."from" = c.protocol_contract_address
+    inner join nexusmutual_contracts c_from on t."from" = c_from.protocol_contract_address
+    left join nexusmutual_contracts c_to on t."to" = c_to.protocol_contract_address
   where t.block_time >= timestamp '2022-05-27'
     and t.contract_address = 0x27f23c710dd3d878fe9393d93465fed1302f2ebd --NXMTY
 )
 
 select
-  block_time, block_number, block_date, transfer_type, symbol, amount, token_contract_address, protocol_contract_address, protocol_contract_type, unique_key, tx_hash
+  block_time, block_number, block_date, transfer_type, to_address, from_address, to_address_type, from_address_type, symbol, amount, token_contract_address, unique_key, tx_hash
 from transfer_in
 union all
 select
-  block_time, block_number, block_date, transfer_type, symbol, amount, token_contract_address, protocol_contract_address, protocol_contract_type, unique_key, tx_hash
+  block_time, block_number, block_date, transfer_type, to_address, from_address, to_address_type, from_address_type, symbol, amount, token_contract_address, unique_key, tx_hash
 from transfer_out
 union all
 select
-  block_time, block_number, block_date, transfer_type, symbol, amount, token_contract_address, protocol_contract_address, protocol_contract_type, unique_key, tx_hash
+  block_time, block_number, block_date, transfer_type, to_address, from_address, to_address_type, from_address_type, symbol, amount, token_contract_address, unique_key, tx_hash
 from transfer_nxmty_in
 union all
 select
-  block_time, block_number, block_date, transfer_type, symbol, amount, token_contract_address, protocol_contract_address, protocol_contract_type, unique_key, tx_hash
+  block_time, block_number, block_date, transfer_type, to_address, from_address, to_address_type, from_address_type, symbol, amount, token_contract_address, unique_key, tx_hash
 from transfer_nxmty_out
