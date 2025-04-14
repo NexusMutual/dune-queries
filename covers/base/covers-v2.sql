@@ -167,7 +167,7 @@ covers_v1_migrated as (
     cm.evt_index,
     cm.evt_tx_hash as tx_hash
   from nexusmutual_ethereum.CoverMigrator_evt_CoverMigrated cm
-    inner join query_3678366 cv1 -- covers v1
+    inner join query_3788367 cv1 -- covers v1
       on cm.coverIdV1 = cv1.cover_id
 ),
 
