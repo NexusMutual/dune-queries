@@ -96,18 +96,21 @@ assessor_rewards_agg as (
 
 gov_rewards as (
   select
-    evt_block_time as block_time,
-    evt_block_number as block_number,
-    date_trunc('day', evt_block_time) as block_date,
-    gbtReward / 1e18 as nxm_gov_rewards,
-    evt_tx_hash
-  from nexusmutual_ethereum.governance_evt_rewardclaimed
+    pa.proposalId,
+    t.block_date,
+    t.amount,
+    t.tx_hash
+  from nexusmutual_ethereum.governance_evt_proposalaccepted pa
+    inner join tokens_ethereum.transfers t on pa.evt_block_time = t.block_time and pa.evt_block_number = t.block_number and pa.evt_tx_hash = t.tx_hash
+  where t.symbol = 'NXM'
+    and t."from" = 0x0000000000000000000000000000000000000000
+    and t.amount > 0
 ),
 
 gov_rewards_agg as (
   select
     date_trunc('month', block_date) as block_month,
-    sum(nxm_gov_rewards) as nxm_gov_rewards
+    sum(amount) as nxm_gov_rewards
   from gov_rewards
   group by 1
 ),
