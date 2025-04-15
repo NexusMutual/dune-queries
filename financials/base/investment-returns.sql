@@ -111,43 +111,15 @@ usdc_debt as (
   group by 1
 ),
 
-steth_sales as (
-  select
-    block_time,
-    block_date,
-    fill_type,
-    sell_amount,
-    buy_amount,
-    fill_amount,
-    tx_hash
-  from nexusmutual_ethereum.swap_order_closed
-  where sell_token_symbol = 'stETH'
-    and buy_token_symbol = 'ETH'
-    and fill_type <> 'no fill'
-),
-
-steth_sales_adjusted as (
-  select
-    block_time,
-    block_date,
-    fill_type,
-    sell_amount - fill_amount as sell_amount,
-    buy_amount,
-    fill_amount,
-    tx_hash
-  from steth_sales
-  where fill_type = 'funds returned'
-),
-
 steth_sales_agg as (
   select
-    date_trunc('month', s.block_date) as block_month,
-    -1 * sum(coalesce(sa.sell_amount, s.sell_amount)) as eth_sell_amount,
-    sum(s.fill_amount) as eth_fill_amount,
-    -1 * sum(coalesce(sa.sell_amount, s.sell_amount) - s.fill_amount) as eth_disposal_loss
-  from steth_sales s
-    left join steth_sales_adjusted sa on sa.block_time = s.block_time and sa.tx_hash = s.tx_hash
-  where s.fill_type <> 'funds returned'
+    date_trunc('month', block_date) as block_month,
+    sum(amount) as amount
+  from query_4982562 -- capital pool transfers - base
+  --from nexusmutual_ethereum.capital_pool_transfers
+  where symbol = 'stETH'
+    and from_address_type = 'swap operator'
+    and to_address_type = 'external'
   group by 1
 ),
 
@@ -160,7 +132,7 @@ capital_pool_enriched as (
     -- eth backed assets
     cp.eth_steth,
     cp.eth_steth_prev,
-    coalesce(s.eth_sell_amount, 0) as eth_steth_sale,
+    coalesce(s.amount, 0) as eth_steth_sale,
     cp.eth_reth,
     cp.eth_reth_prev,
     cp.eth_nxmty - if(cp.block_month = timestamp '2024-04-01', 181.45, 0) + coalesce(kr.eth_kiln_rewards, 0) as eth_nxmty,
