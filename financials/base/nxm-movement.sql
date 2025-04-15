@@ -33,19 +33,29 @@ staking_rewards_mint_agg as (
   group by 1
 ),
 
+covers as (
+  select distinct
+    block_time,
+    block_number,
+    date_trunc('day', block_time) as block_date,
+    cover_id,
+    tx_hash
+  from query_4599092 -- covers v2 - base root (fallback query)
+  where is_migrated = false
+    and premium_asset = 'NXM'
+),
+
 cover_buy_burn as (
   select
     c.block_date,
     c.cover_id,
     bf.amount / 1e18 as nxm_cover_buy_burn,
     c.tx_hash
-  from query_4599092 c -- covers v2 - base root (fallback query)
-    inner join nexusmutual_ethereum.tokencontroller_call_burnfrom bf
-      on c.block_time = bf.call_block_time
-      and c.block_number = bf.call_block_number
-      and c.tx_hash = bf.call_tx_hash
-  where c.is_migrated = false
-    and c.premium_asset = 'NXM'
+  from nexusmutual_ethereum.tokencontroller_call_burnfrom bf
+    inner join covers c
+      on bf.call_block_time = c.block_time
+      and bf.call_block_number = c.block_number
+      and bf.call_tx_hash = c.tx_hash
 ),
 
 cover_buy_burn_agg as (
