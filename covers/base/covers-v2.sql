@@ -72,7 +72,7 @@ cover_premiums as (
     p.premium_period_ratio,
     c.commission_ratio / 10000.0 as commission_ratio,
     --(c.commission_ratio / 10000.0) * p.premium / 1e18 as commission,
-    p.premium / 1e18 / (1.0 - (c.commission_ratio / 10000.0)) - p.premium as commission,
+    p.premium / 1e18 / (1.0 - (c.commission_ratio / 10000.0)) - p.premium / 1e18 as commission,
     --(1.0 + (c.commission_ratio / 10000.0)) * (0.5 / (1.0 + (c.commission_ratio / 10000.0))) * p.premium / 1e18 as premium,
     --(1.0 + (c.commission_ratio / 10000.0)) * p.premium / 1e18 as premium_incl_commission,
     p.premium / 1e18 / (1.0 - (c.commission_ratio / 10000.0)) as premium_incl_commission,
