@@ -46,10 +46,7 @@ cover_buy_burn as (
     bf.amount / 1e18 as nxm_cover_buy_burn,
     c.tx_hash
   from nexusmutual_ethereum.tokencontroller_call_burnfrom bf
-    inner join covers c
-      on bf.call_block_time = c.block_time
-      and bf.call_block_number = c.block_number
-      and bf.call_tx_hash = c.tx_hash
+    inner join covers c on bf.call_block_time = c.block_time and bf.call_block_number = c.block_number and bf.call_tx_hash = c.tx_hash
 ),
 
 cover_buy_burn_agg as (
