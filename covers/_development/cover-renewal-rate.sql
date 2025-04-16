@@ -114,7 +114,7 @@ customer_stats as (
     count(case when coverage_lifetime_months >= 3 then cover_owner end) * 1.0 / count(distinct cover_owner) as pct_buyers_with_3plus_months,
     count(case when coverage_lifetime_months >= 12 then cover_owner end) * 1.0 / count(distinct cover_owner) as pct_buyers_with_12plus_months,
     avg(avg_days_between_covers) as avg_days_between_covers,
-    approx_percentile(median_days_between_covers * 1.0, 0.5) as median_days_between_covers,
+    max(median_days_between_covers) as median_days_between_covers,
     count(case when max_days_gap <= 30 then cover_owner end) * 1.0 / count(distinct cover_owner) as pct_buyers_with_max_gap_30d,
     count(case when max_days_gap <= 90 then cover_owner end) * 1.0 / count(distinct cover_owner) as pct_buyers_with_max_gap_90d
   from renewals_ext
