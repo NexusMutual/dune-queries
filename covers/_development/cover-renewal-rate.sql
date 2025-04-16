@@ -159,13 +159,74 @@ customer_stats as (
 )
 
 select
-  cs.*,
-  gs.global_median_renewal_gap,
-  gd.pct_renewals_with_gap_1_7d,
-  gd.pct_renewals_with_gap_8_30d,
-  gd.pct_renewals_with_gap_31_90d,
-  gd.pct_renewals_with_gap_gt_90d,
-  gd.avg_gap_stddev
-from customer_stats cs
-  cross join gap_summary gs
-  cross join gap_distribution gd
+  metric.item,
+  metric.value
+from (
+  select
+    map(
+      array[
+        'total_cover_buyers',
+        'renewal_cover_buyers',
+        'renewal_rate_percentage',
+        'avg_coverage_lifetime_months',
+        'avg_covers_per_buyer',
+        'median_covers_per_buyer',
+        'max_covers_by_single_buyer',
+        'longest_continuous_coverage_months',
+        'avg_streaks_per_user',
+        'pct_buyers_with_3plus_months',
+        'pct_buyers_with_12plus_months',
+        'avg_days_between_covers',
+        'median_days_between_covers',
+        'pct_buyers_with_max_gap_30d',
+        'pct_buyers_with_max_gap_90d',
+        'pct_buyers_with_all_zero_gaps',
+        'pct_buyers_with_all_nonzero_gaps',
+        'pct_buyers_with_mixed_gaps',
+        'avg_gap_count_per_buyer',
+        'avg_final_gap_days',
+        'pct_buyers_with_final_gap_gt_30d',
+        'pct_buyers_with_gap_but_no_overlap',
+        'global_median_renewal_gap',
+        'pct_renewals_with_gap_1_7d',
+        'pct_renewals_with_gap_8_30d',
+        'pct_renewals_with_gap_31_90d',
+        'pct_renewals_with_gap_gt_90d',
+        'avg_gap_stddev'
+      ],
+      array[
+        total_cover_buyers,
+        renewal_cover_buyers,
+        renewal_cover_buyers * 1.0 / total_cover_buyers,
+        avg_coverage_lifetime_months,
+        avg_covers_per_buyer,
+        median_covers_per_buyer,
+        max_covers_by_single_buyer,
+        longest_continuous_coverage_months,
+        avg_streaks_per_user,
+        pct_buyers_with_3plus_months,
+        pct_buyers_with_12plus_months,
+        avg_days_between_covers,
+        median_days_between_covers,
+        pct_buyers_with_max_gap_30d,
+        pct_buyers_with_max_gap_90d,
+        pct_buyers_with_all_zero_gaps,
+        pct_buyers_with_all_nonzero_gaps,
+        pct_buyers_with_mixed_gaps,
+        avg_gap_count_per_buyer,
+        avg_final_gap_days,
+        pct_buyers_with_final_gap_gt_30d,
+        pct_buyers_with_gap_but_no_overlap,
+        gs.global_median_renewal_gap,
+        gd.pct_renewals_with_gap_1_7d,
+        gd.pct_renewals_with_gap_8_30d,
+        gd.pct_renewals_with_gap_31_90d,
+        gd.pct_renewals_with_gap_gt_90d,
+        gd.avg_gap_stddev
+      ]
+    ) as metrics
+  from customer_stats cs
+    cross join gap_summary gs
+    cross join gap_distribution gd
+) t
+  cross join unnest(map_keys(metrics), map_values(metrics)) as metric(item, value)
