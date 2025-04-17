@@ -165,24 +165,24 @@ from (
   select
     map(
       array[
-        '-- basic stats',
+        '🐢 basic stats',
         'total cover buyers',
         'renewal buyers',
         'renewal rate (%)',
 
-        '-- coverage lifetime',
+        '🐢 coverage lifetime',
         'avg coverage lifetime (months)',
         'avg covers per buyer',
         'median covers per buyer',
-        'max covers by one buyer',
+        'max covers per buyer',
         'longest continuous coverage (months)',
         'avg coverage streaks per buyer',
 
-        '-- coverage thresholds',
+        '🐢 coverage thresholds',
         'buyers with ≥3 months coverage (%)',
         'buyers with ≥12 months coverage (%)',
 
-        '-- renewal timing',
+        '🐢 renewal timing',
         'avg renewal gap (days)',
         'median renewal gap (days)',
         'global median renewal gap (days)',
@@ -190,13 +190,13 @@ from (
         'avg final gap (days)',
         'avg renewal count per buyer',
 
-        '-- renewal delay buckets',
+        '🐢 renewal delay buckets',
         'renewals with 1–7d gap (%)',
         'renewals with 8–30d gap (%)',
         'renewals with 31–90d gap (%)',
         'renewals with >90d gap (%)',
 
-        '-- buyer behavior',
+        '🐢 buyer behavior',
         'buyers with all gaps ≤30d (%)',
         'buyers with all gaps ≤90d (%)',
         'buyers with only instant renewals (%)',
