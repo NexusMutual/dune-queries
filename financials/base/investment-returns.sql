@@ -115,8 +115,8 @@ steth_sales_agg as (
   select
     date_trunc('month', block_date) as block_month,
     sum(amount) as amount
-  from query_4982562 -- capital pool transfers - base
-  --from nexusmutual_ethereum.capital_pool_transfers
+  --from query_4982562 -- capital pool transfers - base
+  from nexusmutual_ethereum.capital_pool_transfers
   where symbol = 'stETH'
     and from_address_type = 'swap operator'
     and to_address_type = 'external'
