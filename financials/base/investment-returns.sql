@@ -126,17 +126,31 @@ steth_sales_agg as (
 capital_pool_enriched as (
   select
     cp.block_month,
-    -- adjustment = 181.45 - 1st round Kiln withdrawal
-    cp.eth_capital_pool - if(cp.block_month = timestamp '2024-04-01', 181.45, 0) + coalesce(kr.eth_kiln_rewards, 0) as eth_capital_pool,
-    cp.eth_capital_pool_prev + coalesce(kr.eth_kiln_rewards_prev, 0) as eth_capital_pool_prev,
+    -- adjustments: 1st Kiln withdrawal = 181.45, final Kiln withdrawal = 194.7714625
+    cp.eth_capital_pool
+      - case
+          when cp.block_month = timestamp '2024-04-01' then 181.45
+          when cp.block_month = timestamp '2025-04-01' then 194.7714625
+          else 0
+        end
+      + coalesce(kr.eth_kiln_rewards, 0)
+    as eth_capital_pool,
+    cp.eth_capital_pool_prev,
     -- eth backed assets
     cp.eth_steth,
     cp.eth_steth_prev,
     coalesce(s.amount, 0) as eth_steth_sale,
     cp.eth_reth,
     cp.eth_reth_prev,
-    cp.eth_nxmty - if(cp.block_month = timestamp '2024-04-01', 181.45, 0) + coalesce(kr.eth_kiln_rewards, 0) as eth_nxmty,
-    cp.eth_nxmty_prev + coalesce(kr.eth_kiln_rewards_prev, 0) as eth_nxmty_prev,
+    cp.eth_nxmty
+      - case
+          when cp.block_month = timestamp '2024-04-01' then 181.45
+          when cp.block_month = timestamp '2025-04-01' then 194.7714625
+          else 0
+        end
+      + coalesce(kr.eth_kiln_rewards, 0)
+    as eth_nxmty,
+    cp.eth_nxmty_prev,
     cp.eth_aweth,
     cp.eth_aweth_prev,
     coalesce(aave_c.eth_aweth_deposit, 0) as eth_aweth_deposit,
