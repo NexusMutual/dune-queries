@@ -159,7 +159,7 @@ customer_stats as (
   from renewals_ext
 ),
 
-dune.nexus_mutual.result_cover_alert_stats_base as (
+combined_stats as (
   select
     -- basic stats
     cast(total_cover_buyers as varchar) as total_cover_buyers,
