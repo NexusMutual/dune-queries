@@ -14,20 +14,21 @@ items (id, item_1, item_2) as (
     (10, 'max covers per buyer', 'renewal gap stddev'),
     (11, 'longest continuous coverage (months)', 'avg final gap (days)'),
     (12, 'avg coverage streaks per buyer', 'avg renewal count per buyer'),
-    (13, '--------------------------------', '--------------------------------'),
-    (14, '🐢 buyer behavior', '🐢 renewal delay buckets'),
-    (15, 'buyers with all gaps ≤30d (%)', 'renewals with 1–7d gap (%)'),
-    (16, 'buyers with all gaps ≤90d (%)', 'renewals with 8–30d gap (%)'),
-    (17, 'buyers with only instant renewals (%)', 'renewals with 31–90d gap (%)'),
-    (18, 'buyers with only delayed renewals (%)', 'renewals with >90d gap (%)'),
-    (19, 'buyers with mixed renewals (%)', null),
-    (20, 'buyers with final gap >30d (%)', null),
-    (21, 'buyers with no overlap ever (%)', null)
+    (13, 'max coverage streaks per buyer', null),
+    (14, '--------------------------------', '--------------------------------'),
+    (15, '🐢 buyer behavior', '🐢 renewal delay buckets'),
+    (16, 'buyers with all gaps ≤30d (%)', 'renewals with 1–7d gap (%)'),
+    (17, 'buyers with all gaps ≤90d (%)', 'renewals with 8–30d gap (%)'),
+    (18, 'buyers with only instant renewals (%)', 'renewals with 31–90d gap (%)'),
+    (19, 'buyers with only delayed renewals (%)', 'renewals with >90d gap (%)'),
+    (20, 'buyers with mixed renewals (%)', null),
+    (21, 'buyers with final gap >30d (%)', null),
+    (22, 'buyers with no overlap ever (%)', null)
 ),
 
 covers as (
   select distinct cover_id, cover_owner, cover_start_date, cover_end_date
-  from query_4599092
+  from query_4599092 -- covers v2 - base root (fallback query)
   where commission_destination not in (
     -- OpenCover:
     0xe4994082a0e7f38b565e6c5f4afd608de5eddfbb,
@@ -167,6 +168,7 @@ customer_stats as (
     max(total_covers) as max_covers_by_single_buyer,
     max(longest_continuous_coverage_months) as longest_continuous_coverage_months,
     avg(streak_count * 1.0000) as avg_streaks_per_user,
+    max(streak_count) as max_streaks_per_user,
     count(case when coverage_lifetime_months >= 3 then cover_owner end) * 1.0000 / count(distinct cover_owner) as pct_buyers_with_3plus_months,
     count(case when coverage_lifetime_months >= 6 then cover_owner end) * 1.0000 / count(distinct cover_owner) as pct_buyers_with_6plus_months,
     count(case when coverage_lifetime_months >= 12 then cover_owner end) * 1.0000 / count(distinct cover_owner) as pct_buyers_with_12plus_months,
@@ -197,6 +199,7 @@ combined_stats as (
     cast(max_covers_by_single_buyer as varchar) as max_covers_by_single_buyer,
     format('%.2f', cast(longest_continuous_coverage_months as double)) as longest_continuous_coverage_months,
     format('%.2f', cast(avg_streaks_per_user as double)) as avg_streaks_per_user,
+    format('%.2f', cast(max_streaks_per_user as double)) as max_streaks_per_user,
     -- coverage thresholds
     format('%.2f%%', cast(pct_buyers_with_3plus_months * 100.0 as double)) as pct_buyers_with_3plus_months,
     format('%.2f%%', cast(pct_buyers_with_6plus_months * 100.0 as double)) as pct_buyers_with_6plus_months,
@@ -238,6 +241,7 @@ select
     when 'max covers per buyer' then cs.max_covers_by_single_buyer
     when 'longest continuous coverage (months)' then cs.longest_continuous_coverage_months
     when 'avg coverage streaks per buyer' then cs.avg_streaks_per_user
+    when 'max coverage streaks per buyer' then cs.max_streaks_per_user
     when 'buyers with all gaps ≤30d (%)' then cs.pct_buyers_with_max_gap_30d
     when 'buyers with all gaps ≤90d (%)' then cs.pct_buyers_with_max_gap_90d
     when 'buyers with only instant renewals (%)' then cs.pct_buyers_with_all_zero_gaps
