@@ -90,6 +90,7 @@ select
   ir.eth_aave_net_apy,
   ir.eth_aweth_apy,
   ir.eth_debt_usdc_apy,
+  ir.eth_fx_change,
   -- capital movement
   cm.eth_eth_in,
   cm.eth_eth_out,
@@ -118,6 +119,7 @@ select
   ir.usd_aave_net_apy,
   ir.usd_aweth_apy,
   ir.usd_debt_usdc_apy,
+  ir.usd_fx_change,
   -- capital movement
   cm.usd_eth_in,
   cm.usd_eth_out
