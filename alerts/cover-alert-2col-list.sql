@@ -2,7 +2,7 @@ with
 
 covers as (
   select distinct cover_id, cover_owner, cover_start_date, cover_end_date
-  from query_4599092
+  from query_4599092 -- covers v2 - base root (fallback query)
   where commission_destination not in (
     -- OpenCover:
     0xe4994082a0e7f38b565e6c5f4afd608de5eddfbb,
