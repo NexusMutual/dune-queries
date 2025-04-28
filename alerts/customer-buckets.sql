@@ -26,16 +26,12 @@ cover_buckets as (
     case
       when usd_cover_amount < 10000 then 1
       when usd_cover_amount < 100000 then 2
-      when usd_cover_amount < 1000000 then 3
-      when usd_cover_amount < 10000000 then 4
-      else 5
+      else 3
     end as bucket_rn,
     case
       when usd_cover_amount < 10000 then '0-10k'
       when usd_cover_amount < 100000 then '10k-100k'
-      when usd_cover_amount < 1000000 then '100k-1M'
-      when usd_cover_amount < 10000000 then '1M-10M'
-      else '10M+'
+      else '100k+'
     end as bucket,
     count(*) as cover_count,
     sum(usd_cover_amount) as usd_cover_amount,
