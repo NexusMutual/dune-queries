@@ -38,7 +38,7 @@ cover_buckets as (
     sum(usd_cover_amount) as usd_cover_amount,
     sum(usd_premium) as usd_premium
   from covers
-  where cover_start_time >= now() - interval '12' month
+  where cover_start_time >= now() - interval '6' month
   group by 1, 2, 3
 )
 
