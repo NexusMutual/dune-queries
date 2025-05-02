@@ -76,7 +76,7 @@ nxm_holders as (
     sum(amount) as amount
   from nxm_transfer
   group by 1
-  having sum(amount) > 1e-11 -- assumed "0"
+  --having sum(amount) > 1e-11 -- assumed "0"
 ),
 
 mints as (
@@ -134,7 +134,7 @@ member_activity_combined as (
   select
     m.member,
     m.is_whitelisted as is_active,
-    b.cover_owner,
+    if(b.cover_owner is not null, true, false) as is_buyer,
     b.cover_sold,
     b.product_sold,
     b.first_cover_buy,
@@ -143,7 +143,9 @@ member_activity_combined as (
     b.usd_cover,
     b.eth_premium,
     b.usd_premium,
+    if(nh.address is not null, true, false) as is_nxm_holder,
     nh.amount as nxm_balance,
+    if(s.staker is not null, true, false) as is_staker,
     s.pool_ids,
     s.token_ids
   from members m
@@ -153,9 +155,10 @@ member_activity_combined as (
 )
 
 select
-  count(distinct member) as members,
+  count(distinct member) as all_time_members,
   count(distinct member) filter (where is_active) as active_members,
-  count(distinct member) filter (where nxm_balance > 0) as nxm_holders,
-  count(distinct cover_owner) filter (where cover_owner is not null) as all_time_buyers,
-  count(distinct member) filter (where cardinality(pool_ids) > 0) as all_time_stakers
+  count(distinct member) filter (where is_nxm_holder) as all_time_nxm_holders,
+  count(distinct member) filter (where is_nxm_holder and nxm_balance > 1e-11) as current_nxm_holders,
+  count(distinct member) filter (where is_buyer) as all_time_buyers,
+  count(distinct member) filter (where is_staker) as all_time_stakers
 from member_activity_combined
