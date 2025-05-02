@@ -34,7 +34,7 @@ cover as (
   select
     cover_id,
     product_id,
-    if(product_id in (245, 246, 247, 273), product_name) as plan,
+    if(product_id in (245, 246, 247, 273, 296, 297, 298), product_name) as plan,
     product_name,
     product_type,
     cover_start_date,
