@@ -103,9 +103,12 @@ staking_transfers as (
 
 stakers as (
   select
+    block_time,
+    pool_id,
+    token_id,
     staker,
-    array_agg(distinct pool_id) as pool_ids,
-    array_agg(distinct token_id) as token_ids
+    tx_hash,
+    row_number() over (partition by pool_id, token_id order by block_time desc, evt_index desc) as pool_token_rn
   from (
     select
       block_time,
@@ -127,7 +130,21 @@ stakers as (
       inner join staking_transfers t on m.token_id = t.token_id
     where t.from_address <> 0x0000000000000000000000000000000000000000 -- excl mints
   ) t
-  group by 1
+),
+
+stakers_active_stake as (
+  select
+    s.staker,
+    s.pool_id,
+    s.token_id,
+    s.pool_token_rn,
+    st.total_staked_nxm as nxm_active_stake
+  from stakers s
+    left join query_4079728 st -- staked nxm per token - base
+      on s.pool_id = st.pool_id
+      and s.token_id = st.token_id
+      and s.pool_token_rn = 1
+      and (st.token_date_rn = 1 and st.block_date = current_date) -- today's stake
 ),
 
 member_activity_combined as (
@@ -146,12 +163,14 @@ member_activity_combined as (
     if(nh.address is not null, true, false) as is_nxm_holder,
     nh.amount as nxm_balance,
     if(s.staker is not null, true, false) as is_staker,
-    s.pool_ids,
-    s.token_ids
+    s.pool_id,
+    s.token_id,
+    s.pool_token_rn,
+    s.nxm_active_stake
   from members m
     left join buyers b on m.member = b.cover_owner
     left join nxm_holders nh on m.member = nh.address
-    left join stakers s on m.member = s.staker
+    left join stakers_active_stake s on m.member = s.staker
 )
 
 select
@@ -160,5 +179,6 @@ select
   count(distinct member) filter (where is_nxm_holder) as all_time_nxm_holders,
   count(distinct member) filter (where is_nxm_holder and nxm_balance > 1e-11) as current_nxm_holders,
   count(distinct member) filter (where is_buyer) as all_time_buyers,
-  count(distinct member) filter (where is_staker) as all_time_stakers
+  count(distinct member) filter (where is_staker) as all_time_stakers,
+  count(distinct member) filter (where is_staker and nxm_active_stake > 0) as current_stakers
 from member_activity_combined
