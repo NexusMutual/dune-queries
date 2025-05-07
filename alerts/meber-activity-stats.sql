@@ -79,7 +79,7 @@ nxm_holders as (
   --having sum(amount) > 1e-11 -- assumed "0"
 ),
 
-mints as (
+staking_mints as (
   select
     call_block_time as block_time,
     poolId as pool_id,
@@ -90,7 +90,7 @@ mints as (
   where call_success
 ),
 
-transfers as (
+staking_transfers as (
   select
     evt_block_time as block_time,
     tokenId as token_id,
@@ -114,7 +114,7 @@ stakers as (
       to_address as staker,
       cast(-1 as bigint) as evt_index,
       tx_hash
-    from mints
+    from staking_mints
     union all
     select
       t.block_time,
@@ -123,8 +123,8 @@ stakers as (
       t.to_address as staker,
       t.evt_index,
       t.tx_hash
-    from mints m
-      inner join transfers t on m.token_id = t.token_id
+    from staking_mints m
+      inner join staking_transfers t on m.token_id = t.token_id
     where t.from_address <> 0x0000000000000000000000000000000000000000 -- excl mints
   ) t
   group by 1
