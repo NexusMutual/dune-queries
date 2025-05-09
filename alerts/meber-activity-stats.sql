@@ -1,32 +1,49 @@
 with
 
-whitelist as (
+member_activity as (
   select
-    call_block_time as block_time,
-    _member as member,
-    true as is_whitelisted
-  from nexusmutual_ethereum.tokencontroller_call_addtowhitelist
-  where call_success
-  union all
-  select
-    call_block_time as block_time,
-    _member as member,
-    false as is_whitelisted
-  from nexusmutual_ethereum.tokencontroller_call_removefromwhitelist
-  where call_success  
+    block_time,
+    member,
+    is_active,
+    active_members,
+    all_time_members
+  from query_5097910 -- member activity base
 ),
 
-whitelist_ordered as (
+member_activity_latest as (
   select
-    *,
-    row_number() over (partition by member order by block_time desc) as rn
-  from whitelist
+    max(block_time) as latest_block_time,
+    max_by(active_members, block_time) as active_members_now,
+    max_by(all_time_members, block_time) as all_time_members_now
+  from member_activity
 ),
 
-members as (
-  select block_time, member, is_whitelisted
-  from whitelist_ordered
-  where rn = 1
+member_activity_historical as (
+  select
+    max(case when date_diff('day', block_time, latest_block_time) between 29 and 31 then active_members end) as active_members_30d_ago,
+    max(case when date_diff('day', block_time, latest_block_time) between 89 and 91 then active_members end) as active_members_90d_ago,
+    max(case when date_diff('day', block_time, latest_block_time) between 179 and 181 then active_members end) as active_members_180d_ago
+  from member_activity, member_activity_latest
+),
+
+member_activity_stats as (
+  select
+    l.latest_block_time as latest_member_activity_time,
+    l.all_time_members_now as all_time_members,
+    l.active_members_now as active_members,
+    -- 30d
+    h.active_members_30d_ago,
+    l.active_members_now - h.active_members_30d_ago as change_30d,
+    round(100.0 * (l.active_members_now - h.active_members_30d_ago) / nullif(h.active_members_30d_ago, 0), 2) as pct_change_30d,
+    -- 90d
+    h.active_members_90d_ago,
+    l.active_members_now - h.active_members_90d_ago as change_90d,
+    round(100.0 * (l.active_members_now - h.active_members_90d_ago) / nullif(h.active_members_90d_ago, 0), 2) as pct_change_90d,
+    -- 180d
+    h.active_members_180d_ago,
+    l.active_members_now - h.active_members_180d_ago as change_180d,
+    round(100.0 * (l.active_members_now - h.active_members_180d_ago) / nullif(h.active_members_180d_ago, 0), 2) as pct_change_180d
+  from member_activity_latest l, member_activity_historical h
 ),
 
 buyers as (
@@ -150,7 +167,7 @@ stakers_active_stake as (
 member_activity_combined as (
   select
     m.member,
-    m.is_whitelisted as is_active,
+    m.is_active,
     if(b.cover_owner is not null, true, false) as is_buyer,
     b.cover_sold,
     b.product_sold,
@@ -167,18 +184,37 @@ member_activity_combined as (
     s.token_id,
     s.pool_token_rn,
     s.nxm_active_stake
-  from members m
+  from member_activity m
     left join buyers b on m.member = b.cover_owner
     left join nxm_holders nh on m.member = nh.address
     left join stakers_active_stake s on m.member = s.staker
+),
+
+member_activity_combined_agg as (
+  select
+    --count(distinct member) as all_time_members,
+    --count(distinct member) filter (where is_active) as active_members,
+    count(distinct member) filter (where is_nxm_holder) as all_time_nxm_holders,
+    count(distinct member) filter (where is_nxm_holder and nxm_balance > 1e-11) as current_nxm_holders,
+    count(distinct member) filter (where is_buyer) as all_time_buyers,
+    count(distinct member) filter (where is_staker) as all_time_stakers,
+    count(distinct member) filter (where is_staker and nxm_active_stake > 0) as current_stakers
+  from member_activity_combined
 )
 
 select
-  count(distinct member) as all_time_members,
-  count(distinct member) filter (where is_active) as active_members,
-  count(distinct member) filter (where is_nxm_holder) as all_time_nxm_holders,
-  count(distinct member) filter (where is_nxm_holder and nxm_balance > 1e-11) as current_nxm_holders,
-  count(distinct member) filter (where is_buyer) as all_time_buyers,
-  count(distinct member) filter (where is_staker) as all_time_stakers,
-  count(distinct member) filter (where is_staker and nxm_active_stake > 0) as current_stakers
-from member_activity_combined
+  latest_member_activity_time,
+  all_time_members,
+  active_members,
+  change_30d,
+  pct_change_30d,
+  change_90d,
+  pct_change_90d,
+  change_180d,
+  pct_change_180d,
+  all_time_nxm_holders,
+  current_nxm_holders,
+  all_time_buyers,
+  all_time_stakers,
+  current_stakers
+from member_activity_combined_agg, member_activity_stats
