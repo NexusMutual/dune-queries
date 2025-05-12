@@ -133,6 +133,9 @@ covers_base as (
     coalesce(c.cbbtc_cover_amount * p.avg_cbbtc_usd_price, 0) as cbbtc_usd_cover,
     c.premium_asset,
     c.premium,
+    c.eth_premium_amount,
+    c.dai_premium_amount,
+    c.nxm_premium_amount,
     case
       when c.staking_pool = 'v1' and c.premium_asset = 'ETH' then coalesce(c.eth_premium_amount, 0)
       when c.premium_asset = 'ETH' then coalesce(c.nxm_premium_amount * p.avg_nxm_eth_price, 0)
@@ -198,20 +201,23 @@ select
   tx_hash,
   --== cover amount per asset ==
   eth_cover_amount,
+  dai_cover_amount,
+  usdc_cover_amount,
+  cbbtc_cover_amount,
   eth_eth_cover,
   eth_usd_cover,
-  dai_cover_amount,
   dai_eth_cover,
   dai_usd_cover,
-  usdc_cover_amount,
   usdc_eth_cover,
   usdc_usd_cover,
-  cbbtc_cover_amount,
   cbbtc_eth_cover,
   cbbtc_usd_cover,
   --== premium ==
   premium_asset,
   premium,
+  eth_premium_amount,
+  dai_premium_amount,
+  nxm_premium_amount,
   --== premium per asset ==
   eth_eth_premium,
   eth_usd_premium,
