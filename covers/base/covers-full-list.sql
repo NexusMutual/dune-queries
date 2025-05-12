@@ -136,6 +136,7 @@ covers_base as (
     c.eth_premium_amount,
     c.dai_premium_amount,
     c.nxm_premium_amount,
+    --ETH
     case
       when c.staking_pool = 'v1' and c.premium_asset = 'ETH' then coalesce(c.eth_premium_amount, 0)
       when c.premium_asset = 'ETH' then coalesce(c.nxm_premium_amount * p.avg_nxm_eth_price, 0)
@@ -146,6 +147,7 @@ covers_base as (
       when c.premium_asset = 'ETH' then coalesce(c.nxm_premium_amount * p.avg_nxm_usd_price, 0)
       else 0
     end as eth_usd_premium,
+    --DAI
     case
       when c.staking_pool = 'v1' and c.premium_asset = 'DAI' then coalesce(c.dai_premium_amount * p.avg_dai_usd_price / p.avg_eth_usd_price, 0)
       when c.premium_asset = 'DAI' then coalesce(c.nxm_premium_amount * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0)
@@ -156,6 +158,7 @@ covers_base as (
       when c.premium_asset = 'DAI' then coalesce(c.nxm_premium_amount * p.avg_nxm_usd_price, 0)
       else 0
     end as dai_usd_premium,
+    --USDC
     case
       when c.premium_asset = 'USDC' then coalesce(c.nxm_premium_amount * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0)
       else 0
@@ -164,6 +167,7 @@ covers_base as (
       when c.premium_asset = 'USDC' then coalesce(c.nxm_premium_amount * p.avg_nxm_usd_price, 0)
       else 0
     end as usdc_usd_premium,
+    --cbBTC
     case
       when c.premium_asset = 'cbBTC' then coalesce(c.nxm_premium_amount * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0)
       else 0
@@ -172,6 +176,15 @@ covers_base as (
       when c.premium_asset = 'cbBTC' then coalesce(c.nxm_premium_amount * p.avg_nxm_usd_price, 0)
       else 0
     end as cbbtc_usd_premium,
+    --NXM
+    case
+      when c.premium_asset = 'NXM' then coalesce(c.nxm_premium_amount * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0)
+      else 0
+    end as nxm_eth_premium,
+    case
+      when c.premium_asset = 'NXM' then coalesce(c.nxm_premium_amount * p.avg_nxm_usd_price, 0)
+      else 0
+    end as nxm_usd_premium,
     c.tx_hash
   from daily_avg_prices p
     inner join covers_ext c on p.block_date = c.cover_start_date
@@ -226,5 +239,7 @@ select
   usdc_eth_premium,
   usdc_usd_premium,
   cbbtc_eth_premium,
-  cbbtc_usd_premium
+  cbbtc_usd_premium,
+  nxm_eth_premium,
+  nxm_usd_premium
 from covers_base
