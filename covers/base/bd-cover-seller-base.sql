@@ -66,15 +66,9 @@ covers as (
 ),
 
 day_sequence as (
-  select cast(d.seq_date as timestamp) as block_date
-  from (
-      select sequence(
-        (select cast(min(block_date) as timestamp) from covers),
-        current_date,
-        interval '1' day
-      ) as days
-    ) as days_s
-    cross join unnest(days) as d(seq_date)
+  select timestamp as block_date
+  from utils.days
+  where timestamp >= (select min(block_date) from covers)
 ),
 
 daily_active_cover as (
