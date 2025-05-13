@@ -1,11 +1,12 @@
 with
 
 staking_pools as (
-  select distinct
-    pool_id,
-    pool_address
-  --from query_3859935 -- staking pools base (fallback) query
-  from query_4167546 -- staking pools - spell de-duped
+  select
+    evt_block_time as block_time,
+    poolId as pool_id,
+    stakingPoolAddress as pool_address,
+    evt_tx_hash as tx_hash
+  from nexusmutual_ethereum.StakingPoolFactory_evt_StakingPoolCreated
 ),
 
 staking_pool_names as (
@@ -15,7 +16,7 @@ staking_pool_names as (
 
 active_stake_updated as (
   select
-    contract_address,
+    contract_address as pool_address,
     evt_block_time as block_time,
     evt_block_date as block_date,
     evt_block_number as block_number,
@@ -36,8 +37,8 @@ select
   asu.active_stake / 1e18 as active_stake,
   asu.stake_shares_supply,
   asu.tx_hash
-from active_stake_updated asu
-  inner join staking_pools sp on asu.contract_address = sp.pool_address
+from staking_pools sp
+  inner join active_stake_updated asu on sp.pool_address = asu.contract_address
   left join staking_pool_names spn on sp.pool_id = spn.pool_id
 where asu.rn = 1
 order by 1
