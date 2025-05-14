@@ -1,13 +1,11 @@
 with
 
 staking_pools as (
-  select distinct
-    sp.pool_id,
-    sp.pool_address,
+  select
+    sp.poolId as pool_id,
+    sp.stakingPoolAddress as pool_address,
     se.first_stake_event_date
-  --from query_3859935 sp -- staking pools base (fallback) query
-  --from nexusmutual_ethereum.staking_pools sp
-  from query_4167546 sp -- staking pools - spell de-duped
+  from nexusmutual_ethereum.StakingPoolFactory_evt_StakingPoolCreated sp
     inner join (
       select
         pool_address,
@@ -15,30 +13,32 @@ staking_pools as (
       --from query_3609519 -- staking events
       from nexusmutual_ethereum.staking_events
       group by 1
-    ) se on sp.pool_address = se.pool_address
+    ) se on sp.stakingPoolAddress = se.pool_address
+),
+
+active_stake_updated as (
+  select
+    asu.evt_block_date as block_date,
+    sp.pool_id,
+    sp.pool_address,
+    asu.activeStake / 1e18 as total_staked_nxm,
+    row_number() over (partition by sp.pool_id order by asu.evt_block_date) as active_stake_event_rn
+  from nexusmutual_ethereum.stakingpool_evt_activestakeupdated asu
+    inner join staking_pools sp on asu.contract_address = sp.pool_address
 ),
 
 staking_pool_day_sequence as (
   select
     sp.pool_id,
     sp.pool_address,
-    s.block_date
-  from staking_pools sp
-    cross join unnest (
-      sequence(
-        cast(date_trunc('day', sp.first_stake_event_date) as timestamp),
-        cast(date_trunc('day', now()) as timestamp),
-        interval '1' day
-      )
-    ) as s(block_date)
-),
-
-tranches as (
-  select distinct
-    coalesce(new_tranche_id, tranche_id) as tranche_id,
-    tranche_expiry_date
-  --from query_3609519 -- staking events
-  from nexusmutual_ethereum.staking_events
+    d.timestamp as block_date,
+    if(asu.block_date is null, true, false) as is_pre_active_stake_events
+  from utils.days d
+    inner join staking_pools sp on d.timestamp >=sp.first_stake_event_date
+    left join active_stake_updated asu
+      on sp.pool_id = asu.pool_id
+      and asu.active_stake_event_rn = 1
+      and d.timestamp >= asu.block_date
 ),
 
 deposits as (
@@ -57,6 +57,7 @@ deposits as (
       on d.pool_address = se.pool_address
       and d.block_date >= se.stake_start_date
       and d.block_date < se.stake_end_date
+  where d.is_pre_active_stake_events
   group by 1, 2, 3, 4
 ),
 
@@ -79,7 +80,6 @@ burns_init as (
       d.staked_nxm,
       sum(d.staked_nxm) over (partition by se.pool_address, se.tranche_id) as total_staked_nxm
     from nexusmutual_ethereum.staking_events se
-      --cross join tranches t
       inner join (
         select
           block_date,
@@ -106,6 +106,7 @@ burns as (
       on d.pool_address = bi.pool_address
       and d.block_date >= bi.block_date
       --and d.block_date < bi.tranche_expiry_date
+  where d.is_pre_active_stake_events
   group by 1, 2, 3, 4
 ),
 
@@ -114,8 +115,7 @@ staked_nxm_per_pool as (
     block_date,
     pool_id,
     pool_address,
-    sum(coalesce(total_amount, 0)) as total_staked_nxm,
-    dense_rank() over (partition by pool_id order by block_date desc) as pool_date_rn
+    sum(coalesce(total_amount, 0)) as total_staked_nxm
   from (
       select
         block_date,
@@ -134,12 +134,40 @@ staked_nxm_per_pool as (
       from burns
     ) t
   group by 1, 2, 3
+),
+
+staked_nxn_per_pool_combined as (
+  select
+    block_date,
+    pool_id,
+    pool_address,
+    total_staked_nxm
+  from staked_nxm_per_pool
+  union all
+  select
+    block_date,
+    pool_id,
+    pool_address,
+    total_staked_nxm
+  from active_stake_updated
+),
+
+staked_nxm_per_pool_final as (
+  select
+    block_date,
+    pool_id,
+    pool_address,
+    total_staked_nxm,
+    row_number() over (partition by pool_id order by block_date desc) as pool_date_rn
+  from staked_nxn_per_pool_combined
 )
 
 select
-  min(block_date) as block_date,
-  total_staked_nxm
-from staked_nxm_per_pool
-where pool_id = 11
-group by 2
-order by 1
+  block_date,
+  pool_id,
+  pool_address,
+  total_staked_nxm,
+  pool_date_rn
+from staked_nxm_per_pool_final
+where pool_date_rn = 1
+order by pool_id, block_date
