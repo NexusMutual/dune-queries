@@ -47,8 +47,6 @@ deposits as (
     d.block_date,
     d.pool_id,
     d.pool_address,
-    --se.token_id,
-    --se.init_tranche_id,
     se.current_tranche_id as tranche_id,
     sum(se.amount) as total_amount
   from staking_pool_day_sequence d
