@@ -8,6 +8,9 @@ tricky example: token 41
 - burn happens when token on extended deposit on tranche 217 -> which gets extended to 218 -> then withdrawal of total stake minus burn
 - and then new deposit on this token on tranche 224 where burn doesn't apply anymore
 
+new events:
+select * from nexusmutual_ethereum.stakingpool_evt_DepositUpdated order by evt_block_time desc limit 10
+select * from nexusmutual_ethereum.stakingpool_evt_TrancheUpdated order by evt_block_time desc limit 10
 */
 
 
