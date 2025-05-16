@@ -1,7 +1,7 @@
 with
 
 staking_pools as (
-  select distinct
+  select
     sp.pool_id,
     sp.pool_address,
     se.first_stake_event_date
