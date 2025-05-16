@@ -23,7 +23,7 @@ active_stake_updated as (
     sp.pool_address,
     asu.activeStake / 1e18 as total_staked_nxm,
     row_number() over (partition by sp.pool_id order by asu.evt_block_date) as active_stake_event_rn
-  from nexusmutual_ethereum.stakingpool_evt_activestakeupdated asu
+  from nexusmutual_ethereum.StakingPool_evt_ActiveStakeUpdated asu
     inner join staking_pools sp on asu.contract_address = sp.pool_address
 ),
 
