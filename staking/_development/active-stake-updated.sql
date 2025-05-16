@@ -38,7 +38,7 @@ select
   asu.stake_shares_supply,
   asu.tx_hash
 from staking_pools sp
-  inner join active_stake_updated asu on sp.pool_address = asu.contract_address
+  inner join active_stake_updated asu on sp.pool_address = asu.pool_address
   left join staking_pool_names spn on sp.pool_id = spn.pool_id
 where asu.rn = 1
 order by 1
