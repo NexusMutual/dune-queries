@@ -1,14 +1,5 @@
 with
 
-staking_pools_evt as (
-  select
-    evt_block_time as block_time_created,
-    poolId as pool_id,
-    stakingPoolAddress as pool_address,
-    evt_tx_hash as tx_hash_created
-  from nexusmutual_ethereum.StakingPoolFactory_evt_StakingPoolCreated
-),
-
 staking_pools_created as (
   select
     call_block_time as block_time_created,
@@ -38,16 +29,16 @@ staking_pools_created as (
 
 staking_pools_created_ext as (
   select
-    spe.block_time_created,
+    spe.block_time as block_time_created,
     spe.pool_id,
     spe.pool_address,
     spc.is_private_pool,
     spc.initial_pool_fee,
     spc.max_management_fee,
     spc.params,
-    spe.tx_hash_created
-  from staking_pools_evt spe
-    inner join staking_pools_created spc on spe.pool_id = spc.pool_id and spe.block_time_created = spc.block_time_created
+    spe.tx_hash as tx_hash_created
+  from query_5128062 spe -- staking pools list - base query
+    inner join staking_pools_created spc on spe.pool_id = spc.pool_id and spe.block_time = spc.block_time_created
 ),
 
 staking_pools_and_products as (

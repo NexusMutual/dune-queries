@@ -1,8 +1,9 @@
 with recursive deposit_chain (
-  block_time, pool_address, token_id, tranche_id, new_tranche_id, amount, stake_start_date, stake_end_date, is_active, evt_index, tx_hash, deposit_rn, chain_level
+  block_time, pool_id, pool_address, token_id, tranche_id, new_tranche_id, amount, stake_start_date, stake_end_date, is_active, evt_index, tx_hash, deposit_rn, chain_level
 ) as (
   select
     block_time,
+    pool_id,
     pool_address,
     token_id,
     tranche_id,
@@ -22,6 +23,7 @@ with recursive deposit_chain (
   
   select 
     d.block_time,
+    d.pool_id,
     d.pool_address,
     d.token_id,
     dc.tranche_id,
@@ -35,7 +37,7 @@ with recursive deposit_chain (
     d.deposit_rn,
     dc.chain_level + 1 as chain_level
   from deposit_chain dc
-    inner join query_4102411 d on dc.pool_address = d.pool_address and dc.token_id = d.token_id
+    inner join query_4102411 d on dc.pool_id = d.pool_id and dc.token_id = d.token_id
   where dc.deposit_rn = d.deposit_rn - 1
     and ((d.flow_type = 'deposit extended' and dc.new_tranche_id = d.init_tranche_id)
       or (d.flow_type = 'deposit addon' and dc.new_tranche_id = d.tranche_id))
@@ -44,6 +46,7 @@ with recursive deposit_chain (
 select 
   block_time,
   date_trunc('day', block_time) as block_date,
+  pool_id,
   pool_address,
   token_id,
   tranche_id as init_tranche_id,
@@ -59,6 +62,6 @@ select
 from (
     select
       *,
-      row_number() over (partition by pool_address, token_id, tranche_id order by chain_level desc) as token_tranche_rn
+      row_number() over (partition by pool_id, token_id, tranche_id order by chain_level desc) as token_tranche_rn
     from deposit_chain
   ) t
