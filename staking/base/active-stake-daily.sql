@@ -42,4 +42,4 @@ select
   stake_shares_supply,
   tx_hash
 from active_stake_updated_daily
-order by 1, 2, 3
+--order by 1, 2, 3
