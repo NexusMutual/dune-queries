@@ -71,12 +71,12 @@ staked_nxm_per_pool as (
         d.pool_address,
         sum(se.amount) as total_amount
       from staking_pool_day_sequence d
-        left join query_3609519 se -- staking events
-        --left join nexusmutual_ethereum.staking_events se
+        inner join query_3609519 se -- staking events
+        --inner join nexusmutual_ethereum.staking_events se
           on d.pool_id = se.pool_id
          and d.block_date >= se.block_date
          and d.block_date < coalesce(se.tranche_expiry_date, current_date)
-      where flow_type in ('withdraw', 'stake burn')
+      where se.flow_type in ('withdraw', 'stake burn')
         and d.is_pre_active_stake_events
       group by 1, 2, 3
     ) t
