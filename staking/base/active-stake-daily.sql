@@ -47,9 +47,9 @@ daily_snapshots_with_next as (
       pool_id,
       pool_address,
       max(block_date) as block_date,
-      max_by(active_stake, block_date) as active_stake,
-      max_by(stake_shares_supply, block_date) as stake_shares_supply,
-      max_by(tx_hash, block_date) as tx_hash
+      max_by(active_stake, block_time) as active_stake,
+      max_by(stake_shares_supply, block_time) as stake_shares_supply,
+      max_by(tx_hash, block_time) as tx_hash
     from daily_snapshots
     group by 1, 2
     */
