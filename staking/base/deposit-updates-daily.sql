@@ -50,6 +50,7 @@ updates_combined as (
     du.stake_shares,
     du.stake_shares_supply,
     asu.active_stake * du.stake_shares / du.stake_shares_supply as token_stake,
+    cast(from_unixtime(91.0 * 86400.0 * cast(du.tranche_id + 1 as double)) as date) as tranche_expiry_date,
     du.tx_hash
   from deposit_updates du
     inner join active_stake_updates asu
@@ -71,6 +72,7 @@ daily_snapshots as (
     max_by(stake_shares, block_time) as stake_shares,
     max_by(stake_shares_supply, block_time) as stake_shares_supply,
     max_by(token_stake, block_time) as token_stake,
+    max_by(tranche_expiry_date, block_time) as tranche_expiry_date,
     max_by(tx_hash, block_time) as tx_hash
   from updates_combined
   group by 1, 2, 3, 4, 5
@@ -94,6 +96,7 @@ daily_snapshots_with_next as (
       max_by(active_stake, block_time) as active_stake,
       max_by(stake_shares_supply, block_time) as stake_shares_supply,
       max_by(token_stake, block_time) as token_stake,
+      max_by(tranche_expiry_date, block_time) as tranche_expiry_date,
       max_by(tx_hash, block_time) as tx_hash
     from daily_snapshots
     group by 1, 2, 3, 4
@@ -135,6 +138,7 @@ forward_fill as (
     dc.stake_shares,
     dc.stake_shares_supply,
     dc.token_stake,
+    dc.tranche_expiry_date,
     dc.tx_hash
   from daily_sequence s
     left join daily_snapshots_with_next dc
@@ -155,6 +159,7 @@ select
   stake_shares,
   stake_shares_supply,
   token_stake,
+  tranche_expiry_date,
   tx_hash
 from forward_fill
 --order by pool_id, tranche_id, token_id, block_time
