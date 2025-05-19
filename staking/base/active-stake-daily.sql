@@ -8,7 +8,7 @@ staking_pools as (
   from query_5128062 -- staking pools list - base query
 ),
 
-active_stake_updated as (
+active_stake_updates as (
   select
     sp.pool_id,
     sp.pool_address,
@@ -22,7 +22,7 @@ active_stake_updated as (
     inner join staking_pools sp on asu.contract_address = sp.pool_address
 ),
 
-active_stake_updated_daily as (
+daily_snapshots as (
   select
     pool_id,
     pool_address,
@@ -30,8 +30,64 @@ active_stake_updated_daily as (
     max_by(active_stake, block_date) as active_stake,
     max_by(stake_shares_supply, block_date) as stake_shares_supply,
     max_by(tx_hash, block_date) as tx_hash
-  from active_stake_updated
+  from active_stake_updates
   group by 1, 2, 3
+),
+
+daily_snapshots_with_next as (
+  select
+    *,
+    lead(block_date) over (partition by pool_id order by block_date) as next_update_date
+  from (
+    select * from daily_snapshots
+    /*
+    -- prep for incremental load
+    union all
+    select
+      pool_id,
+      pool_address,
+      block_date,
+      max(active_stake) as active_stake,
+      max(stake_shares_supply) as stake_shares_supply,
+      max(tx_hash) as tx_hash
+    from daily_snapshots
+    group by 1, 2, 3
+    */
+  ) t
+),
+
+pool_start_dates as (
+  select
+    pool_id,
+    pool_address,
+    min(block_date) as block_date_start
+  from daily_snapshots_with_next
+  group by 1, 2
+),
+
+daily_sequence as (
+  select
+    s.pool_id,
+    s.pool_address,
+    d.timestamp as block_date
+  from utils.days d
+    inner join pool_start_dates s on d.timestamp >= s.block_date_start
+  where d.timestamp <= current_date
+),
+
+forward_fill as (
+  select
+    s.pool_id,
+    s.pool_address,
+    s.block_date,
+    dc.active_stake,
+    dc.stake_shares_supply,
+    dc.tx_hash
+  from daily_sequence s
+    left join daily_snapshots_with_next dc
+      on s.pool_id = dc.pool_id
+      and s.block_date >= dc.block_date
+      and (s.block_date < dc.next_update_date or dc.next_update_date is null)
 )
 
 select
@@ -41,5 +97,6 @@ select
   active_stake,
   stake_shares_supply,
   tx_hash
-from active_stake_updated_daily
---order by 1, 2, 3
+from forward_fill
+--where pool_id = 22
+--order by 1, 2, 3 desc
