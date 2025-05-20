@@ -16,8 +16,8 @@ active_stake_updates as (
     asu.evt_block_date as block_date,
     asu.activeStake / 1e18 as active_stake,
     asu.evt_index,
-    asu.evt_tx_hash as tx_hash,
-    row_number() over (partition by asu.evt_block_time, asu.evt_tx_hash order by asu.evt_index desc) as rn
+    asu.evt_tx_hash as tx_hash
+    --row_number() over (partition by asu.evt_block_time, asu.evt_tx_hash order by asu.evt_index desc) as rn
   from nexusmutual_ethereum.StakingPool_evt_ActiveStakeUpdated asu
     inner join staking_pools sp on asu.contract_address = sp.pool_address
 ),
@@ -51,55 +51,48 @@ updates_combined as (
     du.stake_shares_supply,
     asu.active_stake * du.stake_shares / du.stake_shares_supply as token_stake,
     cast(from_unixtime(91.0 * 86400.0 * cast(du.tranche_id + 1 as double)) as date) as tranche_expiry_date,
+    du.evt_index,
     du.tx_hash
   from deposit_updates du
     inner join active_stake_updates asu
       on du.pool_id = asu.pool_id
       and du.block_time = asu.block_time
       and du.tx_hash = asu.tx_hash
+      and du.evt_index > asu.evt_index - 6
       and du.evt_index < asu.evt_index
-      and asu.rn = 1
+      --and asu.rn = 1
 ),
 
 daily_snapshots as (
   select
+    block_date,
     pool_id,
     pool_address,
-    block_date,
-    tranche_id,
     token_id,
-    max_by(active_stake, block_time) as active_stake,
-    max_by(stake_shares, block_time) as stake_shares,
-    max_by(stake_shares_supply, block_time) as stake_shares_supply,
-    max_by(token_stake, block_time) as token_stake,
-    max_by(tranche_expiry_date, block_time) as tranche_expiry_date,
-    max_by(tx_hash, block_time) as tx_hash
+    sum(token_stake) as token_stake,
+    min(tranche_expiry_date) as tranche_expiry_date -- take closest expiry date for total token stake (not accurate if there are multiple tranches)
   from updates_combined
-  group by 1, 2, 3, 4, 5
+  group by 1, 2, 3, 4
 ),
 
 daily_snapshots_with_next as (
   select
     *,
-    lead(block_date) over (partition by pool_id, tranche_id, token_id order by block_date) as next_update_date
+    lead(block_date) over (partition by pool_id, token_id order by block_date) as next_update_date
   from (
-    select * from daily_snapshots
-    /*
-    -- prep for incremental load
-    union all
-    select
-      pool_id,
-      pool_address,
-      tranche_id,
-      token_id,
-      max(block_date) as block_date,
-      max_by(active_stake, block_time) as active_stake,
-      max_by(stake_shares_supply, block_time) as stake_shares_supply,
-      max_by(token_stake, block_time) as token_stake,
-      max_by(tranche_expiry_date, block_time) as tranche_expiry_date,
-      max_by(tx_hash, block_time) as tx_hash
+    -- regular incremental load
+    select *, cast(null as bigint) as rn
     from daily_snapshots
-    group by 1, 2, 3, 4
+    /*
+    -- find last snapshot for each token pre incremental load window
+    union all
+    select *
+    from (
+      select *, row_number() over (partition by pool_id, token_id order by block_date desc) as rn
+      from daily_snapshots
+      where not incremental_predicate
+    )
+    where rn = 1
     */
   ) t
 ),
@@ -107,19 +100,15 @@ daily_snapshots_with_next as (
 pool_start_dates as (
   select
     pool_id,
-    pool_address,
-    tranche_id,
     token_id,
     min(block_date) as block_date_start
   from daily_snapshots_with_next
-  group by 1, 2, 3, 4
+  group by 1, 2
 ),
 
 daily_sequence as (
   select
     s.pool_id,
-    s.pool_address,
-    s.tranche_id,
     s.token_id,
     d.timestamp as block_date
   from utils.days d
@@ -129,37 +118,26 @@ daily_sequence as (
 
 forward_fill as (
   select
-    s.pool_id,
-    s.pool_address,
-    s.tranche_id,
-    s.token_id,
     s.block_date,
-    dc.active_stake,
-    dc.stake_shares,
-    dc.stake_shares_supply,
+    s.pool_id,
+    dc.pool_address,
+    s.token_id,
     dc.token_stake,
-    dc.tranche_expiry_date,
-    dc.tx_hash
+    dc.tranche_expiry_date
   from daily_sequence s
     left join daily_snapshots_with_next dc
       on s.pool_id = dc.pool_id
-      and s.tranche_id = dc.tranche_id
       and s.token_id = dc.token_id
       and s.block_date >= dc.block_date
       and (s.block_date < dc.next_update_date or dc.next_update_date is null)
 )
 
 select
+  block_date,
   pool_id,
   pool_address,
-  tranche_id,
   token_id,
-  block_date,
-  active_stake,
-  stake_shares,
-  stake_shares_supply,
   token_stake,
-  tranche_expiry_date,
-  tx_hash
+  tranche_expiry_date
 from forward_fill
 --order by pool_id, tranche_id, token_id, block_time
