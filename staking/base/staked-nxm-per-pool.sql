@@ -83,7 +83,7 @@ staked_nxm_per_pool as (
   group by 1, 2, 3
 ),
 
-staked_nxn_per_pool_combined as (
+staked_nxm_per_pool_combined as (
   select
     block_date,
     pool_id,
@@ -106,7 +106,7 @@ staked_nxm_per_pool_final as (
     pool_address,
     total_staked_nxm,
     row_number() over (partition by pool_id order by block_date desc) as pool_date_rn
-  from staked_nxn_per_pool_combined
+  from staked_nxm_per_pool_combined
 )
 
 select
