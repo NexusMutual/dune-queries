@@ -5,14 +5,14 @@ staking_pools as (
     sp.pool_id,
     sp.pool_address,
     se.first_stake_event_date
-  --from nexusmutual_ethereum.staking_pools_list sp
-  from query_5128062 sp -- staking pools list - base query
+  from nexusmutual_ethereum.staking_pools_list sp
+  --from query_5128062 sp -- staking pools list - base query
     inner join (
       select
         pool_id,
         cast(min(block_time) as date) as first_stake_event_date
-      from query_3609519 -- staking events
-      --from nexusmutual_ethereum.staking_events
+      --from query_3609519 -- staking events
+      from nexusmutual_ethereum.staking_events
       group by 1
     ) se on sp.pool_id = se.pool_id
 ),
@@ -24,8 +24,8 @@ active_stake_daily as (
     block_date,
     active_stake as total_staked_nxm,
     row_number() over (partition by pool_id order by block_date) as active_stake_event_rn
-  --from nexusmutual_ethereum.active_stake_daily
-  from query_5145401 -- active stake daily - base query
+  from nexusmutual_ethereum.base_active_stake_daily
+  --from query_5145401 -- active stake daily - base query
 ),
 
 staking_pool_day_sequence as (
@@ -56,8 +56,8 @@ staked_nxm_per_pool as (
         d.pool_address,
         sum(se.amount) as total_amount
       from staking_pool_day_sequence d
-        left join query_3619534 se -- staking deposit extensions base query
-        --left join nexusmutual_ethereum.staking_deposit_extensions se
+        --inner join query_3619534 se -- staking deposit extensions base query
+        inner join nexusmutual_ethereum.base_staking_deposit_extensions se
           on d.pool_id = se.pool_id
          and d.block_date >= se.stake_start_date
          and d.block_date < se.stake_end_date
@@ -71,8 +71,8 @@ staked_nxm_per_pool as (
         d.pool_address,
         sum(se.amount) as total_amount
       from staking_pool_day_sequence d
-        inner join query_3609519 se -- staking events
-        --inner join nexusmutual_ethereum.staking_events se
+        --inner join query_3609519 se -- staking events
+        inner join nexusmutual_ethereum.staking_events se
           on d.pool_id = se.pool_id
          and d.block_date >= se.block_date
          and d.block_date < coalesce(se.tranche_expiry_date, current_date)
