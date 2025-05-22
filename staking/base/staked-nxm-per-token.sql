@@ -40,7 +40,7 @@ token_day_sequence as (
     d.timestamp as block_date,
     if(du.block_date is null, true, false) as is_pre_deposit_update_events
   from utils.days d
-    inner join tokens sp on d.timestamp >=sp.first_stake_event_date
+    left join tokens sp on d.timestamp >=sp.first_stake_event_date
     left join deposit_updates_daily du
       on sp.pool_id = du.pool_id
       and sp.token_id = du.token_id
@@ -67,8 +67,8 @@ staked_nxm_per_pool_n_token as (
         sum(se.amount) as total_amount,
         max(se.stake_end_date) as stake_expiry_date
       from token_day_sequence d
-        inner join nexusmutual_ethereum.base_staking_deposit_extensions se
-        --inner join query_3619534 se -- staking deposit extensions base query
+        left join nexusmutual_ethereum.base_staking_deposit_extensions se
+        --left join query_3619534 se -- staking deposit extensions base query
           on d.pool_id = se.pool_id
           and d.token_id = se.token_id
           and d.block_date >= se.stake_start_date
