@@ -6,15 +6,15 @@ tokens as (
     sp.pool_address,
     se.token_id,
     se.first_stake_event_date
-  --from nexusmutual_ethereum.staking_pools_list sp
-  from query_5128062 sp -- staking pools list - base query
+  from nexusmutual_ethereum.staking_pools_list sp
+  --from query_5128062 sp -- staking pools list - base query
     inner join (
       select
         pool_id,
         token_id,
         cast(min(block_time) as date) as first_stake_event_date
-      from query_3609519 -- staking events
-      --from nexusmutual_ethereum.staking_events
+      from nexusmutual_ethereum.staking_events
+      --from query_3609519 -- staking events
       group by 1, 2
     ) se on sp.pool_id = se.pool_id
 ),
@@ -28,8 +28,8 @@ deposit_updates_daily as (
     token_stake as total_staked_nxm,
     tranche_expiry_date as stake_expiry_date,
     row_number() over (partition by pool_id, token_id order by block_date) as deposit_update_event_rn
-  --from nexusmutual_ethereum.deposit_updates_daily
-  from query_5156273 -- deposit updates daily - base
+  from nexusmutual_ethereum.base_deposit_updates_daily
+  --from query_5156273 -- deposit updates daily - base
 ),
 
 token_day_sequence as (
@@ -67,8 +67,8 @@ staked_nxm_per_pool_n_token as (
         sum(se.amount) as total_amount,
         max(se.stake_end_date) as stake_expiry_date
       from token_day_sequence d
-        inner join query_3619534 se -- staking deposit extensions base query
-        --inner join nexusmutual_ethereum.staking_deposit_extensions se
+        inner join nexusmutual_ethereum.base_staking_deposit_extensions se
+        --inner join query_3619534 se -- staking deposit extensions base query
           on d.pool_id = se.pool_id
           and d.token_id = se.token_id
           and d.block_date >= se.stake_start_date
@@ -85,8 +85,8 @@ staked_nxm_per_pool_n_token as (
         sum(se.amount) as total_amount,
         cast(null as date) as stake_expiry_date -- no point pulling stake_expiry_date for withdrawals
       from token_day_sequence d
-        inner join query_3609519 se -- staking events
-        --inner join nexusmutual_ethereum.staking_events se
+        inner join nexusmutual_ethereum.staking_events se
+        --inner join query_3609519 se -- staking events
           on d.pool_id = se.pool_id
           and d.token_id = se.token_id
           and d.block_date >= se.block_date

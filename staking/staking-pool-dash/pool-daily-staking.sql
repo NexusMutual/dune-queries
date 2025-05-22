@@ -22,8 +22,8 @@ daily_stake as (
       when 'ETH' then s.total_staked_nxm * p.avg_nxm_eth_price
       when 'USD' then s.total_staked_nxm * p.avg_nxm_usd_price
     end as total_staked
-  from query_4065286 s -- staked nxm base query (uses staking pools - spell de-duped)
-  --from nexusmutual_ethereum.staked_per_pool s
+  --from query_4065286 s -- staked nxm base query (uses staking pools - spell de-duped)
+  from nexusmutual_ethereum.staked_per_pool s
     cross join latest_prices p
   where cast(s.pool_id as int) in (select pool_id from params)
 ),

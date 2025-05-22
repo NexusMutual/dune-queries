@@ -16,8 +16,8 @@ active_covers as (
     premium_nxm,
     premium_nxm_eth,
     premium_nxm_usd
-  from query_3834200 -- active covers base (fallback) query
-  --from nexusmutual_ethereum.active_covers ac -- spell needs updating
+  --from query_3834200 -- active covers base (fallback) query
+  from nexusmutual_ethereum.active_covers
   where cast(staking_pool_id as int) in (select pool_id from params)
 ),
 
