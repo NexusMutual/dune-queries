@@ -45,8 +45,8 @@ staked_nxm_per_pool as (
   select
     pool_id,
     total_staked_nxm
-  from query_4065286 -- staked nxm base query (uses staking pools - spell de-duped)
-  --from nexusmutual_ethereum.staked_per_pool
+  --from query_4065286 -- staked nxm base query (uses staking pools - spell de-duped)
+  from nexusmutual_ethereum.staked_per_pool
   where pool_date_rn = 1
 ),
 
@@ -58,76 +58,6 @@ staked_nxm_allocated as (
     inner join staked_nxm_per_pool s on w.pool_id = s.pool_id
   group by 1
 ),
-
-/*
-staking_pool_fee_history as (
-  select
-    sp.pool_id,
-    sp.pool_address,
-    t.start_time,
-    coalesce(
-      date_add('second', -1, lead(t.start_time) over (partition by t.pool_address order by t.start_time)),
-      now()
-    ) as end_time,
-    t.pool_fee
-  from staking_pools sp
-    inner join (
-      select
-        pool_address,
-        pool_created_time as start_time,
-        initial_pool_fee as pool_fee
-      from staking_pools
-      union all
-      select
-        contract_address as pool_address,
-        evt_block_time as start_time,
-        newFee / 100.00 as pool_fee
-      from nexusmutual_ethereum.StakingPool_evt_PoolFeeChanged
-    ) t on sp.pool_address = t.pool_address
-),
-*/
-
-covers as (
-  select *
-  from query_4599092 -- covers v2 - base root (fallback query)
-),
-
-/*
-cover_premiums as (
-  select
-    c.cover_id,
-    c.cover_start_time,
-    c.cover_end_time,
-    c.staking_pool_id,
-    c.product_id,
-    c.premium,
-    c.commission as cover_commision,
-    c.premium * 0.5 as commission,
-    c.commission_ratio * c.premium * 0.5 as commission_distibutor_fee,
-    c.premium * 0.5 * h.pool_fee as pool_manager_commission,
-    c.premium * 0.5 * (1 - h.pool_fee) as staker_commission,
-    c.premium_period_ratio * c.premium * 0.5 as commission_emitted,
-    c.premium_period_ratio * c.premium * 0.5 * h.pool_fee as pool_manager_commission_emitted,
-    c.premium_period_ratio * c.premium * 0.5 * (1 - h.pool_fee) as staker_commission_emitted
-  from covers c
-    inner join staking_pool_fee_history h on c.staking_pool_id = h.pool_id
-      and c.cover_start_time between h.start_time and h.end_time
-),
-
-cover_premium_commissions as (
-  select
-    staking_pool_id,
-    sum(commission) as total_commission,
-    sum(commission_emitted) as total_commission_emitted,
-    sum(commission_distibutor_fee) as pool_distributor_commission,
-    sum(pool_manager_commission) as pool_manager_commission,
-    sum(pool_manager_commission_emitted) as pool_manager_commission_emitted,
-    sum(staker_commission) as staker_commission,
-    sum(staker_commission_emitted) as staker_commission_emitted
-  from cover_premiums
-  group by 1
-),
-*/
 
 current_rewards as (
   select
@@ -183,39 +113,11 @@ select
   coalesce(er.reward_expected_total, 0) as reward_expected_total_nxm,
   coalesce(er.reward_expected_total * p.avg_nxm_usd_price, 0) as reward_expected_total_nxm_usd,
   coalesce(er.reward_expected_total * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as reward_expected_total_nxm_eth
-  /*,
-  -- commisions
-  coalesce(c.pool_manager_commission, 0) as pool_manager_commission_nxm,
-  coalesce(c.pool_manager_commission, 0) as pool_manager_commission_nxm_usd,
-  coalesce(c.pool_manager_commission * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as pool_manager_commission_nxm_eth,
-  coalesce(c.pool_distributor_commission, 0) as pool_distributor_commission_nxm,
-  coalesce(c.pool_distributor_commission * p.avg_nxm_usd_price, 0) as pool_distributor_commission_nxm_usd,
-  coalesce(c.pool_distributor_commission * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as pool_distributor_commission_nxm_eth,
-  coalesce(c.staker_commission, 0) as staker_commission_nxm,
-  coalesce(c.staker_commission * p.avg_nxm_usd_price, 0) as staker_commission_nxm_usd,
-  coalesce(c.staker_commission * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as staker_commission_nxm_eth,
-  coalesce(c.pool_manager_commission, 0) + coalesce(c.pool_distributor_commission, 0) + coalesce(c.staker_commission, 0) as total_commission_nxm,
-  (coalesce(c.pool_manager_commission, 0) + coalesce(c.pool_distributor_commission, 0) + coalesce(c.staker_commission, 0)) * p.avg_nxm_usd_price as total_commission_nxm_usd,
-  (coalesce(c.pool_manager_commission, 0) + coalesce(c.pool_distributor_commission, 0) + coalesce(c.staker_commission, 0)) * p.avg_nxm_usd_price / p.avg_eth_usd_price as total_commission_nxm_eth,
-  coalesce(c.staker_commission_emitted, 0) as staker_commission_emitted_nxm,
-  coalesce(c.staker_commission_emitted * p.avg_nxm_usd_price, 0) as staker_commission_emitted_nxm_usd,
-  coalesce(c.staker_commission_emitted * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as staker_commission_emitted_nxm_eth,
-  coalesce(c.staker_commission, 0) - coalesce(c.staker_commission_emitted, 0) as future_staker_commission_nxm,
-  (coalesce(c.staker_commission, 0) - coalesce(c.staker_commission_emitted, 0)) * p.avg_nxm_usd_price as future_staker_commission_nxm_usd,
-  (coalesce(c.staker_commission, 0) - coalesce(c.staker_commission_emitted, 0)) * p.avg_nxm_usd_price / p.avg_eth_usd_price as future_staker_commission_nxm_eth,
-  coalesce(c.pool_manager_commission_emitted, 0) as pool_manager_commission_emitted_nxm,
-  coalesce(c.pool_manager_commission_emitted * p.avg_nxm_usd_price, 0) as pool_manager_commission_emitted_nxm_usd,
-  coalesce(c.pool_manager_commission_emitted * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0) as pool_manager_commission_emitted_nxm_eth,
-  coalesce(c.pool_manager_commission, 0) - coalesce(c.pool_manager_commission_emitted, 0) as future_pool_manager_commission_nxm,
-  (coalesce(c.pool_manager_commission, 0) - coalesce(c.pool_manager_commission_emitted, 0)) * p.avg_nxm_usd_price as future_pool_manager_commission_nxm_usd,
-  (coalesce(c.pool_manager_commission, 0) - coalesce(c.pool_manager_commission_emitted, 0)) * p.avg_nxm_usd_price / p.avg_eth_usd_price as future_pool_manager_commission_nxm_eth
-  */
 from staking_pools sp
   left join staking_pool_names spn on sp.pool_id = spn.pool_id
   left join staked_nxm_per_pool t on sp.pool_id = t.pool_id
   left join staked_nxm_allocated a on sp.pool_id = a.pool_id
   left join current_rewards dr on sp.pool_id = dr.pool_id
   left join expected_rewards er on sp.pool_id = er.pool_id
-  --left join cover_premium_commissions c on sp.pool_id = c.staking_pool_id
   cross join latest_prices p
 --order by 1

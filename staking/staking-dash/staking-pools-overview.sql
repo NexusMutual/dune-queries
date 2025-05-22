@@ -33,47 +33,5 @@ select
     when 'ETH' then reward_expected_total_nxm_eth
     when 'USD' then reward_expected_total_nxm_usd
   end aggregate_reward_total
-  /*
-  case '{{currency}}'
-    when 'NXM' then pool_manager_commission_nxm
-    when 'ETH' then pool_manager_commission_nxm_eth
-    when 'USD' then pool_manager_commission_nxm_usd
-  end as pool_manager_commission,
-  case '{{currency}}'
-    when 'NXM' then pool_distributor_commission_nxm
-    when 'ETH' then pool_distributor_commission_nxm_eth
-    when 'USD' then pool_distributor_commission_nxm_usd
-  end as pool_distributor_commission,
-  case '{{currency}}'
-    when 'NXM' then staker_commission_nxm
-    when 'ETH' then staker_commission_nxm_eth
-    when 'USD' then staker_commission_nxm_usd
-  end as staker_commission,
-  case '{{currency}}'
-    when 'NXM' then total_commission_nxm
-    when 'ETH' then total_commission_nxm_eth
-    when 'USD' then total_commission_nxm_usd
-  end as total_commission,
-  case '{{currency}}'
-    when 'NXM' then staker_commission_emitted_nxm
-    when 'ETH' then staker_commission_emitted_nxm_eth
-    when 'USD' then staker_commission_emitted_nxm_usd
-  end as staker_commission_emitted,
-  case '{{currency}}'
-    when 'NXM' then future_staker_commission_nxm
-    when 'ETH' then future_staker_commission_nxm_eth
-    when 'USD' then future_staker_commission_nxm_usd
-  end as future_staker_commission,
-  case '{{currency}}'
-    when 'NXM' then pool_manager_commission_emitted_nxm
-    when 'ETH' then pool_manager_commission_emitted_nxm_eth
-    when 'USD' then pool_manager_commission_emitted_nxm_usd
-  end as pool_manager_commission_emitted,
-  case '{{currency}}'
-    when 'NXM' then future_pool_manager_commission_nxm
-    when 'ETH' then future_pool_manager_commission_nxm_eth
-    when 'USD' then future_pool_manager_commission_nxm_usd
-  end as future_pool_manager_commission
-  */
 from query_3599009 -- staking pools overview - base query
 order by 1
