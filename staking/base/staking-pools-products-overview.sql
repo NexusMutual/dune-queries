@@ -137,8 +137,8 @@ select
   usd_cover_amount,
   eth_cover_amount,
   -- available capacity
-  (2 * allocated_nxm) - nxm_cover_amount as available_capacity_nxm,
-  (2 * allocated_nxm_usd) - usd_cover_amount as available_capacity_usd,
-  (2 * allocated_nxm_eth) - eth_cover_amount as available_capacity_eth
+  if((2 * allocated_nxm) - nxm_cover_amount < 0, 0, (2 * allocated_nxm) - nxm_cover_amount) as available_capacity_nxm,
+  if((2 * allocated_nxm_usd) - usd_cover_amount < 0, 0, (2 * allocated_nxm_usd) - usd_cover_amount) as available_capacity_usd,
+  if((2 * allocated_nxm_eth) - eth_cover_amount < 0, 0, (2 * allocated_nxm_eth) - eth_cover_amount) as available_capacity_eth
 from staking_totals_combined
 --order by 1, 3
