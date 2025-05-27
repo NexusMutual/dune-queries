@@ -16,8 +16,8 @@ with recursive deposit_chain (
     tx_hash,
     deposit_rn,
     1 as chain_level
-  from nexusmutual_ethereum.base_staking_deposit_ordered
-  --from query_4102411 -- staking deposits ordered by pool_address, token_id and block_time
+  --from nexusmutual_ethereum.base_staking_deposit_ordered
+  from query_4102411 -- staking deposits ordered by pool_address, token_id and block_time
   where flow_type = 'deposit'
   
   union all
@@ -38,10 +38,10 @@ with recursive deposit_chain (
     d.deposit_rn,
     dc.chain_level + 1 as chain_level
   from deposit_chain dc
-    inner join nexusmutual_ethereum.base_staking_deposit_ordered d on dc.pool_id = d.pool_id and dc.token_id = d.token_id
-    --inner join query_4102411 d on dc.pool_id = d.pool_id and dc.token_id = d.token_id
-  where dc.deposit_rn = d.deposit_rn - 1
-    and ((d.flow_type = 'deposit extended' and dc.new_tranche_id = d.init_tranche_id)
+    --inner join nexusmutual_ethereum.base_staking_deposit_ordered d on dc.pool_id = d.pool_id and dc.token_id = d.token_id
+    inner join query_4102411 d on dc.pool_id = d.pool_id and dc.token_id = d.token_id
+  where dc.deposit_rn + 1 = d.deposit_rn -- look at next level of deposit chain (dc=base, d=next)
+    and ((d.flow_type in ('deposit extended', 'deposit ext addon') and dc.new_tranche_id = d.init_tranche_id)
       or (d.flow_type = 'deposit addon' and dc.new_tranche_id = d.tranche_id))
 )
 
