@@ -1,3 +1,14 @@
+/*
+  - this query attempts to re-order deposit events into a chain of deposits with clear start and end dates
+  - it serves as base for staking_deposit_extensions.sql
+  - base case scenarios are already following the deposit extension logic
+  - the query attempts to classify the following scenarios:
+    - deposit addon = deposit following another deposit on the same tranche
+    - deposit ext addon = deposit or deposit extended following a deposit extended on the same tranche
+  
+  note: ideally this query would be simplified or even better - completely removed! and replaced with a single query that follows the deposit extension logic
+*/
+
 with
 
 deposits as (
@@ -26,7 +37,7 @@ deposits as (
     lag(tranche_id, 1) over (partition by pool_id, token_id order by coalesce(tranche_id, init_tranche_id), block_time) as prev_init_tranche_id,
     lag(new_tranche_id, 1) over (partition by pool_id, token_id order by coalesce(tranche_id, new_tranche_id), block_time) as prev_new_tranche_id,
     lead(tranche_id, 1) over (partition by pool_id, token_id order by coalesce(tranche_id, init_tranche_id), block_time) as next_init_tranche_id,
-    lead(tranche_id, 1) over (partition by pool_id, token_id order by coalesce(tranche_id, new_tranche_id), block_time) as next_new_tranche_id, -- after deposit extension -> is there deposit ext addon?
+    lead(tranche_id, 1) over (partition by pool_id, token_id order by coalesce(tranche_id, new_tranche_id), block_time) as next_new_tranche_id,
     -- block_date
     lead(block_date, 1) over (partition by pool_id, token_id order by coalesce(tranche_id, init_tranche_id), block_time) as next_init_block_date,
     lead(block_date, 1) over (partition by pool_id, token_id order by coalesce(tranche_id, new_tranche_id), block_time) as next_new_block_date,
@@ -41,19 +52,27 @@ deposits_enriched as (
   select
     block_time,
     case
-      -- if there is a deposit following another deposit on the same tranche:
-      when token_id = prev_token_id and flow_type = 'deposit' and prev_flow_type = 'deposit' and prev_init_tranche_id = tranche_id then 'deposit addon'
+      -- ==================== exceptions ======================
+      --when tx_hash = 0xe232a7ee5a1c20b1d69e499ab1c2f7265f6695b4fad2e49e73549b3faba77c12 then 'TEST'
+      -- intercept actual deposit before it gets classified as deposit ext addon:
+      when token_id = prev_token_id and flow_type = 'deposit' and prev_flow_type = 'deposit extended'
+        and tranche_id = next_init_tranche_id and tranche_id <> coalesce(prev_new_tranche_id, tranche_id) then 'deposit'
       -- if there is a deposit following a deposit extended on the same tranche - scenario 1:
-      -- (ex token_id = 31, tx = 0x1aabd858abbb4bffb7723c81c9e81206eba924b74ce377c310728607dca5c7aa)
-      when token_id = prev_token_id and flow_type = 'deposit' and prev_flow_type = 'deposit extended' and tranche_id = prev_new_tranche_id then 'deposit ext addon'
+      -- (ex 1 : token_id=31 & tx=0x1aabd858abbb4bffb7723c81c9e81206eba924b74ce377c310728607dca5c7aa)
+      -- (ex 2 : token_id=39 & tx=0xe232a7ee5a1c20b1d69e499ab1c2f7265f6695b4fad2e49e73549b3faba77c12)
+      when token_id = prev_token_id and flow_type = 'deposit' /*and prev_flow_type = 'deposit extended'*/ and tranche_id = prev_new_tranche_id then 'deposit ext addon'
       -- if there is a deposit following a deposit extended on the same tranche - scenario 2:
-      -- (ex token_id = 39, tx = 0x0131fe7eddf72cfca03c7926dab002061c78f145ed240139d8c2612726735a8d)
+      -- (ex token_id=39 & tx=0x0131fe7eddf72cfca03c7926dab002061c78f145ed240139d8c2612726735a8d)
       when token_id = prev_token_id and flow_type = 'deposit' and prev_flow_type = 'deposit extended' and tranche_id = next_init_tranche_id then 'deposit ext addon'
+      -- if there is a deposit following another deposit on the same tranche:
+      when token_id = prev_token_id and flow_type = 'deposit' and prev_flow_type = 'deposit' and tranche_id = prev_init_tranche_id then 'deposit addon'
+      -- ==================== regular flow ====================
       else flow_type
     end as flow_type,
     block_date as stake_start_date, -- stays static
     -- adjust stake_end_date to either the next deposit or the tranche expiry date
     case
+      -- after deposit extension -> is there deposit ext addon:
       when flow_type = 'deposit extended' and next_flow_type = 'deposit' and new_tranche_id = next_new_tranche_id then coalesce(next_init_block_date, tranche_expiry_date)
       when flow_type = 'deposit' and next_flow_type <> 'deposit extended' and next_init_tranche_id <> tranche_id then tranche_expiry_date
       when flow_type = 'deposit extended' and next_flow_type = 'deposit' then tranche_expiry_date
