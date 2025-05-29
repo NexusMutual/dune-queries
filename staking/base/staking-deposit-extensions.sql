@@ -1,5 +1,6 @@
 with recursive deposit_chain (
-  block_time, pool_id, pool_address, token_id, tranche_id, new_tranche_id, amount, stake_start_date, stake_end_date, is_active, evt_index, tx_hash, deposit_rn, chain_level
+  block_time, pool_id, pool_address, token_id, tranche_id, new_tranche_id, amount, 
+  stake_start_date, stake_end_date, is_active, evt_index, tx_hash, deposit_rn, chain_level
 ) as (
   select
     block_time,
