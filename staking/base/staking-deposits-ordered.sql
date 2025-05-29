@@ -6,7 +6,7 @@
     - deposit addon = deposit following another deposit on the same tranche
     - deposit ext addon = deposit or deposit extended following a deposit extended on the same tranche
   
-  note: ideally this query would be simplified or even better - completely removed! and replaced with a single query that follows the deposit extension logic
+  note: ideally this query would be scrapped - if there was a way to follow the deposit extension logic in a single query without all the exceptions
 */
 
 with
@@ -42,7 +42,7 @@ deposits as (
     lead(block_date, 1) over (partition by pool_id, token_id order by coalesce(tranche_id, init_tranche_id), block_time) as next_init_block_date,
     lead(block_date, 1) over (partition by pool_id, token_id order by coalesce(tranche_id, new_tranche_id), block_time) as next_new_block_date,
     -- deposit_rn
-    row_number() over (partition by pool_id, token_id order by coalesce(tranche_id, init_tranche_id), block_time) as deposit_rn
+    row_number() over (partition by pool_id, token_id order by coalesce(tranche_id, init_tranche_id), new_tranche_id nulls first, block_time) as deposit_rn
   --from query_3609519 -- staking events - base
   from nexusmutual_ethereum.staking_events
   where flow_type in ('deposit', 'deposit extended')
@@ -53,7 +53,8 @@ deposits_enriched as (
     block_time,
     case
       -- ==================== exceptions ======================
-      --when tx_hash = 0xe232a7ee5a1c20b1d69e499ab1c2f7265f6695b4fad2e49e73549b3faba77c12 then 'TEST'
+      -- token_id=129 - deposit that eventually gets extended on both previous and next tranches
+      when tx_hash = 0x5b3c8ff0e4f60bee6f836f5573227c4560912fa057b58b6572b77a6492506f9d then 'deposit ext addon'
       -- intercept actual deposit before it gets classified as deposit ext addon:
       -- (ex : token_id=1 & tx=0xdb093afcfca64cf55b9bcdfa34ab3fe2cc8aba7986233c07b56b05680726f40f)
       when token_id = prev_token_id and flow_type = 'deposit' and prev_flow_type = 'deposit extended'
