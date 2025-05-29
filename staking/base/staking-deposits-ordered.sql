@@ -55,6 +55,7 @@ deposits_enriched as (
       -- ==================== exceptions ======================
       --when tx_hash = 0xe232a7ee5a1c20b1d69e499ab1c2f7265f6695b4fad2e49e73549b3faba77c12 then 'TEST'
       -- intercept actual deposit before it gets classified as deposit ext addon:
+      -- (ex : token_id=1 & tx=0xdb093afcfca64cf55b9bcdfa34ab3fe2cc8aba7986233c07b56b05680726f40f)
       when token_id = prev_token_id and flow_type = 'deposit' and prev_flow_type = 'deposit extended'
         and tranche_id = next_init_tranche_id and tranche_id <> coalesce(prev_new_tranche_id, tranche_id) then 'deposit'
       -- if there is a deposit following a deposit extended on the same tranche - scenario 1:
