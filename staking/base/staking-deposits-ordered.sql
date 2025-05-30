@@ -42,6 +42,7 @@ deposits as (
     lead(block_date, 1) over (partition by pool_id, token_id order by coalesce(tranche_id, init_tranche_id), block_time) as next_init_block_date,
     lead(block_date, 1) over (partition by pool_id, token_id order by coalesce(tranche_id, new_tranche_id), block_time) as next_new_block_date,
     -- deposit_rn
+    --row_number() over (partition by pool_id, token_id order by coalesce(tranche_id, init_tranche_id), block_time) as deposit_rn, -- v1
     row_number() over (partition by pool_id, token_id order by coalesce(tranche_id, init_tranche_id), new_tranche_id nulls first, block_time) as deposit_rn
   --from query_3609519 -- staking events - base
   from nexusmutual_ethereum.staking_events
@@ -53,8 +54,11 @@ deposits_enriched as (
     block_time,
     case
       -- ==================== exceptions ======================
-      -- token_id=129 - deposit that eventually gets extended on both previous and next tranches
-      when tx_hash = 0x5b3c8ff0e4f60bee6f836f5573227c4560912fa057b58b6572b77a6492506f9d then 'deposit ext addon'
+      -- deposits that eventually get extended on both previous and next tranches
+      when tx_hash = 0x5b3c8ff0e4f60bee6f836f5573227c4560912fa057b58b6572b77a6492506f9d then 'deposit ext addon' -- token_id=129
+      when tx_hash = 0x53b5ce390f858953a5543b2b0d8b82cf55af4f90f08df92cc38af635410eeae4 then 'deposit ext addon' -- token_id=137
+      when tx_hash = 0xfba5c755338fae7d0414a4ed8b92c6d705631465c0264e7cf8deb9b76c96bdef then 'deposit ext addon' -- token_id=168
+      when tx_hash = 0x6e7a4fe6d0ea7147c3181c78054ea32f77cb3946ecfef78dfe51506b7e4c564b then 'deposit ext addon' -- token_id=214
       -- intercept actual deposit before it gets classified as deposit ext addon:
       -- (ex : token_id=1 & tx=0xdb093afcfca64cf55b9bcdfa34ab3fe2cc8aba7986233c07b56b05680726f40f)
       when token_id = prev_token_id and flow_type = 'deposit' and prev_flow_type = 'deposit extended'
@@ -94,7 +98,15 @@ deposits_enriched as (
     user,
     evt_index,
     tx_hash,
-    deposit_rn
+    case
+      -- ==================== exceptions ======================
+      when token_id = 215 and deposit_rn = 3 then 5
+      when token_id = 215 and deposit_rn = 4 then 3
+      when token_id = 215 and deposit_rn = 5 then 6
+      when token_id = 215 and deposit_rn = 6 then 4
+      -- ==================== regular flow ====================
+      else deposit_rn
+    end as deposit_rn
   from deposits
 )
 
