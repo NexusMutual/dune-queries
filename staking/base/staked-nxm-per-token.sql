@@ -95,6 +95,7 @@ staked_nxm_per_pool_n_token as (
         --and d.is_pre_deposit_update_events -- as per ** comment below
       group by 1, 2, 3, 4
     ) t
+  where token_id is not null
   group by 1, 2, 3, 4
 ),
 
