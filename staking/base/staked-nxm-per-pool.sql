@@ -35,7 +35,7 @@ staking_pool_day_sequence as (
     d.timestamp as block_date,
     if(asu.block_date is null, true, false) as is_pre_active_stake_events
   from utils.days d
-    left join staking_pools sp on d.timestamp >=sp.first_stake_event_date
+    inner join staking_pools sp on d.timestamp >=sp.first_stake_event_date
     left join active_stake_daily asu
       on sp.pool_id = asu.pool_id
       and asu.active_stake_event_rn = 1
