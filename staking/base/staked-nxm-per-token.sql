@@ -67,13 +67,13 @@ staked_nxm_per_pool_n_token as (
         sum(se.amount) as total_amount,
         max(se.stake_end_date) as stake_expiry_date
       from token_day_sequence d
-        left join nexusmutual_ethereum.base_staking_deposit_extensions se
-        --left join query_3619534 se -- staking deposit extensions base query
+        --left join nexusmutual_ethereum.base_staking_deposit_extensions se
+        left join query_3619534 se -- staking deposit extensions base query
           on d.pool_id = se.pool_id
           and d.token_id = se.token_id
           and d.block_date >= se.stake_start_date
           and d.block_date < se.stake_end_date
-      where d.is_pre_deposit_update_events
+      --where d.is_pre_deposit_update_events -- as per ** comment below
       group by 1, 2, 3, 4
       union all
       -- withdrawals & burns
@@ -92,7 +92,7 @@ staked_nxm_per_pool_n_token as (
           and d.block_date >= se.block_date
           and d.block_date < coalesce(se.tranche_expiry_date, current_date)
       where se.flow_type in ('withdraw', 'stake burn')
-        and d.is_pre_deposit_update_events
+        --and d.is_pre_deposit_update_events -- as per ** comment below
       group by 1, 2, 3, 4
     ) t
   group by 1, 2, 3, 4
@@ -107,6 +107,8 @@ staked_nxm_per_pool_n_token_combined as (
     total_staked_nxm,
     stake_expiry_date
   from staked_nxm_per_pool_n_token
+  /*
+  -- ** commented out until deposit updates cover all active tranches for all tokens
   union all
   select
     block_date,
@@ -115,7 +117,7 @@ staked_nxm_per_pool_n_token_combined as (
     token_id,
     total_staked_nxm,
     stake_expiry_date
-  from deposit_updates_daily
+  from deposit_updates_daily*/
 ),
 
 staked_nxm_per_pool_n_token_final as (
