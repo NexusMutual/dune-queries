@@ -40,7 +40,7 @@ token_day_sequence as (
     d.timestamp as block_date,
     if(du.block_date is null, true, false) as is_pre_deposit_update_events
   from utils.days d
-    left join tokens sp on d.timestamp >=sp.first_stake_event_date
+    inner join tokens sp on d.timestamp >=sp.first_stake_event_date
     left join deposit_updates_daily du
       on sp.pool_id = du.pool_id
       and sp.token_id = du.token_id
