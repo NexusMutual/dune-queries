@@ -9,6 +9,14 @@ stakers as (
   from query_4077503 -- stakers - base
   --where staker <> '0x84edffa16bb0b9ab1163abb0a13ff0744c11272f' -- legacy pooled staking v1
   group by 1
+),
+
+-- temp bodge to account for burns until deposit updates cover all active tranches for all tokens
+burns as (
+  select sum(amount) as burned_nxm
+  from nexusmutual_ethereum.staking_events
+  where flow_type = 'stake burn'
+    and pool_id <> 1
 )
 
 select
@@ -32,5 +40,5 @@ select
     when 'NXM' then staked_nxm
     when 'ETH' then staked_nxm_eth
     when 'USD' then staked_nxm_usd
-  end) as staked_total
-from stakers
+  end) + min(if('{{currency}}' = 'NXM', burned_nxm, 0)) as staked_total
+from stakers, burns
