@@ -24,6 +24,7 @@ select
   usd_book_value,
   swap_price,
   book_value,
-  swap_price / book_value as redemption_pct
+  swap_price / book_value as redemption_pct,
+  1.00 - (swap_price / book_value) as discount
 from swaps_x_bv
 order by 1 desc
