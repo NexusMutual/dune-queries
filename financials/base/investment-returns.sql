@@ -123,6 +123,18 @@ steth_sales_agg as (
   group by 1
 ),
 
+reth_sales_agg as (
+  select
+    date_trunc('month', block_date) as block_month,
+    sum(amount) as amount
+  --from query_4982562 -- capital pool transfers - base
+  from nexusmutual_ethereum.capital_pool_transfers
+  where symbol = 'rETH'
+    and from_address_type = 'swap operator'
+    and to_address_type = 'external'
+  group by 1
+),
+
 capital_pool_enriched as (
   select
     cp.block_month,
@@ -142,6 +154,7 @@ capital_pool_enriched as (
     coalesce(s.amount, 0) as eth_steth_sale,
     cp.eth_reth,
     cp.eth_reth_prev,
+    coalesce(r.amount, 0) as eth_reth_sale,
     cp.eth_nxmty
       - case
           when cp.block_month = timestamp '2024-04-01' then 181.45
@@ -170,6 +183,7 @@ capital_pool_enriched as (
     left join aweth_collateral aave_c on cp.block_month = aave_c.block_month
     left join usdc_debt aave_d on cp.block_month = aave_d.block_month
     left join steth_sales_agg s on cp.block_month = s.block_month
+    left join reth_sales_agg r on cp.block_month = r.block_month
     left join kiln_rewards kr on cp.block_month = kr.block_month
 ),
 
@@ -188,9 +202,10 @@ investment_returns as (
     coalesce(power(1 + ((eth_steth - eth_steth_sale - eth_steth_prev) / nullif(eth_steth_prev, 0)), 12) - 1, 0) as eth_steth_apy,
     eth_reth,
     eth_reth_prev,
-    eth_reth - eth_reth_prev as eth_reth_return,
-    coalesce((eth_reth - eth_reth_prev) / nullif(eth_reth_prev, 0), 0) as eth_reth_pct,
-    coalesce(power(1 + ((eth_reth - eth_reth_prev) / nullif(eth_reth_prev, 0)), 12) - 1, 0) as eth_reth_apy,
+    eth_reth_sale,
+    eth_reth - eth_reth_sale - eth_reth_prev as eth_reth_return,
+    coalesce((eth_reth - eth_reth_sale - eth_reth_prev) / nullif(eth_reth_prev, 0), 0) as eth_reth_pct,
+    coalesce(power(1 + ((eth_reth - eth_reth_sale - eth_reth_prev) / nullif(eth_reth_prev, 0)), 12) - 1, 0) as eth_reth_apy,
     eth_nxmty,
     eth_nxmty_prev,
     (eth_nxmty - eth_nxmty_prev) * (1-0.0015) as eth_nxmty_return, -- minus Enzyme fee
@@ -235,6 +250,7 @@ investment_returns_ext as (
     eth_steth_return,
     eth_steth_apy,
     eth_reth,
+    eth_reth_sale,
     eth_reth_return,
     eth_reth_apy,
     eth_nxmty,
@@ -282,6 +298,7 @@ select
   ir.eth_steth_return,
   ir.eth_steth_apy,
   ir.eth_reth,
+  ir.eth_reth_sale,
   ir.eth_reth_return,
   ir.eth_reth_apy,
   ir.eth_nxmty,
@@ -320,6 +337,7 @@ select
   ir.eth_steth_return * p.eth_usd_price_end as usd_steth_return,
   ir.eth_steth_apy as usd_steth_apy,
   ir.eth_reth * p.eth_usd_price_end as usd_reth,
+  ir.eth_reth_sale * p.eth_usd_price_end as usd_reth_sale,
   ir.eth_reth_return * p.eth_usd_price_end as usd_reth_return,
   ir.eth_reth_apy as usd_reth_apy,
   ir.eth_nxmty * p.eth_usd_price_end as usd_nxmty,
