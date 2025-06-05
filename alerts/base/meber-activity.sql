@@ -59,6 +59,7 @@ members as (
 
 select
   block_time,
+  date_trunc('day', block_time) as block_date,
   member,
   is_active,
   active_members,
