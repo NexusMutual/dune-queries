@@ -61,21 +61,21 @@ member_activity_historical as (
 
 member_activity_stats as (
   select
-    l.latest_block_date as latest_member_activity_time,
+    l.latest_block_date as latest_member_activity_date,
     l.all_time_members_now as all_time_members,
     l.active_members_now as active_members,
     -- 30d
     h.active_members_30d_ago,
-    l.active_members_now - h.active_members_30d_ago as change_30d,
-    round(100.0 * (l.active_members_now - h.active_members_30d_ago) / nullif(h.active_members_30d_ago, 0), 2) as pct_change_30d,
+    l.active_members_now - h.active_members_30d_ago as active_members_30d_change,
+    round(100.0 * (l.active_members_now - h.active_members_30d_ago) / nullif(h.active_members_30d_ago, 0), 2) as active_members_30d_pct_change,
     -- 90d
     h.active_members_90d_ago,
-    l.active_members_now - h.active_members_90d_ago as change_90d,
-    round(100.0 * (l.active_members_now - h.active_members_90d_ago) / nullif(h.active_members_90d_ago, 0), 2) as pct_change_90d,
+    l.active_members_now - h.active_members_90d_ago as active_members_90d_change,
+    round(100.0 * (l.active_members_now - h.active_members_90d_ago) / nullif(h.active_members_90d_ago, 0), 2) as active_members_90d_pct_change,
     -- 180d
     h.active_members_180d_ago,
-    l.active_members_now - h.active_members_180d_ago as change_180d,
-    round(100.0 * (l.active_members_now - h.active_members_180d_ago) / nullif(h.active_members_180d_ago, 0), 2) as pct_change_180d
+    l.active_members_now - h.active_members_180d_ago as active_members_180d_change,
+    round(100.0 * (l.active_members_now - h.active_members_180d_ago) / nullif(h.active_members_180d_ago, 0), 2) as active_members_180d_pct_change
   from member_activity_latest l, member_activity_historical h
 ),
 
@@ -236,15 +236,15 @@ member_activity_combined_agg as (
 )
 
 select
-  latest_member_activity_time,
+  latest_member_activity_date,
   all_time_members,
   active_members,
-  change_30d,
-  pct_change_30d,
-  change_90d,
-  pct_change_90d,
-  change_180d,
-  pct_change_180d,
+  active_members_30d_change,
+  active_members_30d_pct_change,
+  active_members_90d_change,
+  active_members_90d_pct_change,
+  active_members_180d_change,
+  active_members_180d_pct_change,
   all_time_nxm_holders,
   current_nxm_holders,
   all_time_buyers,
