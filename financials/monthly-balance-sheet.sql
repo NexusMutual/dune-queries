@@ -28,5 +28,6 @@ select
   usd_cbbtc,
   usd_cover_re
 from query_4841979 -- balance sheet
-where block_month >= date_add('month', -12, current_date)
+where block_month >= date_add('month', -12, date_trunc('month', current_date))
+  and block_month < date_trunc('month', current_date)
 order by 1 desc

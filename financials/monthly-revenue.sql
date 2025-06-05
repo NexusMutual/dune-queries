@@ -34,7 +34,8 @@ investment_returns as (
     eth_fx_change,
     usd_fx_change
   from query_4770697 -- investement returns
-  where block_month >= date_add('month', -12, current_date)
+  where block_month >= date_add('month', -12, date_trunc('month', current_date))
+    and block_month < date_trunc('month', current_date)
 ),
 
 cash_surplus as (
@@ -49,7 +50,8 @@ cash_surplus as (
     eth_reimbursement,
     usd_reimbursement
   from query_4836553 -- cash surplus
-  where cover_month >= date_add('month', -12, current_date)
+  where cover_month >= date_add('month', -12, date_trunc('month', current_date))
+    and cover_month < date_trunc('month', current_date)
 ),
 
 capital_movement as (
@@ -60,7 +62,8 @@ capital_movement as (
     eth_eth_out,
     usd_eth_out
   from query_4841361 -- ramm volume
-  where block_month >= date_add('month', -12, current_date)
+  where block_month >= date_add('month', -12, date_trunc('month', current_date))
+    and block_month < date_trunc('month', current_date)
 )
 
 select
