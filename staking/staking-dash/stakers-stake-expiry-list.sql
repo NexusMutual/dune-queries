@@ -17,7 +17,6 @@ stakers as (
 select
   pool_id,
   staker,
-  tranche_id,
   case '{{currency}}'
     when 'NXM' then staked_nxm
     when 'ETH' then staked_nxm_eth
