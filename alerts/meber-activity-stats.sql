@@ -1,5 +1,22 @@
 with
 
+items (id, item_1, item_2) as (
+  values
+    -- MEMBERS SECTION
+    (1, '🐢 members', null),
+    --(2, 'latest activity date', null),
+    (3, 'all time members', 'active members'),
+    (4, '30d change', '30d % change'),
+    (5, '90d change', '90d % change'),
+    (6, '180d change', '180d % change'),
+    (7, '--------------------------------', '--------------------------------'),
+    -- ADDITIONAL SECTION
+    (8, '🐢 protocol engagement', null),
+    (9, 'all time NXM holders', 'current NXM holders'),
+    (10, 'all time buyers', null),
+    (11, 'all time stakers', 'current stakers')
+),
+
 member_whitelist as (
   select
     block_time,
@@ -142,7 +159,7 @@ stakers_active_stake as (
     s.pool_token_rn,
     st.total_staked_nxm as nxm_active_stake
   from stakers s
-    left join query_4079728 st -- staked nxm per token - base
+    left join query_4079728 st -- staked NXM per token - base
       on s.pool_id = st.pool_id
       and s.token_id = st.token_id
       and s.pool_token_rn = 1
@@ -188,18 +205,32 @@ member_activity_combined_agg as (
 )
 
 select
-  latest_member_activity_date,
-  all_time_members,
-  active_members,
-  active_members_30d_change,
-  active_members_30d_pct_change,
-  active_members_90d_change,
-  active_members_90d_pct_change,
-  active_members_180d_change,
-  active_members_180d_pct_change,
-  all_time_nxm_holders,
-  current_nxm_holders,
-  all_time_buyers,
-  all_time_stakers,
-  current_stakers
-from member_activity_combined_agg, member_activity_stats
+  i.item_1,
+  case i.item_1
+    --when 'latest activity date' then cast(mas.latest_member_activity_date as varchar)
+    when 'all time members' then format('%,d', cast(mas.all_time_members as bigint))
+    when 'active members' then format('%,d', cast(mas.active_members as bigint))
+    when '30d change' then format('%,d', cast(mas.active_members_30d_change as bigint))
+    when '30d % change' then format('%.2f%%', cast(mas.active_members_30d_pct_change as double))
+    when '90d change' then format('%,d', cast(mas.active_members_90d_change as bigint))
+    when '90d % change' then format('%.2f%%', cast(mas.active_members_90d_pct_change as double))
+    when '180d change' then format('%,d', cast(mas.active_members_180d_change as bigint))
+    when '180d % change' then format('%.2f%%', cast(mas.active_members_180d_pct_change as double))
+    when 'all time NXM holders' then format('%,d', cast(mac.all_time_nxm_holders as bigint))
+    when 'current NXM holders' then format('%,d', cast(mac.current_nxm_holders as bigint))
+    when 'all time buyers' then format('%,d', cast(mac.all_time_buyers as bigint))
+    when 'all time stakers' then format('%,d', cast(mac.all_time_stakers as bigint))
+  end as value_1,
+  i.item_2,
+  case i.item_2
+    when 'active members' then format('%,d', cast(mas.active_members as bigint))
+    when '30d % change' then format('%.2f%%', cast(mas.active_members_30d_pct_change as double))
+    when '90d % change' then format('%.2f%%', cast(mas.active_members_90d_pct_change as double))
+    when '180d % change' then format('%.2f%%', cast(mas.active_members_180d_pct_change as double))
+    when 'current NXM holders' then format('%,d', cast(mac.current_nxm_holders as bigint))
+    when 'current stakers' then format('%,d', cast(mac.current_stakers as bigint))
+  end as value_2
+from items i
+  cross join member_activity_stats mas
+  cross join member_activity_combined_agg mac
+order by i.id
