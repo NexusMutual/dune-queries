@@ -123,15 +123,25 @@ steth_sales_agg as (
   group by 1
 ),
 
+daily_reth_eth_prices as (
+  select
+    date_trunc('day', call_block_time) as block_date,
+    avg(output_0 / 1e18) as avg_reth_eth_price
+  from rocketpool_ethereum.RocketTokenRETH_call_getExchangeRate
+  where call_block_time >= timestamp '2023-04-18'
+  group by 1
+),
+
 reth_sales_agg as (
   select
-    date_trunc('month', block_date) as block_month,
-    sum(amount) as amount
+    date_trunc('month', t.block_date) as block_month,
+    sum(t.amount * p.avg_reth_eth_price) as amount
   --from query_4982562 -- capital pool transfers - base
-  from nexusmutual_ethereum.capital_pool_transfers
-  where symbol = 'rETH'
-    and from_address_type = 'swap operator'
-    and to_address_type = 'external'
+  from nexusmutual_ethereum.capital_pool_transfers t
+    inner join daily_reth_eth_prices p on t.block_date = p.block_date
+  where t.symbol = 'rETH'
+    and t.from_address_type = 'swap operator'
+    and t.to_address_type = 'external'
   group by 1
 ),
 
