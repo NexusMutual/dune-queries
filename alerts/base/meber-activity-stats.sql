@@ -66,13 +66,13 @@ select
   -- 30d
   h.active_members_30d_ago,
   l.active_members_now - h.active_members_30d_ago as active_members_30d_change,
-  round(100.0 * (l.active_members_now - h.active_members_30d_ago) / nullif(h.active_members_30d_ago, 0), 2) as active_members_30d_pct_change,
+  round(100.0000 * (l.active_members_now - h.active_members_30d_ago) / nullif(h.active_members_30d_ago, 0), 4) as active_members_30d_pct_change,
   -- 90d
   h.active_members_90d_ago,
   l.active_members_now - h.active_members_90d_ago as active_members_90d_change,
-  round(100.0 * (l.active_members_now - h.active_members_90d_ago) / nullif(h.active_members_90d_ago, 0), 2) as active_members_90d_pct_change,
+  round(100.0000 * (l.active_members_now - h.active_members_90d_ago) / nullif(h.active_members_90d_ago, 0), 4) as active_members_90d_pct_change,
   -- 180d
   h.active_members_180d_ago,
   l.active_members_now - h.active_members_180d_ago as active_members_180d_change,
-  round(100.0 * (l.active_members_now - h.active_members_180d_ago) / nullif(h.active_members_180d_ago, 0), 2) as active_members_180d_pct_change
+  round(100.0000 * (l.active_members_now - h.active_members_180d_ago) / nullif(h.active_members_180d_ago, 0), 4) as active_members_180d_pct_change
 from member_activity_latest l, member_activity_historical h
