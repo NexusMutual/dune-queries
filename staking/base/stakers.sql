@@ -80,7 +80,7 @@ select
   st.total_staked_nxm * p.avg_nxm_usd_price as staked_nxm_usd,
   st.stake_expiry_date
 from stakers_base sb
-  --inner join nexusmutual_ethereum.staked_per_token st
+  --inner join nexusmutual_ethereum.staked_per_token_tranche st
   inner join query_5226858 st -- staked nxm per token & tranche - base
     on sb.pool_id = st.pool_id and sb.token_id = st.token_id
   left join staking_pool_names spn on sb.pool_id = spn.pool_id
