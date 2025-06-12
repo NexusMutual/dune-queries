@@ -17,8 +17,8 @@ staking_pool_products as (
     target_price,
     product_added_time
   --from query_3859935 -- staking pools base (fallback) query
-  --from nexusmutual_ethereum.staking_pools
-  from query_4167546 -- staking pools - spell de-duped
+  --from query_4167546 -- staking pools - spell de-duped
+  from nexusmutual_ethereum.staking_pools -- spell checks for dupes
   where coalesce(target_weight, initial_weight) > 0
 ),
 
@@ -35,8 +35,8 @@ staking_pools as (
     spp.total_weight as leverage,
     spp.product_count
   --from query_3859935 sp -- staking pools base (fallback) query
-  --from nexusmutual_ethereum.staking_pools sp
-  from query_4167546 sp -- staking pools - spell de-duped
+  --from query_4167546 sp -- staking pools - spell de-duped
+  from nexusmutual_ethereum.staking_pools sp -- spell checks for dupes
     inner join (
       select
         pool_id,
@@ -51,8 +51,8 @@ staked_nxm_per_pool as (
   select
     pool_id,
     total_staked_nxm
-  --from query_4065286 -- staked nxm base query (uses staking pools - spell de-duped)
-  from nexusmutual_ethereum.staked_per_pool
+  --from query_4065286 -- staked nxm per pool - base
+  from nexusmutual_ethereum.staked_per_pool -- spell checks for dupes
   where pool_date_rn = 1
 ),
 
