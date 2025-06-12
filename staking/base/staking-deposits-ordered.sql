@@ -100,10 +100,11 @@ deposits_enriched as (
     tx_hash,
     case
       -- ==================== exceptions ======================
-      when token_id = 215 and deposit_rn = 3 then 5
       when token_id = 215 and deposit_rn = 4 then 3
+      when token_id = 215 and deposit_rn = 7 then 4
+      when token_id = 215 and deposit_rn = 3 then 5
       when token_id = 215 and deposit_rn = 5 then 6
-      when token_id = 215 and deposit_rn = 6 then 4
+      when token_id = 215 and deposit_rn = 6 then 7
       -- ==================== regular flow ====================
       else deposit_rn
     end as deposit_rn
