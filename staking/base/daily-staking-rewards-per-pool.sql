@@ -10,7 +10,7 @@ staking_rewards as (
     cover_end_bucket_expiry_date,
     reward_amount_expected_total,
     reward_amount_per_day
-  --from query_4067736 -- staking rewards base
+  --from query_4067736 -- staking rewards - base
   from nexusmutual_ethereum.staking_rewards
 ),
 
@@ -25,15 +25,9 @@ staking_pools as (
 staking_pool_day_sequence as (
   select
     sp.pool_id,
-    s.block_date
-  from staking_pools sp
-    cross join unnest (
-      sequence(
-        cast(date_trunc('day', sp.first_reward_date) as timestamp),
-        cast(date_trunc('day', now()) as timestamp),
-        interval '1' day
-      )
-    ) as s(block_date)
+    d.timestamp as block_date
+  from utils.days d
+    inner join staking_pools sp on d.timestamp >=sp.first_reward_date
 )
 
 select
