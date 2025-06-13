@@ -13,7 +13,7 @@ items (id, item_1, item_2) as (
     -- ADDITIONAL SECTION
     (8, '🐢 protocol engagement', null),
     (9, 'all time NXM holders', 'current NXM holders'),
-    (10, 'all time buyers', null),
+    (10, 'all time buyers', 'active cover buyers'),
     (11, 'all time stakers', 'current stakers')
 ),
 
@@ -49,28 +49,16 @@ member_activity_stats as (
 ),
 
 buyers as (
-  select
+  select distinct
+    version,
+    cover_id,
+    cover_start_date,
+    cover_end_date,
     cover_owner,
-    cover_sold,
-    product_sold,
-    first_cover_buy,
-    last_cover_buy,
-    --== cover ==
-    eth_cover,
-    coalesce(eth_cover / nullif(cover_sold, 0), 0) as mean_eth_cover,
-    median_eth_cover,
-    usd_cover,
-    coalesce(usd_cover / nullif(cover_sold, 0), 0) as mean_usd_cover,
-    median_usd_cover,
-    --== fees ==
-    eth_premium,
-    coalesce(eth_premium / nullif(cover_sold, 0), 0) as mean_eth_premium,
-    median_eth_premium,
-    usd_premium,
-    coalesce(usd_premium / nullif(cover_sold, 0), 0) as mean_usd_premium,
-    median_usd_premium
-  --from query_3913267 -- BD cover owners base
-  from nexusmutual_ethereum.cover_owners_agg
+    if(cover_end_time >= now(), true, false) as is_active
+  --from query_5119916 -- covers full list - base
+  from nexusmutual_ethereum.covers_full_list
+  where is_migrated = false
 ),
 
 nxm_transfer as (
@@ -169,16 +157,8 @@ stakers_active_stake as (
 member_activity_combined as (
   select
     m.member,
-    m.is_active,
     if(b.cover_owner is not null, true, false) as is_buyer,
-    b.cover_sold,
-    b.product_sold,
-    b.first_cover_buy,
-    b.last_cover_buy,
-    b.eth_cover,
-    b.usd_cover,
-    b.eth_premium,
-    b.usd_premium,
+    b.is_active,
     if(nh.address is not null, true, false) as is_nxm_holder,
     nh.amount as nxm_balance,
     if(s.staker is not null, true, false) as is_staker,
@@ -194,11 +174,10 @@ member_activity_combined as (
 
 member_activity_combined_agg as (
   select
-    --count(distinct member) as all_time_members,
-    --count(distinct member) filter (where is_active) as active_members,
     count(distinct member) filter (where is_nxm_holder) as all_time_nxm_holders,
     count(distinct member) filter (where is_nxm_holder and nxm_balance > 1e-11) as current_nxm_holders,
     count(distinct member) filter (where is_buyer) as all_time_buyers,
+    count(distinct member) filter (where is_buyer and is_active) as current_active_cover_buyers,
     count(distinct member) filter (where is_staker) as all_time_stakers,
     count(distinct member) filter (where is_staker and nxm_active_stake > 0) as current_stakers
   from member_activity_combined
@@ -228,6 +207,7 @@ select
     when '90d % change' then format('%.2f%%', cast(mas.active_members_90d_pct_change as double))
     when '180d % change' then format('%.2f%%', cast(mas.active_members_180d_pct_change as double))
     when 'current NXM holders' then format('%,d', cast(mac.current_nxm_holders as bigint))
+    when 'active cover buyers' then format('%,d', cast(mac.current_active_cover_buyers as bigint))
     when 'current stakers' then format('%,d', cast(mac.current_stakers as bigint))
   end as value_2
 from items i
