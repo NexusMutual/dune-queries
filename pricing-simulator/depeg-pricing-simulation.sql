@@ -16,9 +16,9 @@ sequence_randomness as (
     (a * 10000 + b) as n,
     rand() as r_depeg,
     rand() as r_recovery
-  from unnest(sequence(0, 100 - 1)) as t1(a)
+  from unnest(sequence(0, 10 - 1)) as t1(a)
     cross join unnest(sequence(1, 10000)) as t2(b)
-  where (a * 10000 + b) <= 1000
+  --where (a * 10000 + b) <= 1000
 ),
 
 simulation_results as (
@@ -52,4 +52,5 @@ select
   depeg_15 * perm_depeg_15 as loss_event_15,
   depeg_20 * perm_depeg_20 as loss_event_20
 from simulation_results
+where n <= 1000
 order by 1
