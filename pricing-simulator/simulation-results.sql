@@ -21,9 +21,9 @@ sequence_randomness as (
     (a * 10000 + b) as n,
     rand() as r_depeg,
     rand() as r_recovery
-  from unnest(sequence(0, 100 - 1)) as t1(a)
+  from unnest(sequence(0, 10000 - 1)) as t1(a)
     cross join unnest(sequence(1, 10000)) as t2(b)
-  where (a * 10000 + b) <= {{simulation size}} -- max = 1M with current setup
+  where (a * 10000 + b) <= {{simulation size}} -- max = 100M with current setup
 ),
 
 simulation_results as (
