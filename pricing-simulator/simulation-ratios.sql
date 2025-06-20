@@ -77,15 +77,15 @@ with simulation_results as (
 )
 
 select
-  'Pr (loss event)' as metric,
-  p_loss_event_10 as ratio_10,
-  p_loss_event_15 as ratio_15,
-  p_loss_event_20 as ratio_20  
-from simulation_results
-union all
-select
   'Pricing Ratio' as metric,
   p_loss_event_10 / p_loss_event_20 as ratio_10,
   p_loss_event_15 / p_loss_event_20 as ratio_15,
   p_loss_event_20 / p_loss_event_20 as ratio_20 
+from simulation_results
+union all
+select
+  'Pr (loss event)' as metric,
+  p_loss_event_10 as ratio_10,
+  p_loss_event_15 as ratio_15,
+  p_loss_event_20 as ratio_20  
 from simulation_results
