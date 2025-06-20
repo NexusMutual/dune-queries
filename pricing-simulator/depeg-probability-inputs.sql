@@ -2,7 +2,7 @@ select
   n,
   0.1 * n as depeg,
   1 - 0.1 * n / 100.0000 as price,
-  normal_cdf(0, 1.4, ln(0.1 * n)) as p_no_depeg,
+  normal_cdf({{mu}}, {{sigma}}, ln(0.1 * n)) as p_no_depeg,
   case
     when n < 10 then 0.01
     when n = 10 then 0.05
