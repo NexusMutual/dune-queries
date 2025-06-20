@@ -3,12 +3,17 @@ with
 depeg_probability_inputs as (
   select
     n,
-    depeg,
-    price,
-    p_no_depeg,
-    p_perm_depeg
-  from query_5302618 -- depeg probability inputs
-  where depeg in (10, 15, 20)
+    0.1 * n as depeg,
+    1 - 0.1 * n / 100.0000 as price,
+    normal_cdf({{mu}}, {{sigma}}, ln(0.1 * n)) as p_no_depeg,
+    case
+      when n < 10 then 0.01
+      when n = 10 then 0.05
+      when n <= 50 then 0.05 + (0.0025 * (n - 10))
+      else least(0.15 + (0.005 * (n - 50)), 1.00)
+    end as p_perm_depeg
+  from unnest(sequence(1, 225)) as t(n)
+  where (0.1 * n) in (10, 15, 20)
 ),
 
 sequence_randomness as (
