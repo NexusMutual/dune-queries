@@ -9,7 +9,7 @@ staking_pool_names (pool_id, pool_name) as (
   (5, 'Unity Cover'),
   (6, 'Safe Invest'),
   (7, 'ShieldX Staking Pool'),
-  (8, 'DeFiSafety X OpenCover Blue Chip Protocol Pool'),
+  (8, 'OpenCover'),
   (9, 'My Conservative Pool'),
   (10, 'SAFU Pool'),
   (11, 'Sherlock'),
