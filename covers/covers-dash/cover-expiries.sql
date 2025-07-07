@@ -90,4 +90,4 @@ select
 from covers c
   left join daily_avg_prices p_start on c.cover_start_date = p_start.block_date
   left join daily_avg_prices p_end on c.cover_end_date_join = p_end.block_date
-order by c.cover_id desc
+order by c.cover_id
