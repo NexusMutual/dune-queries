@@ -22,7 +22,14 @@ active_covers as (
     cbbtc_usd_cover_amount
   --from query_3834200 -- active covers base (fallback) query
   from nexusmutual_ethereum.active_covers
-  where cover_end_time < now() + interval '14' day
+  where cover_end_time <= case '{{expiry within}}'
+      when '2 weeks' then current_date + interval '14' day
+      when '1 month' then current_date + interval '1' month
+      when '2 months' then current_date + interval '2' month
+      when '3 months' then current_date + interval '3' month
+      when '6 months' then current_date + interval '6' month
+      when 'no end date' then (select cast(max(cover_end_time) as timestamp) from query_4599092)
+    end
 ),
 
 covers_agg as (
