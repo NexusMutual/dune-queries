@@ -46,12 +46,25 @@ bv_profit as (
     sum(s.bv_diff * p.avg_eth_usd_price) over (order by s.block_minute) as bv_diff_cummulative_usd
   from bv_diff_nxm_eth_swap_ext s
     inner join prices p on s.block_minute = p.block_minute
+),
+
+monthly as (
+  select
+    date_trunc('month', block_minute) as block_month,
+    sum(bv_diff_per_nxm) as bv_diff_per_nxm,
+    sum(bv_diff) as bv_diff
+  from bv_profit
+  where block_minute >= timestamp '2024-01-01'
+  group by 1
 )
 
 select
-  date_trunc('month', block_minute) as block_month,
-  sum(bv_diff_per_nxm) as bv_diff_per_nxm,
-  sum(bv_diff) as bv_diff
-from bv_profit
-group by 1
-order by 1 desc
+  block_month,
+  bv_diff_per_nxm,
+  bv_diff,
+  avg(bv_diff) over (
+    order by block_month
+    rows between 2 preceding and current row
+  ) as bv_diff_3m_moving_avg
+from monthly
+order by block_month desc;
