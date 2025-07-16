@@ -11,7 +11,21 @@ select
   spn.pool_name,
   s.total_staked_nxm,
   r.reward_total,
-  r.reward_total / nullif(s.total_staked_nxm, 0) * 36500.0 as apy
+  r.reward_total / nullif(s.total_staked_nxm, 0) * 36500.0 as apy,
+  avg(
+    (r.reward_total / nullif(s.total_staked_nxm, 0)) * 36500.0
+  ) over (
+    partition by s.pool_id
+    order by s.block_date
+    rows between 6 preceding and current row
+  ) as apy_7d_ma,
+  avg(
+    (r.reward_total / nullif(s.total_staked_nxm, 0)) * 36500.0
+  ) over (
+    partition by s.pool_id
+    order by s.block_date
+    rows between 29 preceding and current row
+  ) as apy_30d_ma
 --from query_4065286 s -- staked nxm per pool - base
 from nexusmutual_ethereum.staked_per_pool s
   inner join query_4068272 r -- daily staking rewards - base

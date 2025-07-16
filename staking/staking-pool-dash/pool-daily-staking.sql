@@ -46,7 +46,21 @@ select
   ds.block_date,
   ds.total_staked,
   dr.reward_total,
-  dr.reward_total / nullif(ds.total_staked, 0) * 36500.0 as apy
+  dr.reward_total / nullif(ds.total_staked, 0) * 36500.0 as apy,
+  avg(
+    (dr.reward_total / nullif(ds.total_staked, 0)) * 36500.0
+  ) over (
+    partition by dr.pool_id
+    order by ds.block_date
+    rows between 6 preceding and current row
+  ) as apy_7d_ma,
+  avg(
+    (dr.reward_total / nullif(ds.total_staked, 0)) * 36500.0
+  ) over (
+    partition by dr.pool_id
+    order by ds.block_date
+    rows between 29 preceding and current row
+  ) as apy_30d_ma
 from daily_stake ds
   left join daily_rewards dr on ds.pool_id = dr.pool_id and ds.block_date = dr.block_date
 order by 1
