@@ -1,5 +1,12 @@
 with
 
+latest_prices as (
+  select
+    max(block_date) as block_date,
+    max_by(avg_nxm_usd_price, block_date) as avg_nxm_usd_price
+  from nexusmutual_ethereum.capital_pool_prices
+),
+
 nxm_transfer as (
   select
     date_trunc('day', evt_block_time) as block_date,
@@ -78,8 +85,9 @@ labels_contracts as (
     where namespace <> 'safe_test'
   ) t
   where rn = 1
-)
+),
 
+holders_enriched as (
 select
   h.address,
   coalesce(le.name, lc.contract_name) as address_label,
@@ -91,4 +99,19 @@ select
 from holders h
   left join labels_contracts lc on h.address = lc.address
   left join labels.ens le on h.address = le.address
-order by h.nxm_amount desc
+)
+
+select
+  he.address,
+  he.address_label,
+  he.nxm_amount,
+  he.nxm_amount * lp.avg_nxm_usd_price as nxm_usd_amount,
+  he.nxm_total_supply_pct,
+  he.wnxm_amount,
+  he.wnxm_amount * lp.avg_nxm_usd_price as wnxm_usd_amount,
+  he.wnxm_total_supply_pct,
+  he.total_amount,
+  he.total_amount * lp.avg_nxm_usd_price as total_usd_amount
+from holders_enriched he
+  cross join latest_prices lp
+order by he.nxm_amount desc
