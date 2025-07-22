@@ -88,17 +88,17 @@ labels_contracts as (
 ),
 
 holders_enriched as (
-select
-  h.address,
-  coalesce(le.name, lc.contract_name) as address_label,
-  if(h.nxm_amount < 1e-6, 0, h.nxm_amount) as nxm_amount,
-  if(h.nxm_total_supply_pct < 1e-6, 0, h.nxm_total_supply_pct) as nxm_total_supply_pct,
-  if(h.wnxm_amount < 1e-6, 0, h.wnxm_amount) as wnxm_amount,
-  if(h.wnxm_total_supply_pct < 1e-6, 0, h.wnxm_total_supply_pct) as wnxm_total_supply_pct,
-  if(h.total_amount < 1e-6, 0, h.total_amount) as total_amount
-from holders h
-  left join labels_contracts lc on h.address = lc.address
-  left join labels.ens le on h.address = le.address
+  select
+    h.address,
+    coalesce(le.name, lc.contract_name) as address_label,
+    if(h.nxm_amount < 1e-6, 0, h.nxm_amount) as nxm_amount,
+    if(h.nxm_total_supply_pct < 1e-6, 0, h.nxm_total_supply_pct) as nxm_total_supply_pct,
+    if(h.wnxm_amount < 1e-6, 0, h.wnxm_amount) as wnxm_amount,
+    if(h.wnxm_total_supply_pct < 1e-6, 0, h.wnxm_total_supply_pct) as wnxm_total_supply_pct,
+    if(h.total_amount < 1e-6, 0, h.total_amount) as total_amount
+  from holders h
+    left join labels_contracts lc on h.address = lc.address
+    left join labels.ens le on h.address = le.address
 )
 
 select
@@ -114,4 +114,4 @@ select
   he.total_amount * lp.avg_nxm_usd_price as total_usd_amount
 from holders_enriched he
   cross join latest_prices lp
-order by he.nxm_amount desc
+order by he.total_amount desc
