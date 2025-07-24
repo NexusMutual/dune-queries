@@ -203,6 +203,8 @@ holders_enriched as (
 select
   he.address,
   he.address_label,
+  he.total_amount,
+  he.total_amount * lp.avg_nxm_usd_price as total_usd_amount,
   he.nxm_amount,
   he.nxm_amount * lp.avg_nxm_usd_price as nxm_usd_amount,
   he.nxm_total_supply_pct,
@@ -210,9 +212,7 @@ select
   he.wnxm_amount * lp.avg_nxm_usd_price as wnxm_usd_amount,
   he.wnxm_total_supply_pct,
   he.nxm_active_stake,
-  he.nxm_active_stake * lp.avg_nxm_usd_price as nxm_active_stake_usd,
-  he.total_amount,
-  he.total_amount * lp.avg_nxm_usd_price as total_usd_amount
+  he.nxm_active_stake * lp.avg_nxm_usd_price as nxm_active_stake_usd
 from holders_enriched he
   cross join latest_prices lp
 where he.total_amount > 0
