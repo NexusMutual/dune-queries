@@ -34,7 +34,7 @@ labels (address, address_label) as (
     (0xcafeaf6eA90CB931ae43a8Cf4B25a73a24cF6158, 'NM: Pool'),
     (0xcafea905B417AC7778843aaE1A0b3848CA97a592, 'NM: PriceFeedOracle'),
     (0x888eA6Ab349c854936b98586CE6a17E98BF254b2, 'NM: ProposalCategory'),
-    (0xcafea54f03E1Cc036653444e581A10a43B2487CD, 'NM: Ramm'),
+    (0xcafea54f03E1Cc036653444e581A10a43B2487CD, 'NM: RAMM'),
     (0xcafeaB8B01C74c2239eA9b2B0F6aB2dD409c6c13, 'NM: SafeTracker'),
     (0xcafea508a477D94c502c253A58239fb8F948e97f, 'NM: StakingNFT'),
     (0xcafeafb97BF8831D95C0FC659b8eB3946B101CB3, 'NM: StakingPoolFactory'),
