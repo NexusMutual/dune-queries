@@ -42,6 +42,14 @@ labels (address, address_label) as (
     (0xcafea5E8a7a54dd14Bb225b66C7a016dfd7F236b, 'NM: StakingViewer'),
     (0xcafeaed98d7Fce8F355C03c9F3507B90a974f37e, 'NM: SwapOperator'),
     (0x5407381b6c251cFd498ccD4A1d877739CB7960B8, 'NM: TokenController'),
+    (0xcafeadcacaa2cd81b3c54833d6896596d218bfab, 'NM: LegacyClaimsReward [0xcafe..bfab]'),
+    (0x00000045cdfe2dc2623170b3d6ebaa0b446a243a, 'NM: LegacyClaimsReward [0x0000..45cd]'),
+    (0xebdd9752be578c03491ff1083c0f738aa8687d48, 'NM: LegacyClaimsReward [0xebdd..9752]'),
+    (0xe80f4d88288bd71df7bd36dd1b53e5df4b7d413c, 'NM: LegacyClaimsReward [0xe80f..4d88]'),
+    (0x84edffa16bb0b9ab1163abb0a13ff0744c11272f, 'NM: PooledStakingProxy'),
+    (0x27e6d3ce99fa5ec4019ce598af54bcb3a2fb2e5f, 'NM: CommunityStakingIncentives'),
+    (0xdf50a17bf58dea5039b73683a51c4026f3c7224e, 'NM: TokenFunctions [0xdf50..224e]'),
+    (0xa94c7e87e212669baee95d5d45305d05e6b8a28f, 'NM: TokenFunctions [0xa94c..a28f]'),
     -- NM staking pools
     (0x4ab04d7333293ab5e752fd4d2de0c0e88c2ca0f8, '1 : Nexus Foundation'),
     (0xf3745f76c137738b0371a820a098fc678672660a, '2 : Hugh'),
@@ -84,6 +92,7 @@ labels (address, address_label) as (
     (0x5f2b6e70aa6a217e9ecd1ed7d0f8f38ce9a348a2, 'OpenCover [0x5f2b]'),
     (0x02bdacb2c3baa8a12d3957f3bd8637d6d2b35f10, 'OpenCover [0x02bd]'),
     -- nansen sleuthing
+    (0xad6a4ace6dcc21c93ca9dbc8a21c7d3a726c1fb1, 'Hacker: Fake_Phishing4622'),
     (0x834b56ecB16D81f75732F633282a280c53BAa0d0, 'Hugh?'), -- linked acc: 0x7adddc4564b89377237d1e4554f7ceddb1c23a02, 116,362 NXM transfer from twiddle.eth to 0x7adddc (tx: 0x204963318fb7ebc75014d02798becd6db8e4ba94227605e2d7abd579cdc8c0b3)
     (0xa179f67882711957307edf3df0c9ee4f63026a12, 'KR1'), -- linked acc: 0x91715128a71c9c734cdc20e5edeeea02e72e428e, initial NXM dist: 110,776
     (0x25783b67b5e29c48449163db19842b8531fdde43, '1confirmation'), -- Nick Tomaino?
