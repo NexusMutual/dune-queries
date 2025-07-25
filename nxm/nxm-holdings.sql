@@ -1,5 +1,9 @@
 with
 
+address_labels as (
+  select address, address_label from query_5534312
+),
+
 latest_prices as (
   select
     max(block_date) as block_date,
@@ -172,23 +176,7 @@ labels_contracts as (
 holders_enriched as (
   select
     h.address,
-    case h.address
-      when 0x25783b67b5e29c48449163db19842b8531fdde43 then '1confirmation' -- Nick Tomaino?
-      when 0xd7cba5b9a0240770cfd9671961dae064136fa240 then 'Version One Ventures'
-      when 0x963Df0066ff8345922dF88eebeb1095BE4e4e12E then 'NM: Foundation'
-      when 0x834b56ecB16D81f75732F633282a280c53BAa0d0 then 'Hugh?' -- linked acc: 0x7adddc4564b89377237d1e4554f7ceddb1c23a02, 116,362 NXM transfer from twiddle.eth to 0x7adddc (tx: 0x204963318fb7ebc75014d02798becd6db8e4ba94227605e2d7abd579cdc8c0b3)
-      when 0xfa7e852ceb3f7d0f1ac02f3b8afca95e6dcbdb3c then 'NM: DAO Treasury (1)'
-      when 0xa179f67882711957307edf3df0c9ee4f63026a12 then 'KR1' -- linked acc: 0x91715128a71c9c734cdc20e5edeeea02e72e428e, initial NXM dist: 110,776
-      when 0x8e53d04644e9ab0412a8c6bd228c84da7664cfe3 then 'NM: DAO Treasury (2)'
-      when 0x741aa7cfb2c7bf2a1e7d4da2e3df6a56ca4131f3 then '7 Siblings (1)'
-      when 0x09abbe423fedee2332caea4117093d7d9b017cf5 then 'NM: DAO Treasury (3)'
-      when 0x95abc2a62ee543217cf7640b277ba13d056d904a then 'Unity'
-      when 0x28a55c4b4f9615fde3cdaddf6cc01fcf2e38a6b0 then '7 Siblings (2)'
-      when 0x586b9b2f8010b284a0197f392156f1a7eb5e86e9 then 'NM: Community Fund'
-      when 0x2d089def3b1f95ec8b3052d0d9fa79882554906b then 'Blockchain Capital'
-      when 0x28c6c06298d514db089934071355e5743bf21d60 then 'Binance 14'
-      else coalesce(le.name, lc.contract_name)
-    end as address_label,
+    coalesce(al.address_label, le.name, lc.contract_name) as address_label,
     if(h.nxm_amount < 1e-6, 0, h.nxm_amount) as nxm_amount,
     if(h.nxm_total_supply_pct < 1e-6, 0, h.nxm_total_supply_pct) as nxm_total_supply_pct,
     if(h.wnxm_amount < 1e-6, 0, h.wnxm_amount) as wnxm_amount,
@@ -196,6 +184,7 @@ holders_enriched as (
     if(h.nxm_active_stake < 1e-6, 0, h.nxm_active_stake) as nxm_active_stake,
     if(h.total_amount < 1e-6, 0, h.total_amount) as total_amount
   from holders h
+    left join address_labels al on h.address = al.address
     left join labels_contracts lc on h.address = lc.address
     left join labels.ens le on h.address = le.address
 )
