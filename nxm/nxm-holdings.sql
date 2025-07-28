@@ -36,6 +36,12 @@ nxm_holders as (
   having sum(amount) > 1e-11 -- assumed "0"
 ),
 
+nxm_total_supply as (
+  select
+    sum(amount) as amount
+  from nxm_holders
+),
+
 wnxm_transfer as (
   select
     date_trunc('day', evt_block_time) as block_date,
@@ -140,18 +146,16 @@ holders as (
   select
     coalesce(nxm.address, wnxm.address, stakers.staker) as address,
     nxm.amount as nxm_amount,
-    nxm.amount / (select sum(amount) from nxm_holders) as nxm_total_supply_pct,
     wnxm.amount as wnxm_amount,
-    wnxm.amount / (select sum(amount) from wnxm_holders) as wnxm_total_supply_pct,
     stakers.nxm_active_stake as nxm_active_stake,
     coalesce(nxm.amount, 0) + coalesce(wnxm.amount, 0) + coalesce(stakers.nxm_active_stake, 0) as total_amount
   from nxm_holders nxm
     full outer join wnxm_holders wnxm on nxm.address = wnxm.address
     full outer join stakers_active_stake_total stakers on coalesce(nxm.address, wnxm.address) = stakers.staker
   where coalesce(nxm.address, wnxm.address) not in (
-    0x0d438f3b5175bebc262bf23753c1e53d03432bde, -- wNXM
-    0x5407381b6c251cfd498ccd4a1d877739cb7960b8, -- NM: TokenController
-    0xcafeaa5f9c401b7295890f309168bbb8173690a3  -- NM: Assessment
+    select address from address_labels
+    where address_label = 'wNXM'
+      or address_label like 'NM:%'
   )
 ),
 
@@ -177,16 +181,15 @@ holders_enriched as (
   select
     h.address,
     coalesce(al.address_label, le.name, lc.contract_name) as address_label,
+    if(h.total_amount < 1e-6, 0, h.total_amount) as total_amount,
     if(h.nxm_amount < 1e-6, 0, h.nxm_amount) as nxm_amount,
-    if(h.nxm_total_supply_pct < 1e-6, 0, h.nxm_total_supply_pct) as nxm_total_supply_pct,
     if(h.wnxm_amount < 1e-6, 0, h.wnxm_amount) as wnxm_amount,
-    if(h.wnxm_total_supply_pct < 1e-6, 0, h.wnxm_total_supply_pct) as wnxm_total_supply_pct,
-    if(h.nxm_active_stake < 1e-6, 0, h.nxm_active_stake) as nxm_active_stake,
-    if(h.total_amount < 1e-6, 0, h.total_amount) as total_amount
+    if(h.nxm_active_stake < 1e-6, 0, h.nxm_active_stake) as nxm_active_stake
   from holders h
     left join address_labels al on h.address = al.address
     left join labels_contracts lc on h.address = lc.address
     left join labels.ens le on h.address = le.address
+  where lc.address is null
 )
 
 select
@@ -194,15 +197,15 @@ select
   he.address_label,
   he.total_amount,
   he.total_amount * lp.avg_nxm_usd_price as total_usd_amount,
+  he.total_amount / nxm_ts.amount as total_supply_pct,
   he.nxm_amount,
   he.nxm_amount * lp.avg_nxm_usd_price as nxm_usd_amount,
-  he.nxm_total_supply_pct,
   he.wnxm_amount,
   he.wnxm_amount * lp.avg_nxm_usd_price as wnxm_usd_amount,
-  he.wnxm_total_supply_pct,
   he.nxm_active_stake,
   he.nxm_active_stake * lp.avg_nxm_usd_price as nxm_active_stake_usd
 from holders_enriched he
+  cross join nxm_total_supply nxm_ts
   cross join latest_prices lp
 where he.total_amount > 0
 order by he.total_amount desc
