@@ -208,4 +208,5 @@ from holders_enriched he
   cross join nxm_total_supply nxm_ts
   cross join latest_prices lp
 where he.total_amount > 0
+  and he.total_amount / nxm_ts.amount > 1e-6
 order by he.total_amount desc
