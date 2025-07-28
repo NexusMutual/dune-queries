@@ -1,20 +1,27 @@
-with nxm_transfers as (
+with nxm_swaps as (
   select
     block_time,
     block_number,
-    tx_from,
-    tx_to,
-    transfer_from,
-    transfer_to,
-    amount,
-    evt_index,
+    transfer_from as user,
+    amount, -- NXM burned (technically negative)
     tx_hash
   from query_5531182 -- nxm transfers - base
   where tx_to = 'NM: RAMM'
+    and transfer_to = 'origincity.eth' -- burn address for swaps below
+  union all
+  select
+    block_time,
+    block_number,
+    transfer_to as user,
+    -1 * amount, -- NXM minted (technically positive)
+    tx_hash
+  from query_5531182 -- nxm transfers - base
+  where tx_to = 'NM: RAMM'
+    and transfer_from = 'origincity.eth' -- burn address for swaps above
 )
 
 select
-  transfer_from as user,
+  user,
   sum(amount) as amount,
   min(block_time) as first_swap,
   max(block_time) as last_swap,
@@ -26,7 +33,6 @@ select
   sum(amount) filter (where block_time >= current_date - interval '90' day) as amount_90d,
   sum(amount) filter (where block_time >= current_date - interval '30' day) as amount_30d,
   sum(amount) filter (where block_time >= current_date - interval '7' day) as amount_7d
-from nxm_transfers
-where transfer_to = 'origincity.eth' -- swaps below
+from nxm_swaps
 group by 1
 order by 2 desc
