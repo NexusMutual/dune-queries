@@ -189,7 +189,7 @@ holders_enriched as (
     left join address_labels al on h.address = al.address
     left join labels_contracts lc on h.address = lc.address
     left join labels.ens le on h.address = le.address
-  where lc.address is null
+  where lc.contract_name is null -- allow gnosis safe
 )
 
 select
