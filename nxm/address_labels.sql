@@ -81,26 +81,27 @@ labels (address, address_label) as (
     (0x79cfb42365efbf0240ae47db5bd74877f920cc0b, '28 : Native'),
     (0x6db6aa30ff73a752ad20b90d5591d49bfff5c7ff, '29 : Maximum Stake'),
     -- known addresses
-    (0x8b86cf2684a3af9dd34defc62a18a96deadc40ff, 'TRM'), -- The Retail Mutual
-    (0x666b8ebfbf4d5f0ce56962a25635cff563f13161, 'Sherlock'), -- Sherlock
-    (0x5b453a19845e7492ee3a0df4ef085d4c75e5752b, 'Liquid Collective'),
-    (0x2557fe0959934f3814c6ee72ab46e6687b81b8ca, 'Ensuro'),
-    (0x95abc2a62ee543217cf7640b277ba13d056d904a, 'Unity'),
-    (0xac0734c62b316041d190438d5d3e5d1359614407, 'Bright Union'),
+    (0x8b86cf2684a3af9dd34defc62a18a96deadc40ff, 'TRM [0x8b86]'), -- The Retail Mutual
+    (0x666b8ebfbf4d5f0ce56962a25635cff563f13161, 'Sherlock [0x666b]'), -- Sherlock
+    (0x5b453a19845e7492ee3a0df4ef085d4c75e5752b, 'Liquid Collective [0x5b45]'),
+    (0x2557fe0959934f3814c6ee72ab46e6687b81b8ca, 'Ensuro [0x2557]'),
+    (0x95abc2a62ee543217cf7640b277ba13d056d904a, 'Unity [0x95ab]'),
+    (0xac0734c62b316041d190438d5d3e5d1359614407, 'Bright Union [0xac07]'),
     (0xe4994082a0e7f38b565e6c5f4afd608de5eddfbb, 'OpenCover [0xe499]'),
     (0x40329f3e27dd3fe228799b4a665f6f104c2ab6b4, 'OpenCover [0x4032]'),
     (0x5f2b6e70aa6a217e9ecd1ed7d0f8f38ce9a348a2, 'OpenCover [0x5f2b]'),
     (0x02bdacb2c3baa8a12d3957f3bd8637d6d2b35f10, 'OpenCover [0x02bd]'),
     -- nansen sleuthing
     (0xad6a4ace6dcc21c93ca9dbc8a21c7d3a726c1fb1, 'Hacker: Fake_Phishing4622'),
-    (0x834b56ecB16D81f75732F633282a280c53BAa0d0, 'Hugh?'), -- linked acc: 0x7adddc4564b89377237d1e4554f7ceddb1c23a02, 116,362 NXM transfer from twiddle.eth to 0x7adddc (tx: 0x204963318fb7ebc75014d02798becd6db8e4ba94227605e2d7abd579cdc8c0b3)
-    (0xa179f67882711957307edf3df0c9ee4f63026a12, 'KR1'), -- linked acc: 0x91715128a71c9c734cdc20e5edeeea02e72e428e, initial NXM dist: 110,776
-    (0x25783b67b5e29c48449163db19842b8531fdde43, '1confirmation'), -- Nick Tomaino?
-    (0xd7cba5b9a0240770cfd9671961dae064136fa240, 'Version One Ventures'),
+    (0x834b56ecB16D81f75732F633282a280c53BAa0d0, 'Hugh? [0x834b]'), -- linked acc: 0x7adddc4564b89377237d1e4554f7ceddb1c23a02, 116,362 NXM transfer from twiddle.eth to 0x7adddc (tx: 0x204963318fb7ebc75014d02798becd6db8e4ba94227605e2d7abd579cdc8c0b3)
+    (0x91715128a71c9c734cdc20e5edeeea02e72e428e, 'KR1 [0x9171]'), -- initial NXM dist: 110,776
+    (0xa179f67882711957307edf3df0c9ee4f63026a12, 'KR1 [0xa179]'), -- linked acc: 0x91715128a71c9c734cdc20e5edeeea02e72e428e
+    (0x25783b67b5e29c48449163db19842b8531fdde43, '1confirmation [0x2578]'), -- Nick Tomaino?
+    (0xd7cba5b9a0240770cfd9671961dae064136fa240, 'Version One Ventures [0xd7cb]'),
     (0x741aa7cfb2c7bf2a1e7d4da2e3df6a56ca4131f3, '7 Siblings [0x741a]'),
     (0x28a55c4b4f9615fde3cdaddf6cc01fcf2e38a6b0, '7 Siblings [0x28a5]'),
-    (0x2d089def3b1f95ec8b3052d0d9fa79882554906b, 'Blockchain Capital'),
-    (0x28c6c06298d514db089934071355e5743bf21d60, 'Binance 14')
+    (0x2d089def3b1f95ec8b3052d0d9fa79882554906b, 'Blockchain Capital [0x2d08]'),
+    (0x28c6c06298d514db089934071355e5743bf21d60, 'Binance 14 [0x28c6]')
 )
 
 select * from labels
