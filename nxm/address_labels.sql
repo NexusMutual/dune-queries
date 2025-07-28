@@ -9,11 +9,13 @@ labels (address, address_label) as (
     (0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, 'wETH'),
     -- NM wallets
     (0x963Df0066ff8345922dF88eebeb1095BE4e4e12E, 'NM: Foundation'),
+    (0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e, 'NM: Advisory Board Multisig'),
     (0xfa7e852ceb3f7d0f1ac02f3b8afca95e6dcbdb3c, 'NM: DAO Treasury [0xfa7e]'),
     (0x09abbe423fedee2332caea4117093d7d9b017cf5, 'NM: DAO Treasury [0x09ab]'),
     (0x586b9b2f8010b284a0197f392156f1a7eb5e86e9, 'NM: Community Fund [0x586b]'),
     (0x8e53d04644e9ab0412a8c6bd228c84da7664cfe3, 'NM: Community Fund [0x8e53]'),
     -- NM contracts
+    (0x1b541c2dc0653fd060e8320d2f763733ba8cffe3, 'NM: Deployer'),
     (0xcafeaa5f9c401b7295890f309168Bbb8173690A3, 'NM: Assessment'),
     (0xcafeaA6660019915EC109052825ee7121480F0cD, 'NM: AssessmentViewer'),
     (0xcafeac0fF5dA0A2777d915531bfA6B29d282Ee62, 'NM: Cover'),
@@ -26,12 +28,12 @@ labels (address, address_label) as (
     (0xdc2D359F59F6a26162972c3Bd0cFBfd8C9Ef43af, 'NM: LegacyClaimsData'),
     (0x1776651F58a17a50098d31ba3C3cD259C1903f7A, 'NM: LegacyQuotationData'),
     (0xcafea53852E9f719c424Ec2fe1e7aDd27304210F, 'NM: LimitOrders'),
-    (0xcafea92739e411a4D95bbc2275CA61dE6993C9a7, 'NM: MCR'),
+    (0xcafea92739e411a4D95bbc2275CA61dE6993C9a7, 'NM: MCR [0xcafe..C9a7]'),
     (0x055CC48f7968FD8640EF140610dd4038e1b03926, 'NM: MemberRoles'),
     (0xd7c49CEE7E9188cCa6AD8FF264C1DA2e69D4Cf3B, 'NM: NXMToken'),
     (0x01BFd82675DBCc7762C84019cA518e701C0cD07e, 'NM: NXMaster'),
     (0xcafeab03F219b7a8BCb92a5d61508A0AE16302b6, 'NM: NexusViewer'),
-    (0xcafeaf6eA90CB931ae43a8Cf4B25a73a24cF6158, 'NM: Pool'),
+    (0xcafeaf6eA90CB931ae43a8Cf4B25a73a24cF6158, 'NM: CapitalPool [0xcafe..f6eA]'),
     (0xcafea905B417AC7778843aaE1A0b3848CA97a592, 'NM: PriceFeedOracle'),
     (0x888eA6Ab349c854936b98586CE6a17E98BF254b2, 'NM: ProposalCategory'),
     (0xcafea54f03E1Cc036653444e581A10a43B2487CD, 'NM: RAMM'),
@@ -40,7 +42,7 @@ labels (address, address_label) as (
     (0xcafeafb97BF8831D95C0FC659b8eB3946B101CB3, 'NM: StakingPoolFactory'),
     (0xcafea573fBd815B5f59e8049E71E554bde3477E4, 'NM: StakingProducts'),
     (0xcafea5E8a7a54dd14Bb225b66C7a016dfd7F236b, 'NM: StakingViewer'),
-    (0xcafeaed98d7Fce8F355C03c9F3507B90a974f37e, 'NM: SwapOperator'),
+    (0xcafeaed98d7Fce8F355C03c9F3507B90a974f37e, 'NM: SwapOperator [0xcafe..f37e]'),
     (0x5407381b6c251cFd498ccD4A1d877739CB7960B8, 'NM: TokenController'),
     (0xcafeadcacaa2cd81b3c54833d6896596d218bfab, 'NM: LegacyClaimsReward [0xcafe..bfab]'),
     (0x00000045cdfe2dc2623170b3d6ebaa0b446a243a, 'NM: LegacyClaimsReward [0x0000..45cd]'),
@@ -50,6 +52,16 @@ labels (address, address_label) as (
     (0x27e6d3ce99fa5ec4019ce598af54bcb3a2fb2e5f, 'NM: CommunityStakingIncentives'),
     (0xdf50a17bf58dea5039b73683a51c4026f3c7224e, 'NM: TokenFunctions [0xdf50..224e]'),
     (0xa94c7e87e212669baee95d5d45305d05e6b8a28f, 'NM: TokenFunctions [0xa94c..a28f]'),
+    (0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60, 'NM: CapitalPool [0xcafe..6e60]'),
+    (0xcafea112Db32436c2390F5EC988f3aDB96870627, 'NM: CapitalPool [0xcafe..0627]'),
+    (0xcafea35ce5a2fc4ced4464da4349f81a122fd12b, 'NM: CapitalPool [0xcafe..d12b]'),
+    (0xcafea7934490ef8b9d2572eaefeb9d48162ea5d8, 'NM: CapitalPool [0xcafe..a5d8]'),
+    (0xcafeada4d15bbc7592113d5d5af631b5dcd53dcb, 'NM: CapitalPool [0xcafe..3dcb]'),
+    (0xfd61352232157815cf7b71045557192bf0ce1884, 'NM: CapitalPool [0xfd61..1884]'),
+    (0x7cbe5682be6b648cc1100c76d4f6c96997f753d6, 'NM: CapitalPool [0x7cbe..53d6]'),
+    (0xcafea8321b5109d22c53ac019d7a449c947701fb, 'NM: MCR [0xcafe..01fb]'),
+    (0xcafea3ca5366964a102388ead5f3ebb0769c46cb, 'NM: SwapOperator [0xcafe..46cb]'),
+    (0xcafea5c050e74a21c11af78c927e17853153097d, 'NM: SwapOperator [0xcafe..097d]'),
     -- NM staking pools
     (0x4ab04d7333293ab5e752fd4d2de0c0e88c2ca0f8, '1 : Nexus Foundation'),
     (0xf3745f76c137738b0371a820a098fc678672660a, '2 : Hugh'),
@@ -104,4 +116,5 @@ labels (address, address_label) as (
     (0x28c6c06298d514db089934071355e5743bf21d60, 'Binance 14 [0x28c6]')
 )
 
+--select address from labels group by 1 having count(*) > 1 -- dupes?
 select * from labels
