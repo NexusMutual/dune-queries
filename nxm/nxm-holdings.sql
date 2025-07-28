@@ -181,10 +181,10 @@ holders_enriched as (
   select
     h.address,
     coalesce(al.address_label, le.name, lc.contract_name) as address_label,
-    if(h.total_amount < 1e-6, 0, h.total_amount) as total_amount,
-    if(h.nxm_amount < 1e-6, 0, h.nxm_amount) as nxm_amount,
-    if(h.wnxm_amount < 1e-6, 0, h.wnxm_amount) as wnxm_amount,
-    if(h.nxm_active_stake < 1e-6, 0, h.nxm_active_stake) as nxm_active_stake
+    nullif(if(h.total_amount < 1e-6, 0, h.total_amount), 0) as total_amount,
+    nullif(if(h.nxm_amount < 1e-6, 0, h.nxm_amount), 0) as nxm_amount,
+    nullif(if(h.wnxm_amount < 1e-6, 0, h.wnxm_amount), 0) as wnxm_amount,
+    nullif(if(h.nxm_active_stake < 1e-6, 0, h.nxm_active_stake), 0) as nxm_active_stake
   from holders h
     left join address_labels al on h.address = al.address
     left join labels_contracts lc on h.address = lc.address
