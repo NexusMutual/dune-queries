@@ -1,12 +1,7 @@
 with top10_users as (
   select
     user,
-    sum(amount) as amount,
-    min(block_date) as first_swap,
-    max(block_date) as last_swap,
-    count(distinct tx_hash) as swap_count,
-    avg(amount) as mean_amount,
-    approx_percentile(amount, 0.5) as median_amount
+    sum(amount) as amount
   from query_5547032 -- ramm swaps - base
   where block_date >= current_date - interval '180' day
   group by 1
