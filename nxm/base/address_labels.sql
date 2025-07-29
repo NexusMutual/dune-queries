@@ -134,7 +134,7 @@ labels (address, address_label) as (
     (0xe08d97e151473a848c3d9ca3f323cb720472d015, 'MEV Bot [0xe08d..d015]'),
     (0x2593154f192f46f65a4a0315a5d77556d5d3d264, 'MEV Bot [0x2593..d264]'),
     (0x9d6b911199b891c55a93e4bc635bf59e33d002d8, 'MEV Bot [0x9d6b..02d8]'),
-    -- known addresses
+    -- known addresses / sleuthing results
     (0x0000000000000000000000000000000000000000, 'null [0x0000..0000]'),
     (0x8b86cf2684a3af9dd34defc62a18a96deadc40ff, 'TRM [0x8b86]'), -- The Retail Mutual
     (0x666b8ebfbf4d5f0ce56962a25635cff563f13161, 'Sherlock [0x666b]'),
@@ -165,9 +165,9 @@ labels (address, address_label) as (
     (0x1337def157efdef167a81b3bab95385ce5a14477, 'Armor.fi: ExchangeManager [0x1337]'),
     (0xd374225abb84dca94e121f0b8a06b93e39ad7a99, 'Perpetual Protocol: Treasury [0xd374]'),
     (0x292928af8c4890f36e9e662205cc7d3cab4e495b, 'ITrustInsure [0x2929]'),
-    -- sleuthing
     (0xad6a4ace6dcc21c93ca9dbc8a21c7d3a726c1fb1, 'Hacker: Fake_Phishing4622'),
-    (0x834b56ecB16D81f75732F633282a280c53BAa0d0, 'Hugh? [0x834b]'), -- linked acc: 0x7adddc4564b89377237d1e4554f7ceddb1c23a02, 116,362 NXM transfer from twiddle.eth to 0x7adddc (tx: 0x204963318fb7ebc75014d02798becd6db8e4ba94227605e2d7abd579cdc8c0b3)
+    (0x7adddc4564b89377237d1e4554f7ceddb1c23a02, 'Semantic [0x7add]'),
+    (0x834b56ecB16D81f75732F633282a280c53BAa0d0, 'Semantic [0x834b]'),
     (0x91715128a71c9c734cdc20e5edeeea02e72e428e, 'KR1 [0x9171]'), -- initial NXM dist: 110,776
     (0xa179f67882711957307edf3df0c9ee4f63026a12, 'KR1 [0xa179]'), -- linked acc: 0x91715128a71c9c734cdc20e5edeeea02e72e428e
     (0x25783b67b5e29c48449163db19842b8531fdde43, '1confirmation [0x2578]'), -- Nick Tomaino?
