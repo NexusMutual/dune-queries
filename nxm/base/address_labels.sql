@@ -135,6 +135,7 @@ labels (address, address_label) as (
     (0x2593154f192f46f65a4a0315a5d77556d5d3d264, 'MEV Bot [0x2593..d264]'),
     (0x9d6b911199b891c55a93e4bc635bf59e33d002d8, 'MEV Bot [0x9d6b..02d8]'),
     -- known addresses
+    (0x0000000000000000000000000000000000000000, 'null [0x0000..0000]'),
     (0x8b86cf2684a3af9dd34defc62a18a96deadc40ff, 'TRM [0x8b86]'), -- The Retail Mutual
     (0x666b8ebfbf4d5f0ce56962a25635cff563f13161, 'Sherlock [0x666b]'),
     (0x40a2accbd92bca938b02010e17a5b8929b49130d, 'Sherlock [0x40a2]'),
