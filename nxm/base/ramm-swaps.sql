@@ -8,7 +8,7 @@ select
   tx_hash
 from query_5531182 -- nxm transfers - base
 where tx_to = 'NM: RAMM'
-  and transfer_to = 'origincity.eth' -- burn address for swaps below
+  and transfer_to = 'null [0x0000..0000]' -- burn address for swaps below
 union all
 select
   block_time,
@@ -20,4 +20,4 @@ select
   tx_hash
 from query_5531182 -- nxm transfers - base
 where tx_to = 'NM: RAMM'
-  and transfer_from = 'origincity.eth' -- burn address for swaps above
+  and transfer_from = 'null [0x0000..0000]' -- burn address for swaps above
