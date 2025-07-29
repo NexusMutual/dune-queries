@@ -43,6 +43,14 @@ nxm_transfers_labelled as (
 select
   block_time,
   block_number,
+  case
+    when tx_hash = 0xfd63fbcc07f95591636f316a84a4ba3fe07c2002df32afac9de640187e491e53 then 'TGE'
+    when tx_to = 'NM: RAMM' then 'RAMM'
+    when tx_to like 'NM:%' then 'NM protocol'
+    when tx_to like '% : %' then 'staking v2'
+    when tx_to like 'dex:%' then 'dex'
+    else 'transfer'
+  end as transfer_type,
   tx_from,
   tx_to,
   transfer_from,
