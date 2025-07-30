@@ -4,7 +4,7 @@ top_holders as (
   select address, address_label
   from query_5530985 -- nxm holdings
   order by total_amount desc
-  limit 20
+  limit 10
 ),
 
 transfers as (
