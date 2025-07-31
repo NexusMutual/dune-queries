@@ -8,7 +8,8 @@ labels (address, address_label) as (
     (0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf, 'cbBTC'),
     (0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, 'wETH'),
     -- NM wallets
-    (0x963Df0066ff8345922dF88eebeb1095BE4e4e12E, 'NM: Foundation'),
+    (0x963Df0066ff8345922dF88eebeb1095BE4e4e12E, 'NM: Foundation [0x963D]'),
+    (0xFC64382c9Ce89bA1C21692A68000366a35fF0336, 'NM: Foundation [0xFC64]'),
     (0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e, 'NM: Advisory Board Multisig'),
     (0xfa7e852ceb3f7d0f1ac02f3b8afca95e6dcbdb3c, 'NM: DAO Treasury [0xfa7e]'),
     (0x09abbe423fedee2332caea4117093d7d9b017cf5, 'NM: DAO Treasury [0x09ab]'),
