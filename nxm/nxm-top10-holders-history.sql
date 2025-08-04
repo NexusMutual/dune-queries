@@ -118,6 +118,43 @@ movements_forward_fill as (
       and (d.block_date < ma.next_block_date or ma.next_block_date is null)
       and d.address = ma.address
   where d.block_date <= current_date
+),
+
+stakers_stake_history as (
+  select
+    block_date,
+    --pool_token_rn,
+    --token_tranche_rn,
+    --pool_id,
+    --token_id,
+    --tranche_id,
+    staker,
+    sum(staked_nxm) as amount
+  --from query_5578974 -- stakers stake history
+  from dune.nexus_mutual.result_stakers_stake_history_base
+  where staker_address in (select address from top_holders)
+  group by 1, 2
+),
+
+movements_combined as (
+  select
+    block_date,
+    address,
+    sum(amount) as amount
+  from (
+    select
+      block_date,
+      address,
+      amount
+    from movements_forward_fill
+    union all
+    select
+      block_date,
+      staker,
+      amount
+    from stakers_stake_history
+  ) t
+  group by 1, 2
 )
 
 select
@@ -127,5 +164,5 @@ select
     else address
   end as address,
   amount
-from movements_forward_fill
+from movements_combined
 order by 1, 2, 3
