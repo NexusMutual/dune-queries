@@ -39,7 +39,8 @@ select
   st.stake_expiry_date
 from stakers_base sb
   --inner join nexusmutual_ethereum.staked_per_token_tranche st
-  inner join query_5226858 st -- staked nxm per token & tranche - base
+  --inner join query_5226858 st -- staked nxm per token & tranche - base
+  inner join dune.nexus_mutual.result_staked_nxm_per_token_tranche st
     on sb.pool_id = st.pool_id and sb.token_id = st.token_id
   left join staking_pool_names spn on sb.pool_id = spn.pool_id
   left join labels.ens on sb.staker = ens.address
