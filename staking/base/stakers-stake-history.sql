@@ -18,13 +18,16 @@ select
   sb.pool_id,
   sb.token_id,
   st.tranche_id,
-  sb.staker,
+  sb.staker as staker_address,
+  ens.name as staker_ens,
+  coalesce(ens.name, cast(sb.staker as varchar)) as staker,
   st.total_staked_nxm as staked_nxm,
   st.stake_expiry_date
 from stakers_base sb
   --inner join nexusmutual_ethereum.staked_per_token_tranche st
   inner join query_5226858 st -- staked nxm per token & tranche - base
     on sb.pool_id = st.pool_id and sb.token_id = st.token_id
+  left join labels.ens on sb.staker = ens.address
 --where sb.pool_token_rn = 1 -- current staker
 --  and (st.token_tranche_rn = 1 and st.block_date = current_date) -- today's stake
 --order by 1,2,3
