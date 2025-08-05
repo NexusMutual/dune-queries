@@ -71,8 +71,11 @@ stake_forward_fill as (
 )
 
 select
-  block_date,
-  staker,
-  amount
-from stake_forward_fill
+  sff.block_date,
+  sff.staker as staker_address,
+  ens.name as staker_ens,
+  coalesce(ens.name, cast(sff.staker as varchar)) as staker,
+  sff.amount
+from stake_forward_fill sff
+  left join labels.ens on sff.staker = ens.address
 order by 1, 2
