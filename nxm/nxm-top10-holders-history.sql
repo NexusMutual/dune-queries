@@ -122,18 +122,23 @@ movements_forward_fill as (
 
 stakers_stake_history as (
   select
+    1 as version,
     block_date,
-    --pool_token_rn,
-    --token_tranche_rn,
-    --pool_id,
-    --token_id,
-    --tranche_id,
+    staker,
+    sum(amount) as amount
+  from query_5584629 -- stakers stake history v1
+  where staker_address in (select address from top_holders)
+  group by 2, 3
+  union all
+  select
+    2 as version,
+    block_date,
     staker,
     sum(staked_nxm) as amount
   --from query_5578974 -- stakers stake history
   from dune.nexus_mutual.result_stakers_stake_history_base
   where staker_address in (select address from top_holders)
-  group by 1, 2
+  group by 2, 3
 ),
 
 movements_combined as (
