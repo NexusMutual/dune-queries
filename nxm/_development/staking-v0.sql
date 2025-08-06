@@ -1,0 +1,32 @@
+/*
+nexusmutual_ethereum.tokenfunctions_call_pushstakerrewards
+nexusmutual_ethereum.tokenfunctions_call_unlockstakerunlockabletokens
+nexusmutual_ethereum.tokenfunctions_call_updatestakercommissions
+*/
+
+
+select
+  s.call_block_time as block_time,
+  s.call_block_date as block_date,
+  s._scAddress as product_address,
+  l._of as staker,
+  l._amount / 1e18 as amount,
+  l._validity as locked_validity,
+  s.call_tx_hash as tx_hash
+from nexusmutual_ethereum.tokenfunctions_call_addstake s
+  inner join nexusmutual_ethereum.tokencontroller_evt_locked l on s.call_block_time = l.evt_block_time and s.call_tx_hash = l.evt_tx_hash
+where s.call_success
+order by 1
+
+
+select
+  s.call_block_time as block_time,
+  s.call_block_date as block_date,
+  l._of as staker,
+  l._amount / 1e18 as amount,
+  s.call_tx_hash as tx_hash
+from nexusmutual_ethereum.tokenfunctions_call_unlockstakerunlockabletokens s
+  inner join nexusmutual_ethereum.tokencontroller_evt_unlocked l on s.call_block_time = l.evt_block_time and s.call_tx_hash = l.evt_tx_hash
+where s.call_success
+  and l._amount > 0
+order by 1
