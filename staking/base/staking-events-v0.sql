@@ -10,6 +10,7 @@ staking_events as (
   select
     s.call_block_time as block_time,
     s.call_block_date as block_date,
+    s.call_block_number as block_number,
     s._scAddress as product_address,
     'stake' as event_type,
     l._of as staker,
@@ -23,6 +24,7 @@ staking_events as (
   select
     s.call_block_time as block_time,
     s.call_block_date as block_date,
+    s.call_block_number as block_number,
     null as product_address,
     'unstake' as event_type,
     l._of as staker,
@@ -37,6 +39,7 @@ staking_events as (
 select
   block_time,
   block_date,
+  block_number,
   product_address,
   event_type,
   staker,
