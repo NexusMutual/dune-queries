@@ -32,6 +32,11 @@ select
   cover_owner,
   cover_buys,
   total_cover_amount,
-  total_cover_amount / (select total_cover_amount from btc_cover_buyers_agg order by 1 desc limit 1) as total_cover_amount_ratio
-from btc_cover_buyers_agg
-order by 3 desc
+  (total_cover_amount - min_amt) / nullif((max_amt - min_amt), 0) * 0.5 + 0.5 as total_cover_amount_ratio
+from (
+  select *,
+    min(total_cover_amount) over() as min_amt,
+    max(total_cover_amount) over() as max_amt
+  from btc_cover_buyers_agg
+) t
+order by total_cover_amount desc

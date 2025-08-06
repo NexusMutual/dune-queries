@@ -192,6 +192,11 @@ select
   balance_2_years_ago,
   long_term_holder,
   adjusted_balance,
-  adjusted_balance / (select adjusted_balance from candidates order by 1 desc limit 1) as adjusted_balance_ratio
-from candidates
+  (adjusted_balance - min_ab) / nullif((max_ab - min_ab), 0) * 0.5 + 0.5 as adjusted_balance_ratio
+from (
+  select *,
+    min(adjusted_balance) over() as min_ab,
+    max(adjusted_balance) over() as max_ab
+  from candidates
+) t
 order by adjusted_balance desc
