@@ -53,7 +53,7 @@ daily_sequence as (
     d.timestamp as block_date
   from utils.days d
     inner join staker_history_start_dates s on d.timestamp >= s.block_date_start
-  where d.timestamp <= timestamp '2020-06-30'
+  where d.timestamp <= timestamp '2020-06-29'
 ),
 
 stake_forward_fill as (
