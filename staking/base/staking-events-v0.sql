@@ -28,7 +28,7 @@ staking_events as (
     null as product_address,
     'unstake' as event_type,
     l._of as staker,
-    l._amount / 1e18 as amount,
+    -1 * (l._amount / 1e18) as amount,
     s.call_tx_hash as tx_hash
   from nexusmutual_ethereum.tokenfunctions_call_unlockstakerunlockabletokens s
     inner join nexusmutual_ethereum.tokencontroller_evt_unlocked l on s.call_block_time = l.evt_block_time and s.call_tx_hash = l.evt_tx_hash
