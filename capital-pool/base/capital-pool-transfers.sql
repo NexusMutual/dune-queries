@@ -38,6 +38,16 @@ transfer_in as (
     left join nexusmutual_contracts c_from on t."from" = c_from.protocol_contract_address
   where t.block_time >= timestamp '2019-05-01'
     and t.symbol in ('ETH', 'WETH', 'DAI', 'stETH', 'rETH', 'USDC', 'cbBTC')
+    and t.contract_address in (
+      0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359, --DAI (SAI)
+      0x6b175474e89094c44da98b954eedeac495271d0f, --DAI
+      0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2, --WETH
+      0x0000000000000000000000000000000000000000, --ETH (WETH)
+      0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48, --USDC
+      0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf, --cbBTC
+      0xae78736cd615f374d3085123a210448e74fc6393, --rETH
+      0xae7ab96520de3a18e5e111b5eaab095312d7fe84  --stETH
+    )
 ),
 
 transfer_out as (
@@ -60,6 +70,16 @@ transfer_out as (
     left join nexusmutual_contracts c_to on t."to" = c_to.protocol_contract_address
   where t.block_time >= timestamp '2019-05-01'
     and t.symbol in ('ETH', 'WETH', 'DAI', 'stETH', 'rETH', 'USDC', 'cbBTC')
+    and t.contract_address in (
+      0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359, --DAI (SAI)
+      0x6b175474e89094c44da98b954eedeac495271d0f, --DAI
+      0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2, --WETH
+      0x0000000000000000000000000000000000000000, --ETH (WETH)
+      0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48, --USDC
+      0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf, --cbBTC
+      0xae78736cd615f374d3085123a210448e74fc6393, --rETH
+      0xae7ab96520de3a18e5e111b5eaab095312d7fe84  --stETH
+    )
 ),
 
 transfer_nxmty_in as (
