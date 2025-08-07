@@ -121,6 +121,7 @@ with lending_base_supply as (
 )
 
 select
+  '3' as version,
   supply.block_time,
   supply.block_number,
   supply.transaction_type,

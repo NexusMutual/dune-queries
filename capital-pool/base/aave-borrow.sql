@@ -92,6 +92,7 @@ with lending_base_borrow as (
 )
 
 select
+  '3' as version,
   borrow.block_time,
   borrow.block_number,
   borrow.transaction_type,
