@@ -147,7 +147,8 @@ aave_supplied as (
     date_trunc('day', s.block_time) as block_date,
     s.symbol,
     sum(s.amount / u.liquidityIndex * power(10, 27)) as atoken_amount
-  from aave_ethereum.supply s
+  --from aave_ethereum.supply s
+  from query_5595175 s -- aave supply - base
     inner join aave_v3_ethereum.Pool_evt_ReserveDataUpdated u
        on u.evt_block_number = s.block_number
       and u.evt_index < s.evt_index
@@ -174,7 +175,8 @@ aave_borrowed as (
     date_trunc('day', b.block_time) as block_date,
     b.symbol,
     sum(b.amount / u.variableBorrowIndex * power(10, 27)) as atoken_amount
-  from aave_ethereum.borrow b
+  --from aave_ethereum.borrow b
+  from query_5595264 b -- aave borrow - base
     inner join aave_v3_ethereum.Pool_evt_ReserveDataUpdated u
        on u.evt_block_number = b.block_number
       and u.evt_index < b.evt_index
@@ -377,9 +379,9 @@ select
   eth_total,
   avg_eth_usd_total,
   -- DAI
-  dai_total,
-  avg_dai_usd_total,
-  avg_dai_eth_total,
+  if(avg_dai_eth_total > 0, dai_total, 0) as dai_total,
+  if(avg_dai_eth_total > 0, avg_dai_usd_total, 0) as avg_dai_usd_total,
+  if(avg_dai_eth_total > 0, avg_dai_eth_total, 0) as avg_dai_eth_total,
   -- NXMTY
   nxmty_total,
   nxmty_eth_total,
