@@ -144,8 +144,7 @@ stakers_stake_history as (
     block_date,
     staker,
     sum(staked_nxm) as amount
-  --from query_5578974 -- stakers stake history
-  from dune.nexus_mutual.result_stakers_stake_history_base
+  from query_5578974 -- stakers stake history
   where staker_address in (select address from top_holders)
   group by 2, 3
 ),
