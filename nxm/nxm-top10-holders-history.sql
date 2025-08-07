@@ -122,6 +122,15 @@ movements_forward_fill as (
 
 stakers_stake_history as (
   select
+    0 as version,
+    block_date,
+    staker,
+    sum(amount) as amount
+  from query_5591077 -- stakers stake history v0
+  where staker_address in (select address from top_holders)
+  group by 2, 3
+  union all
+  select
     1 as version,
     block_date,
     staker,
@@ -155,7 +164,7 @@ movements_combined as (
     union all
     select
       block_date,
-      staker,
+      staker as address,
       amount
     from stakers_stake_history
   ) t
