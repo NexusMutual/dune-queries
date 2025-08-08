@@ -6,7 +6,7 @@ labels (address, address_label) as (
     (0x0d438F3b5175Bebc262bF23753C1E53d03432bDE, 'wNXM'),
     (0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48, 'USDC'),
     (0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf, 'cbBTC'),
-    (0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, 'wETH'),
+    (0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, 'WETH'),
     -- NM wallets
     (0x963Df0066ff8345922dF88eebeb1095BE4e4e12E, 'NM: Foundation [0x963D]'),
     (0xFC64382c9Ce89bA1C21692A68000366a35fF0336, 'NM: Foundation [0xFC64]'),
@@ -137,6 +137,8 @@ labels (address, address_label) as (
     (0x9d6b911199b891c55a93e4bc635bf59e33d002d8, 'MEV Bot [0x9d6b..02d8]'),
     -- known addresses
     (0x0000000000000000000000000000000000000000, 'null [0x0000..0000]'),
+    (0xC02D0fA00C0bEC48186026c71da2E54Ebf680139, 'Uniswap V3 Pool: wNXM/WETH'),
+    (0x9008D19f58AAbD9eD0D60971565AA8510560ab41, 'CoW Swap'), -- GPv2Settlement
     (0xad6a4ace6dcc21c93ca9dbc8a21c7d3a726c1fb1, 'Hacker: Fake_Phishing4622')
 )
 
