@@ -1,18 +1,12 @@
 with
 
-address_labels as (
-  select address, address_label from query_5534312
-),
-
 tge_users as (
   select
-    t.address,
-    coalesce(al.address_label, ens.name) as address_label,
-    t.amount / 1e18 as initial_distribution
-  from nexusmutual_ethereum.MemberRoles_call_addMembersBeforeLaunch mbl
-    cross join unnest(mbl.userArray, mbl.tokens) as t(address, amount)
-    left join address_labels al on t.address = al.address
-    left join labels.ens on t.address = ens.address
+    address,
+    address_label,
+    address_label_formatted,
+    initial_distribution
+  from query_5620680 -- tge users
 ),
 
 nxm_combined_history as (
@@ -26,8 +20,7 @@ nxm_combined_history as (
 )
 
 select
-  tu.address,
-  tu.address_label,
+  tu.address_label_formatted as address,
   tu.initial_distribution,
   if(h_5y_ago.amount > 1e-6, h_5y_ago.amount, 0) as amount_5y_ago,
   if(h_4y_ago.amount > 1e-6, h_4y_ago.amount, 0) as amount_4y_ago,
@@ -42,4 +35,4 @@ from tge_users tu
   inner join nxm_combined_history h_3y_ago on tu.address = h_3y_ago.address and h_3y_ago.block_date = current_date - interval '3' year
   inner join nxm_combined_history h_4y_ago on tu.address = h_4y_ago.address and h_4y_ago.block_date = current_date - interval '4' year
   inner join nxm_combined_history h_5y_ago on tu.address = h_5y_ago.address and h_5y_ago.block_date = current_date - interval '5' year
-order by 3 desc
+order by tu.initial_distribution desc
