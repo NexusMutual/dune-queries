@@ -6,8 +6,8 @@ stakers as (
     sum(staked_nxm) as staked_nxm,
     sum(staked_nxm_eth) as staked_nxm_eth,
     sum(staked_nxm_usd) as staked_nxm_usd,
-    listagg(distinct cast(pool_id as varchar), ',') within group (order by cast(pool_id as varchar)) as pools,
-    listagg(distinct cast(token_id as varchar), ',') within group (order by cast(token_id as varchar)) as tokens
+    array_join(transform(array_agg(distinct pool_id order by pool_id), x -> cast(x as varchar)), ',') as pools,
+    array_join(transform(array_agg(distinct token_id order by token_id), x -> cast(x as varchar)), ',') as tokens
   from query_4077503 -- stakers - base
   --where staker <> '0x84edffa16bb0b9ab1163abb0a13ff0744c11272f' -- legacy pooled staking v1
   group by 1
