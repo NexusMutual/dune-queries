@@ -5,7 +5,10 @@ params as (
     cast(100 as double) as holder_threshold,
     cast(0.7 as double) as retention_1y_cutoff,
     cast(0.6 as double) as retention_2y_cutoff,
-    cast(0.5 as double) as retention_3y_cutoff
+    cast(0.5 as double) as retention_3y_cutoff,
+    cast(0.4 as double) as retention_4y_cutoff,
+    cast(0.3 as double) as retention_5y_cutoff,
+    cast(0.6 as double) as weighted_cutoff
 ),
 
 nxm_combined_history as (
@@ -22,7 +25,7 @@ labels_contracts as (
     address,
     case
       when lower(namespace) = 'wnxm' then name
-      when lower(namespace) in ('gnosis_safe', 'gnosissafe', 'gnosis_multisig') then null -- 'gnosis_safe'
+      when lower(namespace) in ('gnosis_safe', 'gnosissafe', 'gnosis_multisig') then null
       else concat(namespace, ': ', name)
     end as contract_name
   from (
@@ -52,78 +55,96 @@ base as (
     left join nxm_combined_history h_5y_ago on h_now.address = h_5y_ago.address and h_5y_ago.block_date = current_date - interval '5' year
     left join labels_contracts lc on h_now.address = lc.address
   where h_now.block_date = current_date
-    and lc.contract_name is null -- allow gnosis safe
+    and lc.contract_name is null
+),
+
+calc as (
+  select
+    b.*,
+    -- capped retentions
+    least(b.amount_now / nullif(b.amount_1y_ago, 0), 1) as r1_cap,
+    least(b.amount_now / nullif(b.amount_2y_ago, 0), 1) as r2_cap,
+    least(b.amount_now / nullif(b.amount_3y_ago, 0), 1) as r3_cap,
+    least(b.amount_now / nullif(b.amount_4y_ago, 0), 1) as r4_cap,
+    least(b.amount_now / nullif(b.amount_5y_ago, 0), 1) as r5_cap,
+    -- weighted score (main inclusion)
+    0.6 * least(b.amount_now / nullif(b.amount_1y_ago, 0), 1)
+    + 0.3 * least(b.amount_now / nullif(b.amount_2y_ago, 0), 1)
+    + 0.1 * least(b.amount_now / nullif(b.amount_3y_ago, 0), 1) as weighted_score,
+    p.weighted_cutoff,
+    -- 70/60/50 gate badge
+    case
+      when b.amount_now >= p.holder_threshold
+       and b.amount_1y_ago >= p.holder_threshold
+       and b.amount_2y_ago >= p.holder_threshold
+       and b.amount_3y_ago >= p.holder_threshold
+       and least(b.amount_now / nullif(b.amount_1y_ago, 0), 1) >= p.retention_1y_cutoff
+       and least(b.amount_now / nullif(b.amount_2y_ago, 0), 1) >= p.retention_2y_cutoff
+       and least(b.amount_now / nullif(b.amount_3y_ago, 0), 1) >= p.retention_3y_cutoff
+      then true else false
+    end as badge_gate_70_60_50,
+    -- optional legacy badges
+    case
+      when b.amount_4y_ago >= p.holder_threshold
+       and least(b.amount_now / nullif(b.amount_4y_ago, 0), 1) >= p.retention_4y_cutoff
+      then true else false
+    end as badge_legacy_4y,
+    case
+      when b.amount_5y_ago >= p.holder_threshold
+       and least(b.amount_now / nullif(b.amount_5y_ago, 0), 1) >= p.retention_5y_cutoff
+      then true else false
+    end as badge_legacy_5y
+  from base b
+    cross join params p
 )
 
 select
-  b.address,
-  b.amount_now,
-  b.amount_1y_ago,
-  b.amount_2y_ago,
-  coalesce(b.amount_3y_ago, 0) as amount_3y_ago,
-  coalesce(b.amount_4y_ago, 0) as amount_4y_ago,
-  coalesce(b.amount_5y_ago, 0) as amount_5y_ago,
-  b.amount_now / nullif(b.amount_1y_ago, 0) as retention_ratio_1y,
-  b.amount_now / nullif(b.amount_2y_ago, 0) as retention_ratio_2y,
-  b.amount_now / nullif(b.amount_3y_ago, 0) as retention_ratio_3y,
-  case
-    when b.amount_now >= p.holder_threshold
-     and b.amount_1y_ago >= p.holder_threshold
-     and (b.amount_now / nullif(b.amount_1y_ago, 0)) >= p.retention_1y_cutoff
-     and b.amount_3y_ago >= p.holder_threshold
-     and (b.amount_now / nullif(b.amount_3y_ago, 0)) >= p.retention_3y_cutoff
-    then 'strong_3y_70'
-    when b.amount_now >= p.holder_threshold
-     and b.amount_1y_ago >= p.holder_threshold
-     and (b.amount_now / nullif(b.amount_1y_ago, 0)) >= p.retention_1y_cutoff
-     and b.amount_2y_ago >= p.holder_threshold
-     and (b.amount_now / nullif(b.amount_2y_ago, 0)) >= p.retention_2y_cutoff
-    then 'strong_2y_60'
-    when b.amount_now >= p.holder_threshold
-     and b.amount_1y_ago >= p.holder_threshold
-     and (b.amount_now / nullif(b.amount_1y_ago, 0)) >= p.retention_1y_cutoff
-    then 'base_1y_50'
-    else 'no'
-  end as lth_tier,
-  /*
-  b.amount_now - b.amount_1y_ago as net_change_1y,
-  b.amount_now - b.amount_2y_ago as net_change_2y,
-  b.amount_now - coalesce(b.amount_3y_ago, 0) as net_change_3y,
-  */
-  (case when b.amount_now >= p.holder_threshold then 1 else 0 end
-   + case when b.amount_1y_ago >= p.holder_threshold then 1 else 0 end
-   + case when b.amount_2y_ago >= p.holder_threshold then 1 else 0 end
-   + case when coalesce(b.amount_3y_ago, 0) >= p.holder_threshold then 1 else 0 end
-   + case when coalesce(b.amount_4y_ago, 0) >= p.holder_threshold then 1 else 0 end
-   + case when coalesce(b.amount_5y_ago, 0) >= p.holder_threshold then 1 else 0 end) as holding_years_count,
   dense_rank() over (
     order by
+      c.weighted_score desc,
+      case when c.badge_gate_70_60_50 then 1 else 0 end desc,
+      case when c.badge_legacy_4y then 1 else 0 end desc,
+      case when c.badge_legacy_5y then 1 else 0 end desc,
+      c.amount_now desc
+  ) as lth_rank,
+  case
+    when c.weighted_score >= c.weighted_cutoff then
       case
-        when b.amount_now >= p.holder_threshold
-         and b.amount_1y_ago >= p.holder_threshold
-         and (b.amount_now / nullif(b.amount_1y_ago, 0)) >= p.retention_1y_cutoff
-        then 1 else 0 end desc,
-      b.amount_now / nullif(b.amount_3y_ago, 0) desc,
-      b.amount_now / nullif(b.amount_2y_ago, 0) desc,
-      b.amount_now / nullif(b.amount_1y_ago, 0) desc,
-      b.amount_now desc
-  ) as lth_rank
-from base b
-  cross join params p
-where b.amount_now >= p.holder_threshold
-  and b.amount_1y_ago >= p.holder_threshold
-  and b.amount_2y_ago >= p.holder_threshold
-  and b.amount_3y_ago >= p.holder_threshold
-  /*
-  and least(
-    least(b.amount_now / nullif(b.amount_1y_ago, 0), 1),
-    least(b.amount_now / nullif(b.amount_2y_ago, 0), 1),
-    least(b.amount_now / nullif(b.amount_3y_ago, 0), 1)
-  ) >= 0.6 -- min retention ≥ 60% (capped)
-  */
-  and (
-    0.6 * least(b.amount_now / nullif(b.amount_1y_ago, 0), 1) +
-    0.3 * least(b.amount_now / nullif(b.amount_2y_ago, 0), 1) +
-    0.1 * least(b.amount_now / nullif(b.amount_3y_ago, 0), 1)
-  ) >= 0.6 -- weighted score ≥ 60% (capped, heavier on 1y)
+        when c.badge_gate_70_60_50 and c.badge_legacy_4y and c.badge_legacy_5y then '💎🛡️4️⃣5️⃣'
+        when c.badge_gate_70_60_50 and c.badge_legacy_4y then '💎🛡️4️⃣'
+        when c.badge_gate_70_60_50 and c.badge_legacy_5y then '💎🛡️5️⃣'
+        when c.badge_gate_70_60_50 then '💎🛡️'
+        when c.badge_legacy_4y and c.badge_legacy_5y then '💎4️⃣5️⃣'
+        when c.badge_legacy_4y then '💎4️⃣'
+        when c.badge_legacy_5y then '💎5️⃣'
+        else '💎'
+      end
+    else '❌'
+  end as lth_tier,
+  c.address,
+  c.amount_now,
+  c.amount_1y_ago,
+  c.amount_2y_ago,
+  c.amount_3y_ago,
+  c.amount_4y_ago,
+  c.amount_5y_ago,
+  c.r1_cap as retention_ratio_1y,
+  c.r2_cap as retention_ratio_2y,
+  c.r3_cap as retention_ratio_3y,
+  c.r4_cap as retention_ratio_4y,
+  c.r5_cap as retention_ratio_5y,
+  --c.weighted_score,
+  (case when c.amount_now >=  p.holder_threshold then 1 else 0 end
+   + case when c.amount_1y_ago >= p.holder_threshold then 1 else 0 end
+   + case when c.amount_2y_ago >= p.holder_threshold then 1 else 0 end
+   + case when c.amount_3y_ago >= p.holder_threshold then 1 else 0 end
+   + case when c.amount_4y_ago >= p.holder_threshold then 1 else 0 end
+   + case when c.amount_5y_ago >= p.holder_threshold then 1 else 0 end) as holding_years_count
+from calc c
+cross join params p
+where c.amount_now >= p.holder_threshold
+  and c.amount_1y_ago >= p.holder_threshold
+  and c.amount_2y_ago >= p.holder_threshold
+  and c.amount_3y_ago >= p.holder_threshold
+  and c.weighted_score >= c.weighted_cutoff
 order by lth_rank
