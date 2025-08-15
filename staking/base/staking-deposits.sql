@@ -18,7 +18,7 @@ ext (pool_id, token_id, block_time, evt_index, stake_expiry_date, init_tranche_i
     and new_tranche_id is not null
 ),
 
--- seed 1: initial deposits (evt_index = -1 so they order before extensions at same ts)
+-- initial deposits (evt_index = -1 so they order before extensions at same ts)
 base_deposits (pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_date, active_amount) as (
   select
     pool_id,
@@ -33,7 +33,7 @@ base_deposits (pool_id, token_id, tranche_id, block_time, evt_index, stake_expir
     and tranche_id is not null
 ),
 
--- seed 2: topups as their own landings at the extension event (so they propagate forward)
+-- topups as their own landings at the extension event (so they propagate)
 base_topups (pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_date, active_amount) as (
   select
     pool_id,
@@ -47,12 +47,28 @@ base_topups (pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_
   where topup_pos > 0
 ),
 
+-- withdrawals as negative landings on the tranche at the event time
+base_withdraws (pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_date, active_amount) as (
+  select
+    pool_id,
+    token_id,
+    tranche_id,
+    block_time,
+    evt_index,
+    tranche_expiry_date as stake_expiry_date,
+    amount as active_amount
+  from nexusmutual_ethereum.staking_events
+  where flow_type = 'withdraw'
+    and tranche_id is not null
+),
+
 -- recursion: from the current landing, hop ONLY to the earliest next extension that consumes its tranche
 -- (prevents moving stale earlier states of the same origin on later extensions)
 landed (pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_date, active_amount) as (
   -- seeds
   select pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_date, active_amount from base_deposits union all
   select pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_date, active_amount from base_topups union all
+  select pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_date, active_amount from base_withdraws union all
 
   -- recursive hop: move to first extension strictly after this landing; no topup added here
   select
@@ -81,18 +97,23 @@ landed (pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_date,
   )
 ),
 
--- aggregate each extension event to one landing (sum moved + any topup seed at that event)
+-- aggregate each *extension* event to one landing (sum moved + topup seeds); exclude withdraw events explicitly
 ext_landings (block_time, evt_index, pool_id, token_id, tranche_id, active_amount, stake_expiry_date) as (
   select
-    block_time,
-    evt_index,
-    pool_id,
-    token_id,
-    tranche_id,
-    sum(active_amount) as active_amount,
-    max(stake_expiry_date) as stake_expiry_date
-  from landed
-  where evt_index <> -1
+    e.block_time,
+    e.evt_index,
+    e.pool_id,
+    e.token_id,
+    e.new_tranche_id as tranche_id,
+    sum(l.active_amount) as active_amount,
+    max(e.stake_expiry_date) as stake_expiry_date
+  from ext e
+  join landed l
+    on l.pool_id = e.pool_id
+   and l.token_id = e.token_id
+   and l.block_time = e.block_time
+   and l.evt_index = e.evt_index
+   and l.tranche_id = e.new_tranche_id
   group by 1, 2, 3, 4, 5
 ),
 
