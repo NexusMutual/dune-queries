@@ -1,5 +1,7 @@
+-- sparse time-series of active stake (deposits + extensions) with start/end dates
 with recursive
 
+-- extension events
 ext (pool_id, token_id, block_time, evt_index, stake_expiry_date, init_tranche_id, new_tranche_id, topup_pos) as (
   select
     pool_id,
@@ -16,6 +18,7 @@ ext (pool_id, token_id, block_time, evt_index, stake_expiry_date, init_tranche_i
     and new_tranche_id is not null
 ),
 
+-- seed 1: initial deposits (evt_index = -1 so they order before extensions at same ts)
 base_deposits (pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_date, active_amount) as (
   select
     pool_id,
@@ -30,6 +33,7 @@ base_deposits (pool_id, token_id, tranche_id, block_time, evt_index, stake_expir
     and tranche_id is not null
 ),
 
+-- seed 2: topups as landings at their extension point (so they propagate)
 base_topups (pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_date, active_amount) as (
   select
     pool_id,
@@ -43,10 +47,13 @@ base_topups (pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_
   where topup_pos > 0
 ),
 
+-- recursion: move balances when an extension consumes init_tranche_id
 landed (pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_date, active_amount) as (
+  -- seeds
   select pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_date, active_amount from base_deposits union all
   select pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_date, active_amount from base_topups union all
 
+  -- recursive step (no topup added here)
   select
     e.pool_id,
     e.token_id,
@@ -60,10 +67,11 @@ landed (pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_date,
     on e.pool_id = l.pool_id
    and e.token_id = l.token_id
    and e.init_tranche_id = l.tranche_id
-   and (l.block_time < e.block_time or (l.block_time = e.block_time and l.evt_index < e.evt_index))
-   and l.stake_expiry_date > e.block_time
+   and (l.block_time < e.block_time or (l.block_time = e.block_time and l.evt_index < e.evt_index)) -- strict order
+   and l.stake_expiry_date > e.block_time -- only balances still active at that moment
 ),
 
+-- aggregate each extension event to one landing (moved + topup seeds)
 ext_landings (block_time, evt_index, pool_id, token_id, tranche_id, active_amount, stake_expiry_date) as (
   select
     block_time,
@@ -78,23 +86,13 @@ ext_landings (block_time, evt_index, pool_id, token_id, tranche_id, active_amoun
   group by 1, 2, 3, 4, 5
 ),
 
-deposit_landings (block_time, evt_index, pool_id, token_id, tranche_id, active_amount, stake_expiry_date) as (
-  select
-    block_time,
-    evt_index,
-    pool_id,
-    token_id,
-    tranche_id,
-    active_amount,
-    stake_expiry_date
-  from base_deposits
-),
-
+-- rows that actually change state (deposits + extensions)
 out_idx (block_time, evt_index, pool_id, token_id, tranche_id, active_amount, stake_expiry_date) as (
-  select block_time, evt_index, pool_id, token_id, tranche_id, active_amount, stake_expiry_date from deposit_landings union all
+  select block_time, evt_index, pool_id, token_id, tranche_id, active_amount, stake_expiry_date from base_deposits union all
   select block_time, evt_index, pool_id, token_id, tranche_id, active_amount, stake_expiry_date from ext_landings
 ),
 
+-- next extension that consumes this tranche (to set stake_end_date)
 next_ext_candidates (block_time, evt_index, pool_id, token_id, tranche_id, active_amount, stake_expiry_date, next_block_time, next_evt_index, rn) as (
   select
     o.block_time,
@@ -109,41 +107,13 @@ next_ext_candidates (block_time, evt_index, pool_id, token_id, tranche_id, activ
     row_number() over (
       partition by o.block_time, o.evt_index, o.pool_id, o.token_id, o.tranche_id
       order by e.block_time, e.evt_index
-    ) rn
+    ) as rn
   from out_idx o
   left join ext e
     on e.pool_id = o.pool_id
    and e.token_id = o.token_id
    and e.init_tranche_id = o.tranche_id
    and (e.block_time > o.block_time or (e.block_time = o.block_time and e.evt_index > o.evt_index))
-),
-
-next_ext (block_time, evt_index, pool_id, token_id, tranche_id, active_amount, stake_expiry_date, next_block_time, next_evt_index) as (
-  select
-    block_time,
-    evt_index,
-    pool_id,
-    token_id,
-    tranche_id,
-    active_amount,
-    stake_expiry_date,
-    next_block_time,
-    next_evt_index
-  from next_ext_candidates
-  where rn = 1
-),
-
-out (block_time, pool_id, token_id, tranche_id, active_amount, stake_start_date, stake_end_date, stake_expiry_date) as (
-  select
-    n.block_time,
-    n.pool_id,
-    n.token_id,
-    n.tranche_id,
-    n.active_amount,
-    date(n.block_time) as stake_start_date,
-    coalesce(date(n.next_block_time), date(n.stake_expiry_date)) as stake_end_date,
-    date(n.stake_expiry_date) as stake_expiry_date
-  from next_ext n
 )
 
 select
@@ -152,8 +122,9 @@ select
   token_id,
   tranche_id,
   active_amount,
-  stake_start_date,
-  stake_end_date,
-  stake_expiry_date
-from out
+  date(block_time) as stake_start_date,
+  coalesce(date(next_block_time), date(stake_expiry_date)) as stake_end_date,
+  date(stake_expiry_date) as stake_expiry_date
+from next_ext_candidates
+where rn = 1
 order by 1, 2, 3, 4
