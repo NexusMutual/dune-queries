@@ -44,43 +44,20 @@ staked_nxm_per_token_tranche as (
     sum(coalesce(total_amount, 0)) as total_staked_nxm,
     max(stake_expiry_date) as stake_expiry_date
   from (
-      -- deposits & deposit extensions
       select
         d.block_date,
         d.pool_id,
         d.pool_address,
-        se.token_id,
-        se.current_tranche_id as tranche_id,
-        sum(se.amount) as total_amount,
-        max(se.stake_end_date) as stake_expiry_date
+        sd.token_id,
+        sd.tranche_id,
+        sum(sd.active_amount) as total_amount,
+        max(sd.stake_expiry_date) as stake_expiry_date
       from token_day_sequence d
-        --left join nexusmutual_ethereum.base_staking_deposit_extensions se
-        left join query_3619534 se -- staking deposit extensions base query
-          on d.pool_id = se.pool_id
-          and d.token_id = se.token_id
-          and d.block_date >= se.stake_start_date
-          and d.block_date < se.stake_end_date
-      --where d.is_pre_deposit_update_events -- as per ** comment below
-      group by 1, 2, 3, 4, 5
-      union all
-      -- withdrawals & burns
-      select
-        d.block_date,
-        d.pool_id,
-        d.pool_address,
-        se.token_id,
-        se.tranche_id,
-        sum(se.amount) as total_amount,
-        cast(null as date) as stake_expiry_date -- no point pulling stake_expiry_date for withdrawals
-      from token_day_sequence d
-        inner join nexusmutual_ethereum.staking_events se
-        --inner join query_3609519 se -- staking events
-          on d.pool_id = se.pool_id
-          and d.token_id = se.token_id
-          and d.block_date >= se.block_date
-          and d.block_date < coalesce(se.tranche_expiry_date, current_date)
-      where se.flow_type = 'withdraw' -- token_id is null on 'stake burn'
-        --and d.is_pre_deposit_update_events -- as per ** comment below
+        left join query_5634501 sd -- staking deposits - base
+          on d.pool_id = sd.pool_id
+          and d.token_id = sd.token_id
+          and d.block_date >= sd.stake_start_date
+          and d.block_date < sd.stake_end_date
       group by 1, 2, 3, 4, 5
     ) t
   where token_id is not null
