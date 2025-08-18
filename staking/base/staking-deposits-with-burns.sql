@@ -102,10 +102,11 @@ burn_alloc (pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_d
     t.evt_index,
     t.token_expiry as stake_expiry_date,
     case
-      when sum(t.token_amt_at_burn) over (partition by t.pool_id, t.block_time, t.evt_index) <> 0
-        then t.token_amt_at_burn
-             / sum(t.token_amt_at_burn) over (partition by t.pool_id, t.block_time, t.evt_index)
-             * (select b.burn_amount from burns b
+      when sum(greatest(t.token_amt_at_burn, 0)) over (partition by t.pool_id, t.block_time, t.evt_index) > 0
+        then greatest(t.token_amt_at_burn, 0)
+             / sum(greatest(t.token_amt_at_burn, 0)) over (partition by t.pool_id, t.block_time, t.evt_index)
+             * (select b.burn_amount
+                from burns b
                 where b.pool_id = t.pool_id
                   and b.block_time = t.block_time
                   and b.evt_index = t.evt_index)
@@ -126,7 +127,10 @@ burn_flow (pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_da
     a.stake_expiry_date,
     a.alloc_amount as amount,
     a.origin_block_time
-  from burn_alloc a union all
+  from burn_alloc a
+
+  union all
+
   select
     e.pool_id,
     e.token_id,
@@ -193,10 +197,20 @@ origin_burn_adjust (block_time, pool_id, token_id, tranche_id, burn_delta) as (
   group by 1, 2, 3, 4
 ),
 
--- combined adjustments keyed by the sd row block_time
+-- aggregate all burn deltas per sd row key
 burn_adjust (block_time, pool_id, token_id, tranche_id, burn_delta) as (
-  select block_time, pool_id, token_id, tranche_id, burn_delta from ext_burn_adjust union all
-  select block_time, pool_id, token_id, tranche_id, burn_delta from origin_burn_adjust
+  select
+    block_time,
+    pool_id,
+    token_id,
+    tranche_id,
+    sum(burn_delta) as burn_delta
+  from (
+    select block_time, pool_id, token_id, tranche_id, burn_delta from ext_burn_adjust
+    union all
+    select block_time, pool_id, token_id, tranche_id, burn_delta from origin_burn_adjust
+  ) u
+  group by 1, 2, 3, 4
 )
 
 select
