@@ -60,7 +60,6 @@ base_topups (pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_
 ),
 
 -- withdrawals as negative landings on that token+tranche at the event time
--- note: assumes withdraw 'amount' is already signed (negative) in source; if positive, use -abs(amount)
 base_withdraws (pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_date, active_amount) as (
   select
     pool_id,
