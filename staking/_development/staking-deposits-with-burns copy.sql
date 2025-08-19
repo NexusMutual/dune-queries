@@ -54,7 +54,6 @@ withdraws as (
     and tranche_id is not null
 ),
 
--- active origins at burn time (pool-wide), strict ordering only
 burn_active_origins as (
   select
     b.pool_id,
@@ -72,7 +71,7 @@ burn_active_origins as (
           where w.pool_id = s.pool_id
             and w.token_id = s.token_id
             and w.tranche_id = s.tranche_id
-            and (w.block_time > s.block_time or (w.block_time = s.block_time and w.evt_index >= coalesce(s.evt_index,-1)))
+            and (w.block_time > s.block_time or (w.block_time = s.block_time and w.evt_index >= coalesce(s.evt_index, -1)))
             and (w.block_time < b.block_time or (w.block_time = b.block_time and w.evt_index < b.evt_index))
         ), 0) as origin_amt_at_burn
   from burns b
@@ -80,13 +79,9 @@ burn_active_origins as (
     on s.pool_id = b.pool_id
    and date(b.block_time) >= s.stake_start_date
    and date(b.block_time) < s.stake_end_date
-   and (
-         s.block_time < b.block_time
-      or (s.block_time = b.block_time and coalesce(s.evt_index, -1) < b.evt_index)
-       )
+   and s.block_time <= b.block_time
 ),
 
--- pro-rata across active origins (clamp ≥0 to avoid sign flips)
 burn_alloc as (
   select
     t.pool_id,
@@ -111,7 +106,6 @@ burn_alloc as (
   from burn_active_origins t
 ),
 
--- next real origin event strictly after the burn
 next_event_after_burn as (
   select
     a.pool_id,
@@ -121,6 +115,7 @@ next_event_after_burn as (
     s.origin_evt_index,
     s.block_time as target_block_time,
     s.evt_index as target_evt_index,
+    s.tranche_id as target_tranche_id,
     row_number() over (
       partition by a.pool_id, a.block_time, a.evt_index, s.origin_tx_hash, s.origin_evt_index
       order by s.block_time, s.evt_index
@@ -131,19 +126,19 @@ next_event_after_burn as (
    and s.origin_tx_hash = a.origin_tx_hash
    and s.origin_evt_index = a.origin_evt_index
    and (
-         s.block_time > a.block_time
+         s.block_time >  a.block_time
       or (s.block_time = a.block_time and s.evt_index > a.evt_index)
        )
 ),
 
--- burns applied to that next event
+-- CHANGED: use target_tranche_id so the delta lands on the correct (new) tranche row
 burn_to_next as (
   select
     n.target_block_time as block_time,
     n.target_evt_index as evt_index,
     a.pool_id,
     a.token_id,
-    a.tranche_id,
+    n.target_tranche_id as tranche_id,
     a.origin_tx_hash,
     a.origin_evt_index,
     sum(a.alloc_amount) as burn_delta
@@ -158,7 +153,6 @@ burn_to_next as (
   group by 1, 2, 3, 4, 5, 6, 7
 ),
 
--- for origins with no later event, create synthetic row at the burn time; cumulative across multiple burns
 holder_rows as (
   select
     a.pool_id,
@@ -178,8 +172,8 @@ holder_rows as (
    and date(a.block_time) >= s.stake_start_date
    and date(a.block_time) < s.stake_end_date
    and (
-         s.block_time < a.block_time
-      or (s.block_time = a.block_time and coalesce(s.evt_index,-1) < a.evt_index)
+         s.block_time <  a.block_time
+      or (s.block_time = a.block_time and coalesce(s.evt_index, -1) < a.evt_index)
        )
   where not exists (
     select 1
@@ -228,10 +222,7 @@ burn_adjust as (
     origin_tx_hash,
     origin_evt_index,
     sum(burn_delta) as burn_delta
-  from (
-    select block_time, evt_index, pool_id, token_id, tranche_id, origin_tx_hash, origin_evt_index, burn_delta
-    from burn_to_next
-  ) u
+  from burn_to_next
   group by 1, 2, 3, 4, 5, 6, 7
 ),
 
@@ -275,6 +266,26 @@ final_rows as (
     hb.origin_evt_index,
     null as origin_block_time
   from holder_burns hb
+),
+
+with_intervals as (
+  -- recompute next event per origin (pool_id, token_id, origin_tx_hash, origin_evt_index)
+  select
+    fr.block_time,
+    fr.evt_index,
+    fr.pool_id,
+    fr.token_id,
+    fr.tranche_id,
+    fr.active_amount,
+    fr.stake_expiry_date,
+    fr.origin_tx_hash,
+    fr.origin_evt_index,
+    fr.origin_block_time,
+    lead(fr.block_time) over (
+      partition by fr.pool_id, fr.token_id, fr.origin_tx_hash, fr.origin_evt_index
+      order by fr.block_time, coalesce(fr.evt_index, -1)
+    ) as next_block_time
+  from final_rows fr
 )
 
 select
@@ -283,11 +294,11 @@ select
   token_id,
   tranche_id,
   active_amount,
-  stake_start_date,
-  stake_end_date,
+  date(block_time) as stake_start_date,
+  coalesce(date(next_block_time), stake_expiry_date) as stake_end_date,
   stake_expiry_date,
   origin_tx_hash,
   origin_evt_index,
   origin_block_time
-from final_rows
+from with_intervals
 order by 1, 2, 3, 4, 9, 10
