@@ -53,7 +53,7 @@ staked_nxm_per_token_tranche as (
         sum(sd.active_amount) as total_amount,
         max(sd.stake_expiry_date) as stake_expiry_date
       from token_day_sequence d
-        left join query_5634501 sd -- staking deposits - base
+        left join query_5651171 sd -- staking deposits with burns - base
           on d.pool_id = sd.pool_id
           and d.token_id = sd.token_id
           and d.block_date >= sd.stake_start_date
