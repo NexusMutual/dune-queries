@@ -1,60 +1,68 @@
+/*
+per-origin staking origins chain (deposits + extensions only, no burns)
+- purpose: sparse event-level series per origin used as the base for burns/time-series
+- rules:
+  * deposits land in their tranche (evt_index = -1 to order before same-ts extensions)
+  * extension moves prior tranche balance to new_tranche once (earliest next extension only)
+  * topups at extension become new origins that propagate forward
+  * stake windows are [stake_start_date, stake_end_date), ending at the next consuming extension or expiry
+*/
+
 with recursive
 
--- extension edges
-ext (pool_id, token_id, block_time, evt_index, init_tranche_id, new_tranche_id, stake_expiry_date) as (
+-- extensions (including topup amount and new expiry)
+ext (pool_id, token_id, block_time, evt_index, stake_expiry_date, init_tranche_id, new_tranche_id, topup_pos, tx_hash) as (
   select
     pool_id,
     token_id,
     block_time,
-    cast(evt_index as bigint) as evt_index,
-    cast(init_tranche_id as bigint) as init_tranche_id,
-    cast(new_tranche_id as bigint) as new_tranche_id,
-    cast(tranche_expiry_date as date) as stake_expiry_date
+    evt_index,
+    tranche_expiry_date as stake_expiry_date,
+    init_tranche_id,
+    new_tranche_id,
+    coalesce(nullif(topup_amount, 0), 0) as topup_pos,
+    tx_hash
   from nexusmutual_ethereum.staking_events
   where flow_type = 'deposit extended'
-    and init_tranche_id is not null
-    and new_tranche_id is not null
 ),
 
--- deposits = origin seeds
+-- initial deposits as origins (evt_index = -1 to sort before same-ts extensions)
 base_deposits (pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_date, active_amount, origin_tx_hash, origin_evt_index, origin_block_time) as (
   select
     pool_id,
     token_id,
-    cast(tranche_id as bigint) as tranche_id,
+    tranche_id,
     block_time,
-    cast(evt_index as bigint) as evt_index,
-    cast(tranche_expiry_date as date) as stake_expiry_date,
+    cast(-1 as bigint) as evt_index,
+    tranche_expiry_date as stake_expiry_date,
     amount as active_amount,
     tx_hash as origin_tx_hash,
-    cast(evt_index as bigint) as origin_evt_index,
+    evt_index as origin_evt_index,
     block_time as origin_block_time
   from nexusmutual_ethereum.staking_events
   where flow_type = 'deposit'
-    and tranche_id is not null
 ),
 
--- topups = separate origins at the extension event
+-- topups at extension are new origins that start at the extension ts
 base_topups (pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_date, active_amount, origin_tx_hash, origin_evt_index, origin_block_time) as (
   select
     pool_id,
     token_id,
-    cast(new_tranche_id as bigint) as tranche_id,
+    new_tranche_id as tranche_id,
     block_time,
-    cast(evt_index as bigint) as evt_index,
-    cast(tranche_expiry_date as date) as stake_expiry_date,
-    coalesce(nullif(topup_amount, 0), 0) as active_amount,
+    evt_index,
+    stake_expiry_date,
+    topup_pos as active_amount,
     tx_hash as origin_tx_hash,
-    cast(evt_index as bigint) as origin_evt_index,
+    evt_index as origin_evt_index,
     block_time as origin_block_time
-  from nexusmutual_ethereum.staking_events
-  where flow_type = 'deposit extended'
-    and new_tranche_id is not null
-    and coalesce(nullif(topup_amount, 0), 0) > 0
+  from ext
+  where topup_pos > 0
 ),
 
--- carry each origin to the earliest next extension that consumes its tranche
+-- propagate each origin along the extension path (earliest next extension only)
 landed (pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_date, active_amount, origin_tx_hash, origin_evt_index, origin_block_time) as (
+  -- seeds (deposits + topups)
   select
     pool_id,
     token_id,
@@ -67,7 +75,6 @@ landed (pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_date,
     origin_evt_index,
     origin_block_time
   from base_deposits
-
   union all
   select
     pool_id,
@@ -81,8 +88,9 @@ landed (pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_date,
     origin_evt_index,
     origin_block_time
   from base_topups
-
   union all
+
+  -- recursive hop to the next consuming extension for this tranche
   select
     e.pool_id,
     e.token_id,
@@ -100,7 +108,7 @@ landed (pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_date,
    and e.token_id = l.token_id
    and e.init_tranche_id = l.tranche_id
    and (l.block_time < e.block_time or (l.block_time = e.block_time and l.evt_index < e.evt_index))
-   and l.stake_expiry_date > date(e.block_time)
+   and l.stake_expiry_date > e.block_time
   where not exists (
     select 1
     from ext e2
@@ -112,30 +120,25 @@ landed (pool_id, token_id, tranche_id, block_time, evt_index, stake_expiry_date,
   )
 ),
 
--- emit per-origin rows at extension events (moved origins)
+-- extension landings per origin (evt rows only; deposits handled separately)
 ext_landings (block_time, evt_index, pool_id, token_id, tranche_id, active_amount, stake_expiry_date, origin_tx_hash, origin_evt_index, origin_block_time) as (
   select
-    e.block_time,
-    e.evt_index,
-    e.pool_id,
-    e.token_id,
-    e.new_tranche_id as tranche_id,
-    l.active_amount,
-    e.stake_expiry_date,
-    l.origin_tx_hash,
-    l.origin_evt_index,
-    l.origin_block_time
-  from ext e
-  join landed l
-    on l.pool_id = e.pool_id
-   and l.token_id = e.token_id
-   and l.block_time = e.block_time
-   and l.evt_index = e.evt_index
-   and l.tranche_id = e.new_tranche_id
+    block_time,
+    evt_index,
+    pool_id,
+    token_id,
+    tranche_id,
+    active_amount,
+    stake_expiry_date,
+    origin_tx_hash,
+    origin_evt_index,
+    origin_block_time
+  from landed
+  where evt_index <> -1
 ),
 
--- rows to publish (deposit origins + extension landings), plus next extension pointer
-out_rows_base (block_time, evt_index, pool_id, token_id, tranche_id, active_amount, stake_expiry_date, origin_tx_hash, origin_evt_index, origin_block_time) as (
+-- rows that change state (deposits + extensions), per origin
+out_idx (block_time, evt_index, pool_id, token_id, tranche_id, active_amount, stake_expiry_date, origin_tx_hash, origin_evt_index, origin_block_time) as (
   select
     block_time,
     evt_index,
@@ -148,7 +151,6 @@ out_rows_base (block_time, evt_index, pool_id, token_id, tranche_id, active_amou
     origin_evt_index,
     origin_block_time
   from base_deposits
-
   union all
   select
     block_time,
@@ -164,63 +166,71 @@ out_rows_base (block_time, evt_index, pool_id, token_id, tranche_id, active_amou
   from ext_landings
 ),
 
-next_ext (block_time, evt_index, pool_id, token_id, tranche_id, origin_tx_hash, origin_evt_index, next_block_time, next_evt_index) as (
+-- find the next extension that consumes this tranche (to set stake_end_date)
+next_ext_candidates (
+  block_time, evt_index, pool_id, token_id, tranche_id, active_amount, stake_expiry_date,
+  origin_tx_hash, origin_evt_index, origin_block_time, next_block_time, next_evt_index, rn
+) as (
   select
-    block_time,
-    evt_index,
-    pool_id,
-    token_id,
-    tranche_id,
-    origin_tx_hash,
-    origin_evt_index,
-    next_block_time,
-    next_evt_index
-  from (
-    select
-      o.block_time,
-      o.evt_index,
-      o.pool_id,
-      o.token_id,
-      o.tranche_id,
-      o.origin_tx_hash,
-      o.origin_evt_index,
-      e.block_time as next_block_time,
-      e.evt_index as next_evt_index,
-      row_number() over (
-        partition by o.block_time, o.evt_index, o.pool_id, o.token_id, o.tranche_id, o.origin_tx_hash, o.origin_evt_index
-        order by e.block_time, e.evt_index
-      ) as rn
-    from out_rows_base o
-    left join ext e
-      on e.pool_id = o.pool_id
-     and e.token_id = o.token_id
-     and e.init_tranche_id = o.tranche_id
-     and (e.block_time > o.block_time or (e.block_time = o.block_time and e.evt_index > o.evt_index))
-  ) t
-  where rn = 1
+    o.block_time,
+    o.evt_index,
+    o.pool_id,
+    o.token_id,
+    o.tranche_id,
+    o.active_amount,
+    o.stake_expiry_date,
+    o.origin_tx_hash,
+    o.origin_evt_index,
+    o.origin_block_time,
+    e.block_time as next_block_time,
+    e.evt_index as next_evt_index,
+    row_number() over (
+      partition by o.block_time, o.evt_index, o.pool_id, o.token_id, o.tranche_id, o.origin_tx_hash, o.origin_evt_index
+      order by e.block_time, e.evt_index
+    ) as rn
+  from out_idx o
+  left join ext e
+    on e.pool_id = o.pool_id
+   and e.token_id = o.token_id
+   and e.init_tranche_id = o.tranche_id
+   and (e.block_time > o.block_time or (e.block_time = o.block_time and e.evt_index > o.evt_index))
+),
+
+-- pick the earliest next extension (or none) and compute stake window
+out (
+  block_time, evt_index, pool_id, token_id, tranche_id, active_amount, stake_start_date, stake_end_date, stake_expiry_date, 
+  origin_tx_hash, origin_evt_index, origin_block_time
+) as (
+  select
+    n.block_time,
+    n.evt_index,
+    n.pool_id,
+    n.token_id,
+    n.tranche_id,
+    n.active_amount,
+    date(n.block_time) as stake_start_date,
+    coalesce(date(n.next_block_time), date(n.stake_expiry_date)) as stake_end_date,
+    date(n.stake_expiry_date) as stake_expiry_date,
+    n.origin_tx_hash,
+    n.origin_evt_index,
+    n.origin_block_time
+  from next_ext_candidates n
+  where n.rn = 1
 )
 
+-- final output (sparse per-origin chain)
 select
-  o.block_time,
-  o.evt_index,
-  o.pool_id,
-  o.token_id,
-  o.tranche_id,
-  o.active_amount,
-  o.stake_expiry_date,
-  o.origin_tx_hash,
-  o.origin_evt_index,
-  o.origin_block_time,
-  date(o.block_time) as stake_start_date,
-  coalesce(date(n.next_block_time), o.stake_expiry_date) as stake_end_date,
-  n.next_block_time,
-  n.next_evt_index
-from out_rows_base o
-left join next_ext n
-  on n.pool_id = o.pool_id
- and n.token_id = o.token_id
- and n.tranche_id = o.tranche_id
- and n.block_time = o.block_time
- and n.evt_index = o.evt_index
- and n.origin_tx_hash = o.origin_tx_hash
- and n.origin_evt_index = o.origin_evt_index
+  block_time,
+  evt_index,
+  pool_id,
+  token_id,
+  tranche_id,
+  active_amount,
+  stake_expiry_date,
+  origin_tx_hash,
+  origin_evt_index,
+  origin_block_time,
+  stake_start_date,
+  stake_end_date
+from out
+order by 1, 2, 3, 4
