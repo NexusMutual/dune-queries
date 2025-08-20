@@ -8,7 +8,10 @@ params as (
     cast(0.5 as double) as retention_3y_cutoff,
     cast(0.4 as double) as retention_4y_cutoff,
     cast(0.3 as double) as retention_5y_cutoff,
-    cast(0.6 as double) as weighted_cutoff
+    cast(0.6 as double) as weighted_cutoff,
+    cast(0.6 as double) as balance_weight,
+    cast(0.4 as double) as retention_weight,
+    cast(100000 as double) as whale_threshold
 ),
 
 nxm_combined_history as (
@@ -67,11 +70,22 @@ calc as (
     least(b.amount_now / nullif(b.amount_3y_ago, 0), 1) as r3_cap,
     least(b.amount_now / nullif(b.amount_4y_ago, 0), 1) as r4_cap,
     least(b.amount_now / nullif(b.amount_5y_ago, 0), 1) as r5_cap,
-    -- weighted score (main inclusion)
+    -- retention score (still the gate)
     0.6 * least(b.amount_now / nullif(b.amount_1y_ago, 0), 1)
     + 0.3 * least(b.amount_now / nullif(b.amount_2y_ago, 0), 1)
     + 0.1 * least(b.amount_now / nullif(b.amount_3y_ago, 0), 1) as weighted_score,
+    -- normalized balance (0..1) using max-now across cohort
+    least(b.amount_now / nullif(max(b.amount_now) over (), 0), 1) as balance_pct,
     p.weighted_cutoff,
+    p.balance_weight,
+    p.retention_weight,
+    -- final score for ranking: whales boosted
+    p.balance_weight * least(b.amount_now / nullif(max(b.amount_now) over (), 0), 1)
+    + p.retention_weight * (
+        0.6 * least(b.amount_now / nullif(b.amount_1y_ago, 0), 1)
+      + 0.3 * least(b.amount_now / nullif(b.amount_2y_ago, 0), 1)
+      + 0.1 * least(b.amount_now / nullif(b.amount_3y_ago, 0), 1)
+    ) as final_score,
     -- 70/60/50 gate badge
     case
       when b.amount_now >= p.holder_threshold
@@ -95,32 +109,36 @@ calc as (
       then true else false
     end as badge_legacy_5y
   from base b
-    cross join params p
+  cross join params p
 )
 
 select
   dense_rank() over (
     order by
+      c.final_score desc,
       c.weighted_score desc,
       case when c.badge_gate_70_60_50 then 1 else 0 end desc,
       case when c.badge_legacy_4y then 1 else 0 end desc,
       case when c.badge_legacy_5y then 1 else 0 end desc,
       c.amount_now desc
   ) as lth_rank,
-  case
-    when c.weighted_score >= c.weighted_cutoff then
-      case
-        when c.badge_gate_70_60_50 and c.badge_legacy_4y and c.badge_legacy_5y then '💎🛡️4️⃣5️⃣'
-        when c.badge_gate_70_60_50 and c.badge_legacy_4y then '💎🛡️4️⃣'
-        when c.badge_gate_70_60_50 and c.badge_legacy_5y then '💎🛡️5️⃣'
-        when c.badge_gate_70_60_50 then '💎🛡️'
-        when c.badge_legacy_4y and c.badge_legacy_5y then '💎4️⃣5️⃣'
-        when c.badge_legacy_4y then '💎4️⃣'
-        when c.badge_legacy_5y then '💎5️⃣'
-        else '💎'
-      end
-    else '❌'
-  end as lth_tier,
+  concat(
+    case when c.amount_now >= p.whale_threshold then '🐋' else '' end,
+    case
+      when c.weighted_score >= c.weighted_cutoff then
+        case
+          when c.badge_gate_70_60_50 and c.badge_legacy_4y and c.badge_legacy_5y then '💎🛡️4️⃣5️⃣'
+          when c.badge_gate_70_60_50 and c.badge_legacy_4y then '💎🛡️4️⃣'
+          when c.badge_gate_70_60_50 and c.badge_legacy_5y then '💎🛡️5️⃣'
+          when c.badge_gate_70_60_50 then '💎🛡️'
+          when c.badge_legacy_4y and c.badge_legacy_5y then '💎4️⃣5️⃣'
+          when c.badge_legacy_4y then '💎4️⃣'
+          when c.badge_legacy_5y then '💎5️⃣'
+          else '💎'
+        end
+      else '❌'
+    end
+  ) as lth_tier,
   c.address,
   c.amount_now,
   c.amount_1y_ago,
@@ -146,5 +164,5 @@ where c.amount_now >= p.holder_threshold
   and c.amount_1y_ago >= p.holder_threshold
   and c.amount_2y_ago >= p.holder_threshold
   and c.amount_3y_ago >= p.holder_threshold
-  and c.weighted_score >= c.weighted_cutoff
+  and c.weighted_score >= p.weighted_cutoff
 order by lth_rank
