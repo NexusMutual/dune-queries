@@ -23,6 +23,10 @@ nxm_combined_history as (
   group by 1, 2
 ),
 
+address_labels as (
+  select address, address_label from query_5534312
+),
+
 labels_contracts as (
   select
     address,
@@ -44,6 +48,7 @@ labels_contracts as (
 base as (
   select
     h_now.address,
+    coalesce(al.address_label, ens.name) as address_label,
     if(h_5y_ago.amount > 1e-6, h_5y_ago.amount, 0) as amount_5y_ago,
     if(h_4y_ago.amount > 1e-6, h_4y_ago.amount, 0) as amount_4y_ago,
     if(h_3y_ago.amount > 1e-6, h_3y_ago.amount, 0) as amount_3y_ago,
@@ -57,13 +62,30 @@ base as (
     left join nxm_combined_history h_4y_ago on h_now.address = h_4y_ago.address and h_4y_ago.block_date = current_date - interval '4' year
     left join nxm_combined_history h_5y_ago on h_now.address = h_5y_ago.address and h_5y_ago.block_date = current_date - interval '5' year
     left join labels_contracts lc on h_now.address = lc.address
+    left join address_labels al on h_now.address = al.address
+    left join labels.ens on h_now.address = ens.address
   where h_now.block_date = current_date
-    and lc.contract_name is null
+    and lc.contract_name is null -- allow gnosis safe
+    and coalesce(al.address_label, '') not like 'NM:%' -- exclude NM contracts/addresses
 ),
 
 calc as (
   select
-    b.*,
+    concat(
+      '<a href="https://etherscan.io/address/', cast(b.address as varchar), '" target="_blank">👉 ',
+      case
+        when b.address_label is null
+        then concat(substring(cast(b.address as varchar), 1, 8), '..', substring(cast(b.address as varchar), length(cast(b.address as varchar)) - 5, 6))
+        else b.address_label
+      end,
+      ' 🔗</a>'
+    ) as address,
+    b.amount_now,
+    b.amount_1y_ago,
+    b.amount_2y_ago,
+    b.amount_3y_ago,
+    b.amount_4y_ago,
+    b.amount_5y_ago,
     -- capped retentions
     least(b.amount_now / nullif(b.amount_1y_ago, 0), 1) as r1_cap,
     least(b.amount_now / nullif(b.amount_2y_ago, 0), 1) as r2_cap,
@@ -127,11 +149,11 @@ select
     case
       when c.weighted_score >= c.weighted_cutoff then
         case
-          when c.badge_gate_70_60_50 and c.badge_legacy_4y and c.badge_legacy_5y then '💎🛡️4️⃣5️⃣'
-          when c.badge_gate_70_60_50 and c.badge_legacy_4y then '💎🛡️4️⃣'
-          when c.badge_gate_70_60_50 and c.badge_legacy_5y then '💎🛡️5️⃣'
-          when c.badge_gate_70_60_50 then '💎🛡️'
-          when c.badge_legacy_4y and c.badge_legacy_5y then '💎4️⃣5️⃣'
+          when c.badge_gate_70_60_50 and c.badge_legacy_4y and c.badge_legacy_5y then '🪨🛡️4️⃣5️⃣'
+          when c.badge_gate_70_60_50 and c.badge_legacy_4y then '🪨🛡️4️⃣'
+          when c.badge_gate_70_60_50 and c.badge_legacy_5y then '🪨🛡️5️⃣'
+          when c.badge_gate_70_60_50 then '🪨🛡️'
+          when c.badge_legacy_4y and c.badge_legacy_5y then '🪨4️⃣5️⃣'
           when c.badge_legacy_4y then '💎4️⃣'
           when c.badge_legacy_5y then '💎5️⃣'
           else '💎'
@@ -159,7 +181,7 @@ select
    + case when c.amount_4y_ago >= p.holder_threshold then 1 else 0 end
    + case when c.amount_5y_ago >= p.holder_threshold then 1 else 0 end) as holding_years_count
 from calc c
-cross join params p
+  cross join params p
 where c.amount_now >= p.holder_threshold
   and c.amount_1y_ago >= p.holder_threshold
   and c.amount_2y_ago >= p.holder_threshold
