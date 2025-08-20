@@ -27,7 +27,8 @@ select
     rows between 29 preceding and current row
   ) as apy_30d_ma
 --from query_4065286 s -- staked nxm per pool - base
-from nexusmutual_ethereum.staked_per_pool s
+--from nexusmutual_ethereum.staked_per_pool s
+from dune.nexus_mutual.result_staked_nxm_per_pool s
   inner join query_4068272 r -- daily staking rewards - base
     on s.pool_id = r.pool_id and s.block_date = r.block_date
   left join staking_pool_names spn on s.pool_id = spn.pool_id

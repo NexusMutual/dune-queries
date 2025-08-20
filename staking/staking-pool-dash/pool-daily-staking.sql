@@ -23,7 +23,8 @@ daily_stake as (
       when 'USD' then s.total_staked_nxm * p.avg_nxm_usd_price
     end as total_staked
   --from query_4065286 s -- staked nxm per pool - base
-  from nexusmutual_ethereum.staked_per_pool s
+  --from nexusmutual_ethereum.staked_per_pool s
+  from dune.nexus_mutual.result_staked_nxm_per_pool s
     cross join latest_prices p
   where cast(s.pool_id as int) in (select pool_id from params)
 ),

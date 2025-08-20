@@ -24,7 +24,8 @@ select
     when 'USD' then s.total_staked_nxm * p.avg_nxm_usd_price
   end as total_staked
 --from query_4065286 s -- staked nxm per pool - base
-from nexusmutual_ethereum.staked_per_pool s
+--from nexusmutual_ethereum.staked_per_pool s
+from dune.nexus_mutual.result_staked_nxm_per_pool s
   left join staking_pool_names spn on s.pool_id = spn.pool_id
   cross join latest_prices p
 order by 1, 2

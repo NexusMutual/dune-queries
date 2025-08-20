@@ -46,7 +46,8 @@ staked_nxm_per_pool as (
     pool_id,
     total_staked_nxm
   --from query_4065286 -- staked nxm per pool - base
-  from nexusmutual_ethereum.staked_per_pool
+  --from nexusmutual_ethereum.staked_per_pool
+  from dune.nexus_mutual.result_staked_nxm_per_pool
   where pool_date_rn = 1
 ),
 

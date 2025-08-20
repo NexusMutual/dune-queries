@@ -3,5 +3,6 @@ select
   pool_id,
   total_staked_nxm
 --from query_4065286 -- staked nxm per pool - base
-from nexusmutual_ethereum.staked_per_pool
+--from nexusmutual_ethereum.staked_per_pool
+from dune.nexus_mutual.result_staked_nxm_per_pool
 order by pool_id, block_date
