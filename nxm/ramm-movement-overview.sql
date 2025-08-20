@@ -1,5 +1,9 @@
 select
-  user,
+  concat(
+    '<a href="https://etherscan.io/address/', cast(user as varchar), '" target="_blank">👉 ',
+    user_formatted,
+    ' 🔗</a>'
+  ) as user,
   sum(amount) as amount,
   min(block_date) as first_swap,
   max(block_date) as last_swap,

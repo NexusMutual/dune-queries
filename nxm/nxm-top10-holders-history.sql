@@ -20,7 +20,7 @@ nxm_combined_history as (
 select
   block_date,
   case
-    when starts_with(address, '0x') then concat(substring(address, 1, 6), '..', substring(address, length(address) - 3, 4))
+    when starts_with(address, '0x') then concat(substring(address, 1, 6), '..', substring(address, length(address) - 5, 6))
     else address
   end as address,
   amount

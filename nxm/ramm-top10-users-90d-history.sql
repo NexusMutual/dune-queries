@@ -12,10 +12,7 @@ with top10_users as (
 select
   block_date,
   flow_type,
-  case
-    when starts_with(user, '0x') then concat(substring(user, 1, 6), '..', substring(user, length(user) - 3, 4))
-    else user
-  end as user,
+  user_formatted as user,
   sum(amount) as amount
 from query_5547032 -- ramm swaps - base
 where user in (select user from top10_users)

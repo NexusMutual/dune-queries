@@ -20,7 +20,11 @@ nxm_combined_history as (
 )
 
 select
-  tu.address_label_formatted as address,
+  concat(
+    '<a href="https://etherscan.io/address/', cast(tu.address as varchar), '" target="_blank">👉 ',
+    tu.address_label_formatted,
+    ' 🔗</a>'
+  ) as address,
   tu.initial_distribution,
   if(h_5y_ago.amount > 1e-6, h_5y_ago.amount, 0) as amount_5y_ago,
   if(h_4y_ago.amount > 1e-6, h_4y_ago.amount, 0) as amount_4y_ago,

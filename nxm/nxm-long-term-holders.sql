@@ -75,7 +75,7 @@ calc as (
       '<a href="https://etherscan.io/address/', cast(b.address as varchar), '" target="_blank">👉 ',
       case
         when b.address_label is null
-        then concat(substring(cast(b.address as varchar), 1, 8), '..', substring(cast(b.address as varchar), length(cast(b.address as varchar)) - 5, 6))
+        then concat(substring(cast(b.address as varchar), 1, 6), '..', substring(cast(b.address as varchar), length(cast(b.address as varchar)) - 5, 6))
         else b.address_label
       end,
       ' 🔗</a>'

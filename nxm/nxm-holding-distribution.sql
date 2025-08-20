@@ -3,7 +3,7 @@ select
     when total_amount > 25000 then
       case
         when address_label is null
-        then concat(substring(cast(address as varchar), 1, 6), '..', substring(cast(address as varchar), length(cast(address as varchar)) - 3, 4))
+        then concat(substring(cast(address as varchar), 1, 6), '..', substring(cast(address as varchar), length(cast(address as varchar)) - 5, 6))
         else address_label
       end
     else 'Others'
