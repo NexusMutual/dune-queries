@@ -280,9 +280,9 @@ with_intervals as (
   from final_rows fr
 )
 
--- final output
 select
   block_time,
+  evt_index,
   pool_id,
   token_id,
   tranche_id,
@@ -294,4 +294,4 @@ select
   origin_evt_index,
   origin_block_time
 from with_intervals
-order by 1, 2, 3, 4, 9, 10
+order by 1, 2, 3, 4, 10, 11
