@@ -92,12 +92,30 @@ token_post as (
       and coalesce(s.evt_index, -1) = b.evt_index
       and s.origin_block_time is null
   group by 1, 2, 3, 4
+),
+
+-- staker at burn time per (pool_id, token_id): latest staker <= burn ts
+staker_at_burn as (
+  select
+    b.pool_id,
+    b.block_time as burn_block_time,
+    b.evt_index as burn_evt_index,
+    sb.token_id,
+    sb.staker,
+    row_number() over (
+      partition by b.pool_id, b.block_time, b.evt_index, sb.token_id
+      order by sb.block_time desc, sb.pool_token_rn desc
+    ) as rn
+  from burns b
+    inner join stakers_base sb on sb.pool_id = b.pool_id
+      and sb.block_time <= b.block_time
 )
 
 select
   p.burn_block_time,
   p.pool_id,
   p.token_id,
+  sab.staker,
   p.pre_burn_active_stake,
   coalesce(po.post_burn_active_stake, 0) as post_burn_active_stake,
   coalesce(po.post_burn_active_stake, 0) - p.pre_burn_active_stake as burn_delta
@@ -106,6 +124,10 @@ from token_pre p
     and po.burn_block_time = p.burn_block_time
     and po.burn_evt_index = p.burn_evt_index
     and po.token_id = p.token_id
+  left join staker_at_burn sab on sab.pool_id = p.pool_id
+    and sab.burn_block_time = p.burn_block_time
+    and sab.burn_evt_index = p.burn_evt_index
+    and sab.token_id = p.token_id
+    and sab.rn = 1
 where p.pre_burn_active_stake > 0
-  and p.pool_id = 22
 order by 1, 2, 3
