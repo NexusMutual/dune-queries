@@ -19,19 +19,14 @@ tokens as (
     ) se on sp.pool_id = se.pool_id
 ),
 
--- deposit_updates_daily 
--- commented out until deposit updates cover all active tranches for all tokens
--- also, this query needs another version with split per token and tranche
-
 token_day_sequence as (
   select
     sp.pool_id,
     sp.pool_address,
     sp.token_id,
-    d.timestamp as block_date,
-    true as is_pre_deposit_update_events
+    d.timestamp as block_date
   from utils.days d
-    inner join tokens sp on d.timestamp >=sp.first_stake_event_date
+    inner join tokens sp on d.timestamp >= sp.first_stake_event_date
 ),
 
 staked_nxm_per_token_tranche as (
@@ -64,30 +59,6 @@ staked_nxm_per_token_tranche as (
   group by 1, 2, 3, 4, 5
 ),
 
-staked_nxm_per_token_tranche_combined as (
-  select
-    block_date,
-    pool_id,
-    pool_address,
-    token_id,
-    tranche_id,
-    total_staked_nxm,
-    stake_expiry_date
-  from staked_nxm_per_token_tranche
-  /*
-  -- ** commented out until deposit updates cover all active tranches for all tokens
-  union all
-  select
-    block_date,
-    pool_id,
-    pool_address,
-    token_id,
-    tranche_id,
-    total_staked_nxm,
-    stake_expiry_date
-  from deposit_updates_daily*/
-),
-
 staked_nxm_per_token_tranche_final as (
   select
     block_date,
@@ -98,7 +69,7 @@ staked_nxm_per_token_tranche_final as (
     total_staked_nxm,
     stake_expiry_date,
     row_number() over (partition by pool_id, token_id, tranche_id order by block_date desc) as token_tranche_rn
-  from staked_nxm_per_token_tranche_combined
+  from staked_nxm_per_token_tranche
 )
 
 select
