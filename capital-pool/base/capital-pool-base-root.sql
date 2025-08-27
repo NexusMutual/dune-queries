@@ -11,9 +11,9 @@ select
   eth_total,
   avg_eth_usd_total,
   -- DAI
-  if(avg_dai_eth_total > 0, dai_total, 0) as dai_total,
-  if(avg_dai_eth_total > 0, avg_dai_usd_total, 0) as avg_dai_usd_total,
-  if(avg_dai_eth_total > 0, avg_dai_eth_total, 0) as avg_dai_eth_total,
+  dai_total,
+  avg_dai_usd_total,
+  avg_dai_eth_total,
   -- NXMTY
   nxmty_total,
   nxmty_eth_total,
@@ -44,4 +44,5 @@ select
   avg_aave_debt_usdc_usd_total,
   avg_aave_debt_usdc_eth_total
 --from query_3773633 -- Capital Pool base (fallback query)
-from nexusmutual_ethereum.capital_pool_totals
+--from nexusmutual_ethereum.capital_pool_totals
+from dune.nexus_mutual.result_capital_pool_totals
