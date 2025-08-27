@@ -28,6 +28,12 @@ with lending_base_supply as (
       and user = 0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e
   ),
 
+  src_ParaSwapRepayAdapter_evt_Bought as (
+    select * from aave_ethereum.ParaSwapRepayAdapter_evt_Bought
+    where evt_block_time >= timestamp '2024-05-23'
+      and evt_tx_to = 0x51ad1265c8702c9e96ea61fe4088c2e22ed4418e
+  ),
+
   src_LendingPool_evt_LiquidationCall as (
     select * from aave_v3_ethereum.Pool_evt_LiquidationCall
     where evt_block_time >= timestamp '2024-05-23'
@@ -37,18 +43,23 @@ with lending_base_supply as (
   base_supply as (
     select
       'deposit' as transaction_type,
-      reserve as token_address,
-      user as depositor,
-      onBehalfOf as on_behalf_of,
+      d.reserve as token_address,
+      d.user as depositor,
+      d.onBehalfOf as on_behalf_of,
       cast(null as varbinary) as withdrawn_to,
       cast(null as varbinary) as liquidator,
-      cast(amount as double) as amount,
-      contract_address,
-      evt_tx_hash,
-      evt_index,
-      evt_block_time,
-      evt_block_number
-    from src_LendingPool_evt_Deposit
+      cast(d.amount as double) as amount,
+      d.contract_address,
+      d.evt_tx_hash,
+      d.evt_index,
+      d.evt_block_time,
+      d.evt_block_number
+    from src_LendingPool_evt_Deposit d
+      left join src_ParaSwapRepayAdapter_evt_Bought pb
+        on d.evt_block_number = pb.evt_block_number
+        and d.evt_tx_hash = pb.evt_tx_hash
+        and d.reserve = pb.fromAsset
+    where pb.evt_block_number is null
     union all
     select
       'withdraw' as transaction_type,
@@ -68,7 +79,7 @@ with lending_base_supply as (
         on w.evt_block_number = wrap.call_block_number
         and w.evt_tx_hash = wrap.call_tx_hash
         and w.to = wrap.contract_address
-        and w.amount = wrap.amount
+        --and w.amount = wrap.amount
         and wrap.call_success
     where coalesce(cast(wrap.to as varbinary), w.user) = 0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e
     union all
@@ -86,6 +97,21 @@ with lending_base_supply as (
       evt_block_time,
       evt_block_number
     from src_LendingPool_evt_Repay
+    union all
+    select
+      'swap_and_repay' as transaction_type,
+      fromAsset as token_address,
+      evt_tx_from as depositor,
+      evt_tx_to as on_behalf_of,
+      cast(null as varbinary) as withdrawn_to,
+      cast(null as varbinary) as liquidator,
+      -1 * cast(amountSold as double) as amount,
+      contract_address,
+      evt_tx_hash,
+      evt_index,
+      evt_block_time,
+      evt_block_number
+    from src_ParaSwapRepayAdapter_evt_Bought pb
     union all
     select
       'deposit_liquidation' as transaction_type,
