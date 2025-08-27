@@ -323,9 +323,9 @@ daily_running_totals_enriched as (
     coalesce(drt.eth_total, 0) as eth_total,
     coalesce(drt.eth_total * p_avg_eth.price_usd, 0) as avg_eth_usd_total,
     -- DAI
-    coalesce(drt.dai_total, 0) as dai_total,
-    coalesce(drt.dai_total * p_avg_dai.price_usd, 0) as avg_dai_usd_total,
-    coalesce(drt.dai_total * p_avg_dai.price_usd / p_avg_eth.price_usd, 0) as avg_dai_eth_total,
+    coalesce(if(drt.dai_total > 0, drt.dai_total, 0), 0) as dai_total,
+    coalesce(if(drt.dai_total > 0, drt.dai_total, 0) * p_avg_dai.price_usd, 0) as avg_dai_usd_total,
+    coalesce(if(drt.dai_total > 0, drt.dai_total, 0) * p_avg_dai.price_usd / p_avg_eth.price_usd, 0) as avg_dai_eth_total,
     -- NXMTY
     coalesce(drt.nxmty_total, 0) as nxmty_total,
     coalesce(drt.nxmty_eth_total, 0) as nxmty_eth_total,
@@ -350,11 +350,11 @@ daily_running_totals_enriched as (
     coalesce(drt.cover_re_usdc_total * p_avg_usdc.price_usd, 0) as avg_cover_re_usdc_usd_total,
     coalesce(drt.cover_re_usdc_total * p_avg_usdc.price_usd / p_avg_eth.price_usd, 0) as avg_cover_re_usdc_eth_total,
     -- AAVE positions
-    coalesce(drt.aave_collateral_weth_total, 0) as aave_collateral_weth_total,
-    coalesce(drt.aave_collateral_weth_total * p_avg_eth.price_usd, 0) as avg_aave_collateral_weth_usd_total,
-    coalesce(drt.aave_debt_usdc_total, 0) as aave_debt_usdc_total,
-    coalesce(drt.aave_debt_usdc_total * p_avg_usdc.price_usd, 0) as avg_aave_debt_usdc_usd_total,
-    coalesce(drt.aave_debt_usdc_total * p_avg_usdc.price_usd / p_avg_eth.price_usd, 0) as avg_aave_debt_usdc_eth_total
+    coalesce(if(drt.aave_collateral_weth_total > 0, drt.aave_collateral_weth_total, 0), 0) as aave_collateral_weth_total,
+    coalesce(if(drt.aave_collateral_weth_total > 0, drt.aave_collateral_weth_total, 0) * p_avg_eth.price_usd, 0) as avg_aave_collateral_weth_usd_total,
+    coalesce(if(drt.aave_debt_usdc_total < 0, drt.aave_debt_usdc_total, 0), 0) as aave_debt_usdc_total,
+    coalesce(if(drt.aave_debt_usdc_total < 0, drt.aave_debt_usdc_total, 0) * p_avg_usdc.price_usd, 0) as avg_aave_debt_usdc_usd_total,
+    coalesce(if(drt.aave_debt_usdc_total < 0, drt.aave_debt_usdc_total, 0) * p_avg_usdc.price_usd / p_avg_eth.price_usd, 0) as avg_aave_debt_usdc_eth_total
   from daily_running_totals drt
     inner join daily_avg_eth_prices p_avg_eth on drt.block_date = p_avg_eth.block_date
     left join daily_avg_dai_prices p_avg_dai on drt.block_date = p_avg_dai.block_date
@@ -379,9 +379,9 @@ select
   eth_total,
   avg_eth_usd_total,
   -- DAI
-  if(avg_dai_eth_total > 0, dai_total, 0) as dai_total,
-  if(avg_dai_eth_total > 0, avg_dai_usd_total, 0) as avg_dai_usd_total,
-  if(avg_dai_eth_total > 0, avg_dai_eth_total, 0) as avg_dai_eth_total,
+  dai_total,
+  avg_dai_usd_total,
+  avg_dai_eth_total,
   -- NXMTY
   nxmty_total,
   nxmty_eth_total,
