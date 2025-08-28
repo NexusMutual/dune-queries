@@ -3,7 +3,8 @@ with
 capital_pool_timed as (
   select * 
   --from query_3773633 -- Capital Pool base (fallback) query - can't be used: "Error: This query has too many stages and is too complex to execute at once."
-  from nexusmutual_ethereum.capital_pool_totals
+  --from nexusmutual_ethereum.capital_pool_totals
+  from query_4627588 -- Capital Pool - base root
   where block_date = if(timestamp '{{End Date}}' > current_timestamp, cast(date_add('day', -1, current_date) as timestamp), timestamp '{{End Date}}')
 ),
 
