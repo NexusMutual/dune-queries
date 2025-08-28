@@ -88,8 +88,8 @@ aweth_collateral as (
   select
     date_trunc('month', block_time) as block_month,
     sum(if(transaction_type = 'deposit', amount)) as eth_aweth_deposit,
-    sum(if(transaction_type = 'withdraw', amount)) as eth_aweth_withdraw
-  from aave_ethereum.supply
+    sum(if(transaction_type in ('withdraw', 'swap_and_repay'), amount)) as eth_aweth_withdraw
+  from query_5595175 -- aave supply - base
   where block_time >= timestamp '2024-05-23'
     and coalesce(on_behalf_of, depositor) = 0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e -- Advisory Board multisig
     and version = '3'
@@ -102,7 +102,7 @@ usdc_debt as (
     date_trunc('month', b.block_time) as block_month,
     -1 * sum(if(b.transaction_type = 'borrow', b.amount) / p.avg_eth_usd_price) as eth_debt_usdc_borrow,
     -1 * sum(if(b.transaction_type = 'repay', b.amount) / p.avg_eth_usd_price) as eth_debt_usdc_repay
-  from aave_ethereum.borrow b
+  from query_5595264 b -- aave borrow - base
     inner join prices p on date_trunc('day', b.block_time) = p.block_date
   where b.block_time >= timestamp '2024-05-23'
     and coalesce(b.on_behalf_of, b.borrower) = 0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e -- Advisory Board multisig
