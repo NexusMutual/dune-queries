@@ -3,6 +3,7 @@ with
 covers as (
   select
     cover_id,
+    buy_type,
     cover_start_time,
     cover_end_time,
     cover_start_date,
@@ -25,7 +26,7 @@ cover_edits as (
     evt_block_time as block_time,
     buyer,
     productId as product_id,
-    amount,
+    --amount, -- always null
     coverId as cover_id,
     originalCoverId as original_cover_id,
     evt_tx_hash as tx_hash
@@ -33,14 +34,27 @@ cover_edits as (
   where coverId <> originalCoverId
 )
 
+/*cover_renewals as (
+  select
+    evt_block_time as block_time,
+    originalCoverId as original_cover_id,
+    coverId as cover_id,
+    owner as buyer,
+    id as limit_order_id,
+    evt_tx_hash as tx_hash
+  from nexusmutual_ethereum.limitorders_evt_orderexecuted
+)*/
+
 select
   ce.block_time,
+  c.buy_type,
+  --cr.limit_order_id,
   ce.buyer,
   ce.product_id,
-  ce.cover_id,
   ce.original_cover_id,
   co.cover_start_time as original_cover_start_time,
   co.cover_end_time as original_cover_end_time,
+  ce.cover_id,
   c.cover_start_time,
   c.cover_end_time,
   co.staking_pool_id as original_staking_pool_id,
@@ -52,3 +66,4 @@ select
 from cover_edits ce
   inner join covers co on ce.original_cover_id = co.cover_id
   inner join covers c on ce.cover_id = c.cover_id
+  --left join cover_renewals cr on ce.cover_id = cr.cover_id and ce.original_cover_id = cr.original_cover_id and ce.buyer = cr.buyer
