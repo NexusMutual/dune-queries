@@ -67,6 +67,72 @@ cover_renewals as (
   where c.call_success
 ),
 
+covers as (
+  select
+    block_time,
+    block_number,
+    'regular' as buy_type,
+    cover_id,
+    cover_start_time,
+    cover_end_time,
+    cover_period_seconds,
+    pool_id,
+    product_id,
+    cover_owner,
+    sum_assured,
+    cover_asset,
+    payment_asset,
+    max_premium_in_asset,
+    commission_ratio,
+    commission_destination,
+    cover_amount_in_asset,
+    pool_allocation_skip,
+    cover_ipfs_data,
+    null as renewal_buyer,
+    null as renewal_not_executable_before,
+    null as renewal_executable_until,
+    null as renewal_renewable_until,
+    null as renewal_renewable_period_seconds_before_expiration,
+    null as renewal_max_premium_in_asset,
+    null as settlement_fee,
+    null as settlement_fee_destination,
+    trace_address,
+    tx_hash
+  from cover_sales
+  union all
+  select
+    block_time,
+    block_number,
+    'renewal' as buy_type,
+    cover_id,
+    cover_start_time,
+    cover_end_time,
+    cover_period_seconds,
+    pool_id,
+    product_id,
+    cover_owner,
+    sum_assured,
+    cover_asset,
+    payment_asset,
+    max_premium_in_asset,
+    commission_ratio,
+    commission_destination,
+    cover_amount_in_asset,
+    pool_allocation_skip,
+    cover_ipfs_data,
+    renewal_buyer,
+    renewal_not_executable_before,
+    renewal_executable_until,
+    renewal_renewable_until,
+    renewal_renewable_period_seconds_before_expiration,
+    renewal_max_premium_in_asset,
+    settlement_fee,
+    settlement_fee_destination,
+    trace_address,
+    tx_hash
+  from cover_renewals
+),
+
 staking_product_premiums as (
   select
     call_block_time as block_time,
@@ -100,6 +166,7 @@ cover_premiums as (
   select
     c.block_time,
     c.block_number,
+    c.buy_type,
     c.cover_id,
     c.cover_start_time,
     c.cover_end_time,
@@ -133,9 +200,10 @@ cover_premiums as (
     c.cover_owner,
     c.commission_destination,
     c.cover_ipfs_data,
+    c.renewal_renewable_until,
     c.trace_address,
     c.tx_hash
-  from cover_sales c
+  from covers c
     inner join staking_product_premiums p on c.tx_hash = p.tx_hash and c.block_number = p.block_number
       and c.pool_id = p.pool_id and c.product_id = p.product_id
 ),
@@ -157,6 +225,7 @@ covers_v2 as (
   select
     cp.block_time,
     cp.block_number,
+    cp.buy_type,
     cp.cover_id,
     cp.cover_start_time,
     cp.cover_end_time,
@@ -177,6 +246,7 @@ covers_v2 as (
     cp.commission_ratio,
     cp.commission_destination,
     cp.cover_ipfs_data,
+    cp.renewal_renewable_until,
     cp.trace_address,
     cp.tx_hash
   from cover_premiums cp
@@ -187,6 +257,7 @@ covers_v1_migrated as (
   select
     cm.evt_block_time as block_time,
     cm.evt_block_number as block_number,
+    'regular' as buy_type,
     cm.coverIdV2 as cover_id,
     cv1.cover_start_time,
     cv1.cover_end_time,
@@ -211,10 +282,11 @@ covers_v1_migrated as (
       on cm.coverIdV1 = cv1.cover_id
 ),
 
-covers as (
+covers_combined as (
   select
     block_time,
     block_number,
+    buy_type,
     cover_id,
     cover_start_time,
     cover_end_time,
@@ -237,6 +309,7 @@ covers as (
     commission_destination,
     false as is_migrated,
     cover_ipfs_data,
+    renewal_renewable_until,
     trace_address,
     tx_hash
   from covers_v2
@@ -244,6 +317,7 @@ covers as (
   select
     block_time,
     block_number,
+    buy_type,
     cover_id,
     cover_start_time,
     cover_end_time,
@@ -266,6 +340,7 @@ covers as (
     commission_destination,
     true as is_migrated,
     null as cover_ipfs_data,
+    null as renewal_renewable_until,
     null as trace_address,
     tx_hash
   from covers_v1_migrated
@@ -275,6 +350,7 @@ select
   block_time,
   date_trunc('day', block_time) as block_date,
   block_number,
+  buy_type,
   cover_id,
   cover_start_time,
   cover_end_time,
@@ -299,7 +375,8 @@ select
   commission_destination,
   is_migrated,
   cover_ipfs_data,
+  renewal_renewable_until,
   trace_address,
   tx_hash
-from covers
+from covers_combined
 --order by cover_id desc
