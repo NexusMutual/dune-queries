@@ -6,6 +6,7 @@ cover_sales as (
     c.call_block_number as block_number,
     c.output_coverId as cover_id,
     c.call_block_time as cover_start_time,
+    -- retrieve params & poolAllocationRequests
     date_add('second', cast(json_query(c.params, 'lax $.period') as bigint), c.call_block_time) as cover_end_time,
     cast(json_query(c.params, 'lax $.period') as bigint) as cover_period_seconds,
     cast(json_query(t.pool_allocation, 'lax $.poolId') as uint256) as pool_id,
@@ -26,6 +27,44 @@ cover_sales as (
     cross join unnest(c.poolAllocationRequests) as t(pool_allocation)
   where c.call_success
     and c.contract_address = 0xcafeac0fF5dA0A2777d915531bfA6B29d282Ee62 -- proxy
+),
+
+cover_renewals as (
+  select
+    c.call_block_time as block_time,
+    c.call_block_number as block_number,
+    c.output_coverId as cover_id,
+    c.call_block_time as cover_start_time,
+    -- retrieve params & poolAllocationRequests
+    date_add('second', cast(json_query(c.params, 'lax $.period') as bigint), c.call_block_time) as cover_end_time,
+    cast(json_query(c.params, 'lax $.period') as bigint) as cover_period_seconds,
+    cast(json_query(t.pool_allocation, 'lax $.poolId') as uint256) as pool_id,
+    cast(json_query(c.params, 'lax $.productId') as uint256) as product_id,
+    from_hex(json_query(c.params, 'lax $.owner' omit quotes)) as cover_owner,
+    cast(json_query(c.params, 'lax $.amount') as uint256) as sum_assured,
+    cast(json_query(c.params, 'lax $.coverAsset') as int) as cover_asset,
+    cast(json_query(c.params, 'lax $.paymentAsset') as int) as payment_asset,
+    cast(json_query(c.params, 'lax $.maxPremiumInAsset') as uint256) as max_premium_in_asset,
+    cast(json_query(c.params, 'lax $.commissionRatio') as double) as commission_ratio,
+    from_hex(json_query(c.params, 'lax $.commissionDestination' omit quotes)) as commission_destination,
+    cast(json_query(t.pool_allocation, 'lax $.coverAmountInAsset') as uint256) as cover_amount_in_asset,
+    cast(json_query(t.pool_allocation, 'lax $.skip') as boolean) as pool_allocation_skip,
+    cast(json_query(c.params, 'lax $.ipfsData' omit quotes) as varchar) as cover_ipfs_data,
+    -- retrieve executionDetails
+    from_hex(json_query(c.executionDetails, 'lax $.buyer' omit quotes)) as renewal_buyer,
+    from_unixtime(nullif(cast(json_query(c.executionDetails, 'lax $.notExecutableBefore') as double), 0)) as renewal_not_executable_before,
+    from_unixtime(nullif(cast(json_query(c.executionDetails, 'lax $.executableUntil') as double), 0)) as renewal_executable_until,
+    from_unixtime(nullif(cast(json_query(c.executionDetails, 'lax $.renewableUntil') as double), 0)) as renewal_renewable_until,
+    cast(json_query(c.executionDetails, 'lax $.renewablePeriodBeforeExpiration') as bigint) as renewal_renewable_period_seconds_before_expiration,
+    cast(json_query(c.executionDetails, 'lax $.maxPremiumInAsset') as uint256) as renewal_max_premium_in_asset,
+    -- retrieve settlementDetails
+    cast(json_query(c.settlementDetails, 'lax $.fee') as uint256) as settlement_fee,
+    from_hex(json_query(c.settlementDetails, 'lax $.feeDestination' omit quotes)) as settlement_fee_destination,
+    c.call_trace_address as trace_address,
+    c.call_tx_hash as tx_hash
+  from nexusmutual_ethereum.limitorders_call_executeorder c
+    cross join unnest(c.poolAllocationRequests) as t(pool_allocation)
+  where c.call_success
 ),
 
 staking_product_premiums as (
