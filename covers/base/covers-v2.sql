@@ -67,6 +67,19 @@ cover_renewals as (
   where c.call_success
 ),
 
+cover_edits as (
+  select
+    evt_block_time as block_time,
+    buyer,
+    productId as product_id,
+    --amount, -- always null
+    coverId as cover_id,
+    originalCoverId as original_cover_id,
+    evt_tx_hash as tx_hash
+  from nexusmutual_ethereum.cover_evt_coverbought
+  where coverId <> originalCoverId
+),
+
 covers as (
   select
     block_time,
@@ -133,6 +146,59 @@ covers as (
   from cover_renewals
 ),
 
+covers_including_edits as (
+  select
+    c.block_time,
+    c.block_number,
+    case
+      when c.buy_type = 'renewal' then 'renewal'
+      when ceo.original_cover_id is not null then 'edit-original'
+      when cen.cover_id is not null then 'edit-new'
+      else 'regular'
+    end as buy_type,
+    c.cover_id,
+    c.cover_start_time,
+    -- update cover_end_time to block_time -1s on original covers (including renewals)
+    case
+      when ceo.original_cover_id is not null then date_add('second', -1, ceo.block_time)
+      else c.cover_end_time
+    end as cover_end_time,
+    -- recalculate cover_period_seconds on original covers (including renewals)
+    case
+      when ceo.original_cover_id is not null then date_diff('second', c.cover_start_time, ceo.block_time)
+      else c.cover_period_seconds
+    end as cover_period_seconds,
+    c.pool_id,
+    c.product_id,
+    c.cover_owner,
+    c.sum_assured,
+    c.cover_asset,
+    c.payment_asset,
+    c.max_premium_in_asset,
+    c.commission_ratio,
+    c.commission_destination,
+    c.cover_amount_in_asset,
+    c.pool_allocation_skip,
+    c.cover_ipfs_data,
+    c.renewal_buyer,
+    c.renewal_not_executable_before,
+    c.renewal_executable_until,
+    c.renewal_renewable_until,
+    c.renewal_renewable_period_seconds_before_expiration,
+    c.renewal_max_premium_in_asset,
+    c.settlement_fee,
+    c.settlement_fee_destination,
+    -- store for cross-reference
+    if(ceo.original_cover_id is not null, c.cover_end_time, null) as original_cover_end_time,
+    if(cen.cover_id is not null, cen.original_cover_id, null) as original_cover_id,
+    if(ceo.original_cover_id is not null, ceo.cover_id, null) as new_cover_id,
+    c.trace_address,
+    c.tx_hash
+  from covers c
+    left join cover_edits ceo on c.cover_id = ceo.original_cover_id
+    left join cover_edits cen on c.cover_id = cen.cover_id
+),
+
 staking_product_premiums as (
   select
     call_block_time as block_time,
@@ -170,6 +236,7 @@ cover_premiums as (
     c.cover_id,
     c.cover_start_time,
     c.cover_end_time,
+    c.cover_period_seconds,
     c.pool_id,
     c.product_id,
     p.cover_amount / 100.0 as partial_cover_amount, -- partial_cover_amount_in_nxm
@@ -201,9 +268,12 @@ cover_premiums as (
     c.commission_destination,
     c.cover_ipfs_data,
     c.renewal_renewable_until,
+    c.original_cover_end_time,
+    c.original_cover_id,
+    c.new_cover_id,
     c.trace_address,
     c.tx_hash
-  from covers c
+  from covers_including_edits c
     inner join staking_product_premiums p on c.tx_hash = p.tx_hash and c.block_number = p.block_number
       and c.pool_id = p.pool_id and c.product_id = p.product_id
 ),
@@ -229,6 +299,7 @@ covers_v2 as (
     cp.cover_id,
     cp.cover_start_time,
     cp.cover_end_time,
+    cp.cover_period_seconds,
     cp.pool_id,
     cp.product_id,
     p.product_type,
@@ -247,6 +318,9 @@ covers_v2 as (
     cp.commission_destination,
     cp.cover_ipfs_data,
     cp.renewal_renewable_until,
+    cp.original_cover_end_time,
+    cp.original_cover_id,
+    cp.new_cover_id,
     cp.trace_address,
     cp.tx_hash
   from cover_premiums cp
@@ -261,6 +335,7 @@ covers_v1_migrated as (
     cm.coverIdV2 as cover_id,
     cv1.cover_start_time,
     cv1.cover_end_time,
+    date_diff('second', cv1.cover_start_time, cv1.cover_end_time) as cover_period_seconds,
     cv1.premium,
     cv1.premium_nxm,
     cv1.sum_assured,
@@ -290,6 +365,7 @@ covers_combined as (
     cover_id,
     cover_start_time,
     cover_end_time,
+    cover_period_seconds,
     pool_id as staking_pool_id,
     cast(pool_id as varchar) as staking_pool,
     product_id,
@@ -310,6 +386,9 @@ covers_combined as (
     false as is_migrated,
     cover_ipfs_data,
     renewal_renewable_until,
+    original_cover_end_time,
+    original_cover_id,
+    new_cover_id,
     trace_address,
     tx_hash
   from covers_v2
@@ -321,6 +400,7 @@ covers_combined as (
     cover_id,
     cover_start_time,
     cover_end_time,
+    cover_period_seconds,
     cast(null as uint256) as staking_pool_id,
     syndicate as staking_pool,
     product_id,
@@ -341,6 +421,9 @@ covers_combined as (
     true as is_migrated,
     null as cover_ipfs_data,
     null as renewal_renewable_until,
+    null as original_cover_end_time,
+    null as original_cover_id,
+    null as new_cover_id,
     null as trace_address,
     tx_hash
   from covers_v1_migrated
@@ -354,6 +437,7 @@ select
   cover_id,
   cover_start_time,
   cover_end_time,
+  cover_period_seconds,
   date_trunc('day', cover_start_time) as cover_start_date,
   date_trunc('day', cover_end_time) as cover_end_date,
   staking_pool_id,
@@ -376,6 +460,9 @@ select
   is_migrated,
   cover_ipfs_data,
   renewal_renewable_until,
+  original_cover_end_time,
+  original_cover_id,
+  new_cover_id,
   trace_address,
   tx_hash
 from covers_combined
