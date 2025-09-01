@@ -1,7 +1,7 @@
 with
 
 covers as (
-  select
+  select distinct
     cover_id,
     buy_type,
     cover_start_time,
@@ -13,15 +13,15 @@ covers as (
     original_cover_id,
     new_cover_id,
     cover_owner,
-    staking_pool_id,
+    --staking_pool_id,
     product_id,
     product_type,
     product_name,
     cover_asset,
     sum_assured,
-    partial_cover_amount,
-    sum(partial_cover_amount) over (partition by cover_id) as total_cover_amount,
-    premium_incl_commission as premium_nxm
+    --partial_cover_amount,
+    --sum(partial_cover_amount) over (partition by cover_id) as total_cover_amount,
+    sum(premium_incl_commission) over (partition by cover_id) as premium_nxm
   from query_4599092 -- covers v2 - base root (fallback query)
 ),
 
@@ -62,15 +62,18 @@ select
   ce.cover_id,
   c.cover_start_time,
   c.cover_end_time,
-  co.cover_period_seconds as original_cover_period_seconds,
-  c.cover_period_seconds,
-  co.staking_pool_id as original_staking_pool_id,
-  c.staking_pool_id,
+  --co.cover_period_seconds as original_cover_period_seconds,
+  --c.cover_period_seconds,
+  --co.staking_pool_id as original_staking_pool_id,
+  --c.staking_pool_id,
   co.cover_asset as original_cover_asset,
   c.cover_asset,
   co.sum_assured as original_sum_assured,
-  c.sum_assured
+  c.sum_assured,
+  co.premium_nxm as original_premium_nxm,
+  c.premium_nxm
 from cover_edits ce
   inner join covers co on ce.original_cover_id = co.cover_id
   inner join covers c on ce.cover_id = c.cover_id
   --left join cover_renewals cr on ce.cover_id = cr.cover_id and ce.original_cover_id = cr.original_cover_id and ce.buyer = cr.buyer
+order by 1 desc
