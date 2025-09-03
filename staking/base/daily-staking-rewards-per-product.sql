@@ -10,8 +10,8 @@ staking_rewards as (
     cover_end_bucket_expiry_date,
     reward_amount_expected_total,
     reward_amount_per_day
-  --from query_4067736 -- staking rewards - base
-  from nexusmutual_ethereum.staking_rewards
+  from query_4067736 -- staking rewards - base
+  --from nexusmutual_ethereum.staking_rewards
 ),
 
 staking_pools as (

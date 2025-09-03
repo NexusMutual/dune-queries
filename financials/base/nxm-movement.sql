@@ -21,8 +21,8 @@ staking_rewards_mint as (
     cover_id,
     reward_amount_expected_total,
     tx_hash
-  --from query_4067736 -- staking rewards base
-  from nexusmutual_ethereum.staking_rewards
+  from query_4067736 -- staking rewards base
+  --from nexusmutual_ethereum.staking_rewards
 ),
 
 staking_rewards_mint_agg as (
