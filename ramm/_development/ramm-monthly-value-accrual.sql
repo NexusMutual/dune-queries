@@ -28,22 +28,28 @@ bv_diff_nxm_eth_swap as (
 bv_diff_nxm_eth_swap_ext as (
   select
     block_minute,
-    nxm_supply_pre_sale,
-    eth_capital_pool_pre_sale,
-    nxm_supply_post_sale,
-    eth_capital_pool_post_sale,
-    (eth_capital_pool_post_sale / nxm_supply_post_sale) - (eth_capital_pool_pre_sale / nxm_supply_pre_sale) as bv_diff_per_nxm,
-    ((eth_capital_pool_post_sale / nxm_supply_post_sale) - (eth_capital_pool_pre_sale / nxm_supply_pre_sale)) * nxm_supply_post_sale as bv_diff
+    -- helpers
+    (eth_capital_pool_pre_sale / nxm_supply_pre_sale) as bv_per_nxm_pre_eth,
+    (eth_capital_pool_post_sale / nxm_supply_post_sale) as bv_per_nxm_post_eth,
+    -- in ETH
+    (eth_capital_pool_post_sale / nxm_supply_post_sale) - (eth_capital_pool_pre_sale / nxm_supply_pre_sale) as bv_diff_per_nxm_in_eth,
+    ((eth_capital_pool_post_sale / nxm_supply_post_sale) - (eth_capital_pool_pre_sale / nxm_supply_pre_sale)) * nxm_supply_post_sale as bv_diff_eth,
+    -- in NXM
+    (((eth_capital_pool_post_sale / nxm_supply_post_sale) - (eth_capital_pool_pre_sale / nxm_supply_pre_sale)) 
+      / (eth_capital_pool_post_sale / nxm_supply_post_sale)) as bv_diff_per_nxm_in_nxm,
+    ( ((eth_capital_pool_post_sale / nxm_supply_post_sale) - (eth_capital_pool_pre_sale / nxm_supply_pre_sale)) * nxm_supply_post_sale )
+      / (eth_capital_pool_post_sale / nxm_supply_post_sale) as bv_diff_nxm
   from bv_diff_nxm_eth_swap
 ),
 
 bv_profit as (
   select
     s.block_minute,
-    s.bv_diff_per_nxm,
-    s.bv_diff,
-    sum(s.bv_diff) over (order by s.block_minute) as bv_diff_cummulative_eth,
-    sum(s.bv_diff * p.avg_eth_usd_price) over (order by s.block_minute) as bv_diff_cummulative_usd
+    s.bv_diff_per_nxm_in_eth,
+    s.bv_diff_eth,
+    s.bv_diff_per_nxm_in_nxm,
+    s.bv_diff_nxm,
+    s.bv_diff_eth * p.avg_eth_usd_price as bv_diff_usd
   from bv_diff_nxm_eth_swap_ext s
     inner join prices p on s.block_minute = p.block_minute
 ),
@@ -51,8 +57,11 @@ bv_profit as (
 monthly as (
   select
     date_trunc('month', block_minute) as block_month,
-    sum(bv_diff_per_nxm) as bv_diff_per_nxm,
-    sum(bv_diff) as bv_diff
+    sum(bv_diff_per_nxm_in_eth) as bv_diff_per_nxm_in_eth,
+    sum(bv_diff_eth) as bv_diff_eth,
+    sum(bv_diff_per_nxm_in_nxm) as bv_diff_per_nxm_in_nxm,
+    sum(bv_diff_nxm) as bv_diff_nxm,
+    sum(bv_diff_usd) as bv_diff_usd
   from bv_profit
   where block_minute >= timestamp '2024-01-01'
   group by 1
@@ -60,11 +69,22 @@ monthly as (
 
 select
   block_month,
-  bv_diff_per_nxm,
-  bv_diff,
-  avg(bv_diff) over (
+  bv_diff_eth,
+  bv_diff_nxm,
+  bv_diff_usd,
+  bv_diff_per_nxm_in_eth,
+  bv_diff_per_nxm_in_nxm,
+  avg(bv_diff_eth) over (
     order by block_month
     rows between 2 preceding and current row
-  ) as bv_diff_3m_moving_avg
+  ) as bv_diff_3m_moving_avg_eth,
+  avg(bv_diff_nxm) over (
+    order by block_month
+    rows between 2 preceding and current row
+  ) as bv_diff_3m_moving_avg_nxm,
+  avg(bv_diff_usd) over (
+    order by block_month
+    rows between 2 preceding and current row
+  ) as bv_diff_3m_moving_avg_usd
 from monthly
-order by block_month desc;
+order by block_month
