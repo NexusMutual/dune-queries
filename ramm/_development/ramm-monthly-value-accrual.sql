@@ -1,14 +1,26 @@
 with
 
-prices as (
+historical_prices as (
   select
     date_trunc('minute', minute) as block_minute,
     avg(price) as avg_eth_usd_price
   from prices.usd
   where symbol = 'ETH'
     and blockchain is null
+    and contract_address is null
     and minute > cast('2023-11-11' as timestamp)
   group by 1
+),
+
+latest_prices as (
+  select
+    minute as block_minute,
+    symbol,
+    price as usd_price
+  from prices.usd_latest
+  where symbol = 'ETH'
+    and blockchain is null
+    and contract_address is null
 ),
 
 bv_diff_nxm_eth_swap as (
@@ -49,22 +61,40 @@ bv_profit as (
     s.bv_diff_eth,
     s.bv_diff_per_nxm_in_nxm,
     s.bv_diff_nxm,
-    s.bv_diff_eth * p.avg_eth_usd_price as bv_diff_usd
+    s.bv_diff_eth * p.avg_eth_usd_price as bv_diff_usd,
+    s.bv_diff_eth * lp.usd_price as bv_diff_usd_latest
   from bv_diff_nxm_eth_swap_ext s
-    inner join prices p on s.block_minute = p.block_minute
+    inner join historical_prices p on s.block_minute = p.block_minute
+    cross join latest_prices lp
 ),
 
 monthly as (
   select
     date_trunc('month', block_minute) as block_month,
-    sum(bv_diff_per_nxm_in_eth) as bv_diff_per_nxm_in_eth,
     sum(bv_diff_eth) as bv_diff_eth,
-    sum(bv_diff_per_nxm_in_nxm) as bv_diff_per_nxm_in_nxm,
     sum(bv_diff_nxm) as bv_diff_nxm,
-    sum(bv_diff_usd) as bv_diff_usd
+    sum(bv_diff_usd) as bv_diff_usd,
+    sum(bv_diff_usd_latest) as bv_diff_usd_latest,
+    sum(bv_diff_per_nxm_in_eth) as bv_diff_per_nxm_in_eth,
+    sum(bv_diff_per_nxm_in_nxm) as bv_diff_per_nxm_in_nxm
   from bv_profit
-  where block_minute >= timestamp '2024-01-01'
   group by 1
+),
+
+monthly_incl_cummulative as (
+  select
+    block_month,
+    bv_diff_eth,
+    bv_diff_nxm,
+    bv_diff_usd,
+    bv_diff_usd_latest,
+    bv_diff_per_nxm_in_eth,
+    bv_diff_per_nxm_in_nxm,
+    sum(bv_diff_eth) over (order by block_month) as bv_diff_eth_cummulative,
+    sum(bv_diff_nxm) over (order by block_month) as bv_diff_nxm_cummulative,
+    sum(bv_diff_usd) over (order by block_month) as bv_diff_usd_cummulative,
+    sum(bv_diff_usd_latest) over (order by block_month) as bv_diff_usd_latest_cummulative
+  from monthly
 )
 
 select
@@ -74,6 +104,11 @@ select
   bv_diff_usd,
   bv_diff_per_nxm_in_eth,
   bv_diff_per_nxm_in_nxm,
+  bv_diff_eth_cummulative,
+  bv_diff_nxm_cummulative,
+  bv_diff_usd_cummulative,
+  bv_diff_usd_latest,
+  bv_diff_usd_latest_cummulative,
   avg(bv_diff_eth) over (
     order by block_month
     rows between 2 preceding and current row
@@ -86,5 +121,6 @@ select
     order by block_month
     rows between 2 preceding and current row
   ) as bv_diff_3m_moving_avg_usd
-from monthly
+from monthly_incl_cummulative
+where block_month >= timestamp '2024-01-01'
 order by block_month
