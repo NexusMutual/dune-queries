@@ -2,7 +2,7 @@
 final per-origin series with pool-wide stake burns applied
 - inputs:
   * dune.nexus_mutual.result_staking_origins_chain (sparse per-origin deposits/extensions, no burns)
-  * nexusmutual_ethereum.staking_events (stake burn, withdraw for as-of exposure)
+  * query_5734582 (staking events - base root) (stake burn, withdraw for as-of exposure)
 - method:
   * find all origins active at each burn (pool-wide, ignore burn.tranche_id)
   * split each burn pro-rata by as-of active amount (withdraw-adjusted)
@@ -38,7 +38,7 @@ burns as (
     block_time,
     cast(evt_index as bigint) as evt_index,
     amount as burn_amount
-  from nexusmutual_ethereum.staking_events
+  from query_5734582 -- staking events - base root
   where flow_type = 'stake burn'
 ),
 
@@ -51,7 +51,7 @@ withdraws as (
     block_time,
     cast(evt_index as bigint) as evt_index,
     amount as withdraw_amount
-  from nexusmutual_ethereum.staking_events
+  from query_5734582 -- staking events - base root
   where flow_type = 'withdraw'
     and tranche_id is not null
 ),

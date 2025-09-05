@@ -40,7 +40,7 @@ burns as (
     pool_id,
     block_time,
     evt_index
-  from nexusmutual_ethereum.staking_events
+  from query_5734582 -- staking events - base root
   where flow_type = 'stake burn'
 ),
 
@@ -118,7 +118,8 @@ select
   sab.staker,
   p.pre_burn_active_stake,
   coalesce(po.post_burn_active_stake, 0) as post_burn_active_stake,
-  coalesce(po.post_burn_active_stake, 0) - p.pre_burn_active_stake as burn_delta
+  coalesce(po.post_burn_active_stake, 0) - p.pre_burn_active_stake as burn_delta,
+  1 - coalesce(po.post_burn_active_stake, 0) / nullif(p.pre_burn_active_stake, 0) as burn_pct
 from token_pre p
   left join token_post po on po.pool_id = p.pool_id
     and po.burn_block_time = p.burn_block_time
@@ -130,4 +131,4 @@ from token_pre p
     and sab.token_id = p.token_id
     and sab.rn = 1
 where p.pre_burn_active_stake > 0
-order by 1, 2, 3
+order by 1, 2, burn_delta

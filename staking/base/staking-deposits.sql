@@ -24,7 +24,7 @@ ext (pool_id, token_id, block_time, evt_index, stake_expiry_date, init_tranche_i
     init_tranche_id,
     new_tranche_id,
     coalesce(nullif(topup_amount, 0), 0) as topup_pos
-  from nexusmutual_ethereum.staking_events
+  from query_5734582 -- staking events - base root
   where flow_type = 'deposit extended'
     and init_tranche_id is not null
     and new_tranche_id is not null
@@ -40,7 +40,7 @@ base_deposits (pool_id, token_id, tranche_id, block_time, evt_index, stake_expir
     cast(-1 as bigint) as evt_index,
     tranche_expiry_date as stake_expiry_date,
     amount as active_amount
-  from nexusmutual_ethereum.staking_events
+  from query_5734582 -- staking events - base root
   where flow_type = 'deposit'
     and tranche_id is not null
 ),
@@ -69,7 +69,7 @@ base_withdraws (pool_id, token_id, tranche_id, block_time, evt_index, stake_expi
     evt_index,
     tranche_expiry_date as stake_expiry_date,
     amount as active_amount
-  from nexusmutual_ethereum.staking_events
+  from query_5734582 -- staking events - base root
   where flow_type = 'withdraw'
     and tranche_id is not null
 ),

@@ -16,7 +16,7 @@ select
   user,
   evt_index,
   tx_hash
-from nexusmutual_ethereum.staking_events
+from query_5734582 -- staking events - base root
 --where pool_id = 22
 order by block_time desc
 limit 25

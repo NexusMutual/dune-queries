@@ -13,8 +13,7 @@ tokens as (
         pool_id,
         token_id,
         cast(min(block_time) as date) as first_stake_event_date
-      from nexusmutual_ethereum.staking_events
-      --from query_3609519 -- staking events
+      from query_5734582 -- staking events - base root
       group by 1, 2
     ) se on sp.pool_id = se.pool_id
 ),
