@@ -278,6 +278,75 @@ cover_premiums as (
       and c.pool_id = p.pool_id and c.product_id = p.product_id
 ),
 
+-- refund logic (only adjust original leg; keep new leg gross)
+edit_refunds_by_pool as (
+  select
+    cp.cover_id as original_cover_id,
+    cp.new_cover_id,
+    cp.pool_id,
+    cp.premium as premium_nxm_pool,
+    greatest(
+      0.0,
+      date_diff('second', date_add('second', 1, cp.cover_end_time), cp.original_cover_end_time)
+    ) * 1.0 / nullif(date_diff('second', cp.cover_start_time, cp.original_cover_end_time), 0) as unused_ratio,
+    cp.premium * (
+      greatest(
+        0.0,
+        date_diff('second', date_add('second', 1, cp.cover_end_time), cp.original_cover_end_time)
+      ) * 1.0 / nullif(date_diff('second', cp.cover_start_time, cp.original_cover_end_time), 0)
+    ) as refund_nxm_pool
+  from cover_premiums cp
+  where cp.buy_type = 'edit-original' and cp.original_cover_end_time is not null
+),
+
+cover_premiums_adjusted as (
+  select
+    cp.block_time,
+    cp.block_number,
+    cp.buy_type,
+    cp.cover_id,
+    cp.cover_start_time,
+    cp.cover_end_time,
+    cp.cover_period_seconds,
+    cp.pool_id,
+    cp.product_id,
+    cp.partial_cover_amount, -- partial_cover_amount_in_nxm
+    case
+      when cp.buy_type = 'edit-original' then coalesce(cp.premium - er.refund_nxm_pool, cp.premium)
+      when cp.buy_type = 'edit-new' then cp.premium
+      else cp.premium
+    end as premium,
+    cp.premium_period_ratio,
+    cp.commission_ratio,
+    case
+      when cp.buy_type = 'edit-new' then cp.commission
+      else cp.commission
+    end as commission,
+    case
+      when cp.buy_type = 'edit-original' then coalesce(cp.premium_incl_commission - er.refund_nxm_pool, cp.premium_incl_commission)
+      when cp.buy_type = 'edit-new' then cp.premium_incl_commission
+      else cp.premium_incl_commission
+    end as premium_incl_commission,
+    cp.cover_asset,
+    cp.sum_assured,
+    cp.premium_asset,
+    cp.cover_owner,
+    cp.commission_destination,
+    cp.cover_ipfs_data,
+    cp.renewal_renewable_until,
+    cp.original_cover_end_time,
+    cp.original_cover_id,
+    cp.new_cover_id,
+    cp.trace_address,
+    cp.tx_hash
+  from cover_premiums cp
+    left join edit_refunds_by_pool er
+      on cp.cover_id = er.original_cover_id
+      and cp.pool_id = er.pool_id
+      and cp.new_cover_id = er.new_cover_id
+      and cp.buy_type = 'edit-original'
+),
+
 products as (
   select
     p.product_id,
@@ -323,7 +392,7 @@ covers_v2 as (
     cp.new_cover_id,
     cp.trace_address,
     cp.tx_hash
-  from cover_premiums cp
+  from cover_premiums_adjusted cp
     left join products p on cp.product_id = p.product_id
 ),
 
