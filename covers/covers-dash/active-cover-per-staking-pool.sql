@@ -24,8 +24,8 @@ active_covers as (
     --cbBTC
     ac.cbbtc_eth_cover_amount,
     ac.cbbtc_usd_cover_amount
-  --from query_3834200 ac -- active covers base (fallback) query
-  from nexusmutual_ethereum.active_covers ac
+  from query_3834200 ac -- active covers base (fallback) query
+  --from nexusmutual_ethereum.active_covers ac
     left join staking_pool_names spn on ac.staking_pool_id = spn.pool_id
 )
 

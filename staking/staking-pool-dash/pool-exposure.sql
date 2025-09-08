@@ -29,8 +29,8 @@ active_covers as (
     cbbtc_cover_amount,
     cbbtc_eth_cover_amount,
     cbbtc_usd_cover_amount
-  --from query_3834200 -- active covers base (fallback) query
-  from nexusmutual_ethereum.active_covers
+  from query_3834200 -- active covers base (fallback) query
+  --from nexusmutual_ethereum.active_covers
   where cast(staking_pool_id as int) in (select pool_id from params)
 )
 

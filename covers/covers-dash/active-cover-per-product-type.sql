@@ -16,8 +16,8 @@ active_covers as (
     --cbBTC
     cbbtc_eth_cover_amount,
     cbbtc_usd_cover_amount
-  --from query_3834200 -- active covers base (fallback) query
-  from nexusmutual_ethereum.active_covers
+  from query_3834200 -- active covers base (fallback) query
+  --from nexusmutual_ethereum.active_covers
 )
 
 select
