@@ -6,11 +6,13 @@ covers as (
     cover_start_date,
     cover_end_date,
     floor(date_diff('day', from_unixtime(0), cover_end_date) / 28) as cover_end_bucket_id,
-    from_unixtime(28.0 * 86400.0 * cast(floor(date_diff('day', from_unixtime(0), cover_end_time) / 28) + 1 as double)) as cover_end_bucket_expiry_date,
+    cover_start_time,
+    cover_end_time,
+    from_unixtime(28.0 * 86400.0 * cast(floor(date_diff('day', from_unixtime(0), cover_end_time) / 28) + 1 as double)) as cover_end_bucket_expiry_time,
     date_diff(
       'second',
       cover_start_time,
-      from_unixtime(28.0 * 86400.0 * cast(floor(date_diff('day', from_unixtime(0), cover_end_time) / 28) + 1 as double)) -- cover_end_bucket_expiry_date (rathan than cover_end_time)
+      from_unixtime(28.0 * 86400.0 * cast(floor(date_diff('day', from_unixtime(0), cover_end_time) / 28) + 1 as double)) -- cover_end_bucket_expiry_time (rathan than cover_end_time)
     ) as cover_period_seconds,
     staking_pool_id,
     product_id,
@@ -28,7 +30,9 @@ select
   c.cover_id,
   c.cover_start_date,
   c.cover_end_date,
-  c.cover_end_bucket_expiry_date,
+  c.cover_start_time,
+  c.cover_end_time,
+  c.cover_end_bucket_expiry_time,
   mr.amount / 1e18 as reward_amount_expected_total,
   mr.amount / c.cover_period_seconds / 1e18 as reward_amount_per_second,
   mr.amount / c.cover_period_seconds * 86400.0 / 1e18 as reward_amount_per_day,

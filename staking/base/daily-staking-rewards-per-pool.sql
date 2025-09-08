@@ -2,40 +2,54 @@ with
 
 staking_rewards as (
   select
-    block_date,
     pool_id,
-    product_id,
     cover_id,
-    date_add('day', 1, cover_start_date) as cover_start_date_plus_one,
-    cover_end_bucket_expiry_date,
+    cover_start_time,
+    cover_end_bucket_expiry_time,
     reward_amount_expected_total,
-    reward_amount_per_day
+    date_diff('second', cover_start_time, cover_end_bucket_expiry_time) as cover_period_seconds
   from query_4067736 -- staking rewards - base
   --from nexusmutual_ethereum.staking_rewards
 ),
 
-staking_pools as (
-  select
-    pool_id,
-    min(block_date) as first_reward_date
+first_days as (
+  select pool_id, date_trunc('day', min(cover_start_time)) as first_reward_date
   from staking_rewards
   group by 1
 ),
 
-staking_pool_day_sequence as (
-  select
-    sp.pool_id,
-    d.timestamp as block_date
+day_seq as (
+  select f.pool_id, d.timestamp as block_date
   from utils.days d
-    inner join staking_pools sp on d.timestamp >=sp.first_reward_date
+    inner join first_days f on d.timestamp >= f.first_reward_date
+),
+
+daily as (
+  select
+    ds.pool_id,
+    ds.block_date,
+    sum(
+      greatest(
+        0,
+        date_diff(
+          'second',
+          greatest(sr.cover_start_time, ds.block_date),
+          least(sr.cover_end_bucket_expiry_time, date_add('day', 1, ds.block_date))
+        )
+      ) * (sr.reward_amount_expected_total / nullif(sr.cover_period_seconds, 0))
+    ) as reward_total
+  from day_seq ds
+    inner join staking_rewards sr
+      on ds.pool_id = sr.pool_id
+      and date_add('day', 1, ds.block_date) > sr.cover_start_time
+      and ds.block_date < sr.cover_end_bucket_expiry_time
+  group by 1, 2
 )
 
 select
-  d.pool_id,
-  d.block_date,
-  sum(r.reward_amount_per_day) as reward_total,
-  dense_rank() over (partition by d.pool_id order by d.block_date desc) as pool_date_rn
-from staking_pool_day_sequence d
-  left join staking_rewards r on d.pool_id = r.pool_id and d.block_date between r.cover_start_date_plus_one and r.cover_end_bucket_expiry_date
-group by 1, 2
+  pool_id,
+  block_date,
+  reward_total,
+  dense_rank() over (partition by pool_id order by block_date desc) as pool_date_rn
+from daily
 --order by 1, 2
