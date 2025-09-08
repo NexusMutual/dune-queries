@@ -2,45 +2,67 @@ with
 
 staking_rewards as (
   select
-    block_date,
     pool_id,
     product_id,
     cover_id,
-    date_add('day', 1, cover_start_date) as cover_start_date_plus_one,
-    cover_end_bucket_expiry_date,
+    cover_start_time,
+    cover_end_bucket_expiry_time,
     reward_amount_expected_total,
-    reward_amount_per_day
+    date_diff('second', cover_start_time, cover_end_bucket_expiry_time) as cover_period_seconds
   from query_4067736 -- staking rewards - base
   --from nexusmutual_ethereum.staking_rewards
 ),
 
-staking_pools as (
-  select
-    pool_id,
-    product_id,
-    min(block_date) as first_reward_date
+first_days as (
+  select pool_id, product_id, date_trunc('day', min(cover_start_time)) as first_reward_date
   from staking_rewards
   group by 1, 2
 ),
 
-staking_pool_day_sequence as (
-  select
-    sp.pool_id,
-    sp.product_id,
-    d.timestamp as block_date
+day_seq as (
+  select f.pool_id, f.product_id, d.timestamp as block_date
   from utils.days d
-    inner join staking_pools sp on d.timestamp >=sp.first_reward_date
+    inner join first_days f on d.timestamp >= f.first_reward_date
+),
+
+daily as (
+  select
+    ds.pool_id,
+    ds.product_id,
+    ds.block_date,
+    coalesce(sum(c.reward_contrib), 0) as reward_total,
+    coalesce(sum(c.reward_contrib) filter (where c.cover_end_bucket_expiry_time >= now()), 0) as reward_total_on_active_cover
+  from day_seq ds
+    left join (
+      select
+        ds.pool_id,
+        ds.product_id,
+        ds.block_date,
+        sr.cover_end_bucket_expiry_time,
+        greatest(
+          0,
+          date_diff(
+            'second',
+            greatest(sr.cover_start_time, ds.block_date),
+            least(sr.cover_end_bucket_expiry_time, date_add('day', 1, ds.block_date))
+          )
+        ) * (sr.reward_amount_expected_total / nullif(sr.cover_period_seconds, 0)) as reward_contrib
+      from day_seq ds
+        inner join staking_rewards sr
+          on ds.pool_id = sr.pool_id
+          and ds.product_id = sr.product_id
+          and date_add('day', 1, ds.block_date) > sr.cover_start_time
+          and ds.block_date < sr.cover_end_bucket_expiry_time
+    ) c on ds.pool_id = c.pool_id and ds.product_id = c.product_id and ds.block_date = c.block_date
+  group by 1, 2, 3
 )
 
 select
-  d.pool_id,
-  d.product_id,
-  d.block_date,
-  sum(r.reward_amount_per_day) as reward_total,
-  sum(r.reward_amount_per_day) filter (where r.cover_end_bucket_expiry_date >= now()) as reward_total_on_active_cover,
-  dense_rank() over (partition by d.pool_id, d.product_id order by d.block_date desc) as pool_product_date_rn
-from staking_pool_day_sequence d
-  left join staking_rewards r on d.pool_id = r.pool_id and d.product_id = r.product_id
-    and d.block_date between r.cover_start_date_plus_one and r.cover_end_bucket_expiry_date
-group by 1, 2, 3
+  pool_id,
+  product_id,
+  block_date,
+  reward_total,
+  reward_total_on_active_cover,
+  dense_rank() over (partition by pool_id, product_id order by block_date desc) as pool_product_date_rn
+from daily
 --order by 1, 2
