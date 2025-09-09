@@ -296,7 +296,8 @@ edit_refunds_by_pool as (
       ) * 1.0 / nullif(date_diff('second', cp.cover_start_time, cp.original_cover_end_time), 0)
     ) as refund_nxm_pool
   from cover_premiums cp
-  where cp.buy_type = 'edit-original' and cp.original_cover_end_time is not null
+  where cp.buy_type = 'edit-original'
+    and cp.original_cover_end_time is not null
 ),
 
 cover_premiums_adjusted as (
@@ -318,10 +319,7 @@ cover_premiums_adjusted as (
     end as premium,
     cp.premium_period_ratio,
     cp.commission_ratio,
-    case
-      when cp.buy_type = 'edit-new' then cp.commission
-      else cp.commission
-    end as commission,
+    cp.commission,
     case
       when cp.buy_type = 'edit-original' then coalesce(cp.premium_incl_commission - er.refund_nxm_pool, cp.premium_incl_commission)
       when cp.buy_type = 'edit-new' then cp.premium_incl_commission
@@ -335,6 +333,7 @@ cover_premiums_adjusted as (
     cp.cover_ipfs_data,
     cp.renewal_renewable_until,
     cp.original_cover_end_time,
+    if(cp.buy_type = 'edit-original', cp.premium, null) as original_premium,
     cp.original_cover_id,
     cp.new_cover_id,
     cp.trace_address,
@@ -388,6 +387,7 @@ covers_v2 as (
     cp.cover_ipfs_data,
     cp.renewal_renewable_until,
     cp.original_cover_end_time,
+    cp.original_premium,
     cp.original_cover_id,
     cp.new_cover_id,
     cp.trace_address,
@@ -456,6 +456,7 @@ covers_combined as (
     cover_ipfs_data,
     renewal_renewable_until,
     original_cover_end_time,
+    original_premium,
     original_cover_id,
     new_cover_id,
     trace_address,
@@ -491,6 +492,7 @@ covers_combined as (
     null as cover_ipfs_data,
     null as renewal_renewable_until,
     null as original_cover_end_time,
+    null as original_premium,
     null as original_cover_id,
     null as new_cover_id,
     null as trace_address,
@@ -530,6 +532,7 @@ select
   cover_ipfs_data,
   renewal_renewable_until,
   original_cover_end_time,
+  original_premium,
   original_cover_id,
   new_cover_id,
   trace_address,
