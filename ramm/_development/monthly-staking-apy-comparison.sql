@@ -19,7 +19,8 @@ staking_apy_with_ramm as (
     month_date,
     pool_id,
     apy
-  from query_5733434 -- monthly staking apy (2+22)
+  --from query_5733434 -- monthly staking apy (2+22)
+  from dune.nexus_mutual.result_monthly_staking_apy_2_22
 ),
 
 daily_as_month_end as (
