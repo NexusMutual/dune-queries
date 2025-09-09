@@ -4,24 +4,19 @@ covers as (
   select distinct
     cover_id,
     buy_type,
-    cover_start_time,
-    cover_end_time,
-    cover_period_seconds,
     cover_start_date,
     cover_end_date,
-    original_cover_end_time,
+    cast(original_cover_end_time as date) as original_cover_end_date,
     original_cover_id,
     new_cover_id,
     cover_owner,
-    --staking_pool_id,
     product_id,
     product_type,
     product_name,
     cover_asset,
-    sum_assured,
-    --partial_cover_amount,
-    --sum(partial_cover_amount) over (partition by cover_id) as total_cover_amount,
-    sum(premium_incl_commission) over (partition by cover_id) as premium_nxm
+    sum_assured as cover_amount,
+    sum(original_premium) over (partition by cover_id) as original_premium,
+    sum(premium_incl_commission) over (partition by cover_id) as premium
   from query_4599092 -- covers v2 - base root (fallback query)
 ),
 
@@ -51,27 +46,24 @@ cover_edits as (
 
 select
   ce.block_time,
-  c.buy_type,
+  if(starts_with(c.buy_type, 'edit'), 'edit', c.buy_type) as buy_type,
   --cr.limit_order_id,
-  ce.buyer,
   ce.product_id,
-  ce.original_cover_id,
-  co.cover_start_time as original_cover_start_time,
-  co.cover_end_time as current_cover_end_time,
-  co.original_cover_end_time,
-  ce.cover_id,
-  c.cover_start_time,
-  c.cover_end_time,
-  --co.cover_period_seconds as original_cover_period_seconds,
-  --c.cover_period_seconds,
-  --co.staking_pool_id as original_staking_pool_id,
-  --c.staking_pool_id,
-  co.cover_asset as original_cover_asset,
+  co.product_name,
+  ce.original_cover_id as orig_cover_id,
+  ce.cover_id as new_cover_id,
   c.cover_asset,
-  co.sum_assured as original_sum_assured,
-  c.sum_assured,
-  co.premium_nxm as original_premium_nxm,
-  c.premium_nxm
+  co.cover_amount as orig_cover,
+  c.cover_amount as new_cover,
+  co.original_premium as orig_premium,
+  co.premium as current_premium,
+  c.premium as new_premium,
+  co.cover_start_date as orig_start_date,
+  co.original_cover_end_date as orig_end_date,
+  co.cover_end_date as current_end_date,
+  c.cover_start_date as new_start_date,
+  c.cover_end_date as new_end_date,
+  ce.buyer
 from cover_edits ce
   inner join covers co on ce.original_cover_id = co.cover_id
   inner join covers c on ce.cover_id = c.cover_id
