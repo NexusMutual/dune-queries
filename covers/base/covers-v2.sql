@@ -333,7 +333,7 @@ cover_premiums_adjusted as (
     cp.cover_ipfs_data,
     cp.renewal_renewable_until,
     cp.original_cover_end_time,
-    if(cp.buy_type = 'edit-original', cp.premium, null) as original_premium,
+    if(cp.buy_type = 'edit-original', cp.premium_incl_commission, null) as original_premium,
     cp.original_cover_id,
     cp.new_cover_id,
     cp.trace_address,
