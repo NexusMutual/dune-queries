@@ -86,72 +86,30 @@ nxm_holders as (
   --having sum(amount) > 1e-11 -- assumed "0"
 ),
 
-staking_mints as (
-  select
-    call_block_time as block_time,
-    poolId as pool_id,
-    output_id as token_id,
-    "to" as to_address,
-    call_tx_hash as tx_hash
-  from nexusmutual_ethereum.StakingNFT_call_mint
-  where call_success
-),
-
-staking_transfers as (
-  select
-    evt_block_time as block_time,
-    tokenId as token_id,
-    "from" as from_address,
-    "to" as to_address,
-    evt_index,
-    evt_tx_hash as tx_hash
-  from nexusmutual_ethereum.StakingNFT_evt_Transfer
-),
-
 stakers as (
-  select
-    block_time,
-    pool_id,
-    token_id,
-    staker,
-    tx_hash,
-    row_number() over (partition by pool_id, token_id order by block_time desc, evt_index desc) as pool_token_rn
-  from (
-    select
-      block_time,
-      pool_id,
-      token_id,
-      to_address as staker,
-      cast(-1 as bigint) as evt_index,
-      tx_hash
-    from staking_mints
-    union all
-    select
-      t.block_time,
-      m.pool_id,
-      m.token_id,
-      t.to_address as staker,
-      t.evt_index,
-      t.tx_hash
-    from staking_mints m
-      inner join staking_transfers t on m.token_id = t.token_id
-    where t.from_address <> 0x0000000000000000000000000000000000000000 -- excl mints
-  ) t
+  select distinct
+    'v2' as version,
+    staker
+  from query_5578777 -- stakers - base
+  union all
+  select distinct
+    'v1' as version,
+    staker
+  from query_5579588 -- staking events v1 - base
+  union all
+  select distinct
+    'v0' as version,
+    staker
+  from query_5590589 -- staking events v0 - base
 ),
 
 stakers_active_stake as (
   select
-    s.staker,
-    s.pool_id,
-    s.token_id,
-    s.pool_token_rn,
-    st.total_staked_nxm as nxm_active_stake
-  from stakers s
-    left join query_4079728 st -- staked NXM per token - base
-      on s.pool_id = st.pool_id
-      and s.token_id = st.token_id
-      and s.pool_token_rn = 1
-      and (st.token_date_rn = 1 and st.block_date = current_date) -- today's stake
+    staker_address as staker,
+    pool_id,
+    token_id,
+    staked_nxm as nxm_active_stake
+  from query_4077503 -- stakers active stake - base
 ),
 
 member_activity_combined as (
@@ -162,14 +120,12 @@ member_activity_combined as (
     if(nh.address is not null, true, false) as is_nxm_holder,
     nh.amount as nxm_balance,
     if(s.staker is not null, true, false) as is_staker,
-    s.pool_id,
-    s.token_id,
-    s.pool_token_rn,
-    s.nxm_active_stake
+    sas.nxm_active_stake
   from member_whitelist m
     left join buyers b on m.member = b.cover_owner
     left join nxm_holders nh on m.member = nh.address
-    left join stakers_active_stake s on m.member = s.staker
+    left join stakers s on m.member = s.staker
+    left join stakers_active_stake sas on m.member = sas.staker
 ),
 
 member_activity_combined_agg as (
