@@ -51,15 +51,29 @@ ramm_alloc as (
     pw.usd_weight * ra.bv_diff_usd as add_usd
   from pool_weights pw
     left join ramm_added ra on ra.block_month = pw.month_date
+),
+
+combined as (
+  select
+    sr.month_date,
+    sr.pool_id,
+    sr.pool_name,
+    sr.nxm_reward_total + coalesce(ra.add_nxm, 0) as nxm_reward_total,
+    sr.eth_reward_total + coalesce(ra.add_eth, 0) as eth_reward_total,
+    sr.usd_reward_total + coalesce(ra.add_usd, 0) as usd_reward_total
+  from staking_rewards sr
+    left join ramm_alloc ra on ra.month_date = sr.month_date and ra.pool_id = sr.pool_id
 )
 
 select
-  sr.month_date,
-  sr.pool_id,
-  sr.pool_name,
-  sr.nxm_reward_total + coalesce(ra.add_nxm, 0) as nxm_reward_total,
-  sr.eth_reward_total + coalesce(ra.add_eth, 0) as eth_reward_total,
-  sr.usd_reward_total + coalesce(ra.add_usd, 0) as usd_reward_total
-from staking_rewards sr
-  left join ramm_alloc ra on ra.month_date = sr.month_date and ra.pool_id = sr.pool_id
+  month_date,
+  pool_id,
+  pool_name,
+  nxm_reward_total,
+  eth_reward_total,
+  usd_reward_total,
+  avg(nxm_reward_total) over (partition by pool_id order by month_date rows between 2 preceding and current row) as nxm_reward_3m_moving_avg,
+  avg(eth_reward_total) over (partition by pool_id order by month_date rows between 2 preceding and current row) as eth_reward_3m_moving_avg,
+  avg(usd_reward_total) over (partition by pool_id order by month_date rows between 2 preceding and current row) as usd_reward_3m_moving_avg
+from combined
 order by 1, 2
