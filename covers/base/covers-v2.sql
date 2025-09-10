@@ -67,15 +67,16 @@ cover_renewals as (
   where c.call_success
 ),
 
-cover_edits as (
+edit_chain as (
   select
     evt_block_time as block_time,
-    buyer,
-    productId as product_id,
-    --amount, -- always null
-    coverId as cover_id,
+    evt_block_number as block_number,
+    evt_index as evt_index,
     originalCoverId as original_cover_id,
-    evt_tx_hash as tx_hash
+    -- segment that ends at this edit (prev cover in the chain; for the 1st edit = originalCoverId)
+    coalesce(lag(coverId) over (partition by originalCoverId order by evt_block_number, evt_index), originalCoverId) as prev_cover_id,
+    -- the new segment minted by this edit
+    coverId as new_cover_id
   from nexusmutual_ethereum.cover_evt_coverbought
   where coverId <> originalCoverId
 ),
@@ -152,20 +153,20 @@ covers_including_edits as (
     c.block_number,
     case
       when c.buy_type = 'renewal' then 'renewal'
-      when ceo.original_cover_id is not null then 'edit-original'
-      when cen.cover_id is not null then 'edit-new'
+      when ceo.prev_cover_id is not null then 'edit-original'
+      when cen.new_cover_id is not null then 'edit-new'
       else 'regular'
     end as buy_type,
     c.cover_id,
     c.cover_start_time,
     -- update cover_end_time to block_time -1s on original covers (including renewals)
     case
-      when ceo.original_cover_id is not null then date_add('second', -1, ceo.block_time)
+      when ceo.prev_cover_id is not null then date_add('second', -1, ceo.block_time)
       else c.cover_end_time
     end as cover_end_time,
     -- recalculate cover_period_seconds on original covers (including renewals)
     case
-      when ceo.original_cover_id is not null then date_diff('second', c.cover_start_time, ceo.block_time)
+      when ceo.prev_cover_id is not null then date_diff('second', c.cover_start_time, ceo.block_time)
       else c.cover_period_seconds
     end as cover_period_seconds,
     c.pool_id,
@@ -188,15 +189,15 @@ covers_including_edits as (
     c.renewal_max_premium_in_asset,
     c.settlement_fee,
     c.settlement_fee_destination,
-    -- store for cross-reference
-    if(ceo.original_cover_id is not null, c.cover_end_time, null) as original_cover_end_time,
-    if(cen.cover_id is not null, cen.original_cover_id, null) as original_cover_id,
-    if(ceo.original_cover_id is not null, ceo.cover_id, null) as new_cover_id,
     c.trace_address,
-    c.tx_hash
+    c.tx_hash,
+    -- store for cross-reference
+    if(ceo.prev_cover_id is not null, c.cover_end_time, null) as original_cover_end_time,
+    if(cen.new_cover_id is not null, cen.original_cover_id, null) as original_cover_id,
+    if(ceo.prev_cover_id is not null, ceo.new_cover_id, null) as new_cover_id
   from covers c
-    left join cover_edits ceo on c.cover_id = ceo.original_cover_id
-    left join cover_edits cen on c.cover_id = cen.cover_id
+    left join edit_chain ceo on c.cover_id = ceo.prev_cover_id  -- segment being ended
+    left join edit_chain cen on c.cover_id = cen.new_cover_id   -- segment minted by edit
 ),
 
 staking_product_premiums as (
