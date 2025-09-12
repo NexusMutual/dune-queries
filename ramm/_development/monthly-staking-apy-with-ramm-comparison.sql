@@ -40,7 +40,7 @@ staking_apy_combined as (
   select
     month_date,
     pool_id,
-    'current' as series,
+    'baseline' as series,
     apy_30d_ma_month_end as apy,
     apy_91d_ma_month_end as apy_smoothed
   from daily_as_month_end
