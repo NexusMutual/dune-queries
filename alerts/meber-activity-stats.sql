@@ -56,8 +56,8 @@ buyers as (
     cover_end_date,
     cover_owner,
     if(cover_end_time >= now(), true, false) as is_active
-  --from query_5119916 -- covers full list - base
-  from nexusmutual_ethereum.covers_full_list
+  from query_5119916 -- covers full list - base
+  --from nexusmutual_ethereum.covers_full_list
   where is_migrated = false
 ),
 
