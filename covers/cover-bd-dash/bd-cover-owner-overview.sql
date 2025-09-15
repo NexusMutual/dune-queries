@@ -4,8 +4,7 @@ cover_sales_per_owner as (
   select
     coalesce(ens.name, cast(co.cover_owner as varchar)) as cover_owner_ens,
     *
-  --from query_3913267 co -- BD cover owners base
-  from nexusmutual_ethereum.cover_owners_agg co
+  from query_5779616 co -- bd cover owners - base root
     left join labels.ens on co.cover_owner = ens.address
 )
 
