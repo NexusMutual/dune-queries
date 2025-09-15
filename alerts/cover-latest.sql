@@ -99,7 +99,7 @@ active_cover as (
     usd_active_premium / active_cover as mean_usd_active_premium,
     median_usd_active_premium,
     row_number() over (order by block_date desc) as rn
-  from nexusmutual_ethereum.covers_daily_agg
+  from query_5778799 -- bd cover - base root
   where block_date >= now() - interval '7' day
 ),
 

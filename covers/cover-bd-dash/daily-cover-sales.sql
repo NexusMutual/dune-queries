@@ -94,8 +94,7 @@ select
   coalesce(ctg.eth_tx_fee_total, 0) as eth_tx_fee_total,
   coalesce(ctg.usd_tx_fee_total, 0) as usd_tx_fee_total,
   coalesce(ctg.eth_tx_fee_total / ac.eth_premium, 0) as pct_eth_premium_tx_fee
-from query_3889661 ac -- BD active cover base
---from nexusmutual_ethereum.covers_daily_agg ac
+from query_5778799 ac -- bd cover - base root
   left join cover_tx_gas_agg ctg on ac.block_date = ctg.block_date
   left join claims_paid_agg cp on ac.block_date = cp.claim_payout_date
 order by 1 desc

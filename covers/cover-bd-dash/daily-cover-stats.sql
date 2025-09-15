@@ -40,8 +40,7 @@ select
   nxm_usd_active_premium,
   usd_active_premium / active_cover as mean_usd_active_premium,
   median_usd_active_premium
---from query_3889661 -- BD active cover base
-from nexusmutual_ethereum.covers_daily_agg c
+from query_5778799 c -- bd cover - base root
   inner join daily_avg_prices p on c.block_date = p.block_date
 where c.block_date >= now() - interval '6' month
 order by 1 desc

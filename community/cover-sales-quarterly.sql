@@ -23,8 +23,7 @@ quarterly_aggs as (
     sum(dai_usd_cover) as dai_usd_cover,
     sum(usdc_usd_cover) as usdc_usd_cover,
     sum(cbbtc_usd_cover) as cbbtc_usd_cover
-  --from query_3889661 -- BD active cover base
-  from nexusmutual_ethereum.covers_daily_agg
+  from query_5778799 -- bd cover - base root
   where block_date >= date_add('quarter', -12, date_trunc('quarter', current_date))
   group by 1
 )

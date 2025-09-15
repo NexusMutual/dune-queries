@@ -16,8 +16,7 @@ monthly_aggs as (
     sum(eth_cover) as eth_cover,
     sum(usd_premium) as usd_premium,
     sum(eth_premium) as eth_premium
-  --from query_3889661 -- BD active cover base
-  from nexusmutual_ethereum.covers_daily_agg
+  from query_5778799 -- bd cover - base root
   group by 1
 )
 
