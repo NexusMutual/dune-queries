@@ -78,51 +78,51 @@ daily_active_cover as (
     --== active premium in force ==
     --ETH
     case
-      when c_period.staking_pool = 'v1' then coalesce(c_period.eth_premium_amount * 365 / c_period.cover_period, 0)
-      when c_period.premium_asset = 'ETH' then coalesce(c_period.nxm_premium_amount * 365 / c_period.cover_period * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0)
+      when c_period.staking_pool = 'v1' then coalesce(c_period.eth_premium_amount * 365 / nullif(c_period.cover_period, 0), 0)
+      when c_period.premium_asset = 'ETH' then coalesce(c_period.nxm_premium_amount * 365 / nullif(c_period.cover_period, 0) * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0)
       else 0
     end as eth_eth_active_premium,
     case
-      when c_period.staking_pool = 'v1' then coalesce(c_period.eth_premium_amount * 365 / c_period.cover_period * p.avg_eth_usd_price, 0)
-      when c_period.premium_asset = 'ETH' then coalesce(c_period.nxm_premium_amount * 365 / c_period.cover_period * p.avg_nxm_usd_price, 0)
+      when c_period.staking_pool = 'v1' then coalesce(c_period.eth_premium_amount * 365 / nullif(c_period.cover_period, 0) * p.avg_eth_usd_price, 0)
+      when c_period.premium_asset = 'ETH' then coalesce(c_period.nxm_premium_amount * 365 / nullif(c_period.cover_period, 0) * p.avg_nxm_usd_price, 0)
       else 0
     end as eth_usd_active_premium,
     --DAI
     case
-      when c_period.staking_pool = 'v1' then coalesce(c_period.dai_premium_amount * 365 / c_period.cover_period * p.avg_dai_usd_price / p.avg_eth_usd_price, 0)
-      when c_period.premium_asset = 'DAI' then coalesce(c_period.nxm_premium_amount * 365 / c_period.cover_period * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0)
+      when c_period.staking_pool = 'v1' then coalesce(c_period.dai_premium_amount * 365 / nullif(c_period.cover_period, 0) * p.avg_dai_usd_price / p.avg_eth_usd_price, 0)
+      when c_period.premium_asset = 'DAI' then coalesce(c_period.nxm_premium_amount * 365 / nullif(c_period.cover_period, 0) * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0)
       else 0
     end as dai_eth_active_premium,
     case
-      when c_period.staking_pool = 'v1' then coalesce(c_period.dai_premium_amount * 365 / c_period.cover_period * p.avg_dai_usd_price, 0)
-      when c_period.premium_asset = 'DAI' then coalesce(c_period.nxm_premium_amount * 365 / c_period.cover_period * p.avg_nxm_usd_price, 0)
+      when c_period.staking_pool = 'v1' then coalesce(c_period.dai_premium_amount * 365 / nullif(c_period.cover_period, 0) * p.avg_dai_usd_price, 0)
+      when c_period.premium_asset = 'DAI' then coalesce(c_period.nxm_premium_amount * 365 / nullif(c_period.cover_period, 0) * p.avg_nxm_usd_price, 0)
       else 0
     end as dai_usd_active_premium,
     --USDC
     case
-      when c_period.premium_asset = 'USDC' then coalesce(c_period.nxm_premium_amount * 365 / c_period.cover_period * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0)
+      when c_period.premium_asset = 'USDC' then coalesce(c_period.nxm_premium_amount * 365 / nullif(c_period.cover_period, 0) * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0)
       else 0
     end as usdc_eth_active_premium,
     case
-      when c_period.premium_asset = 'USDC' then coalesce(c_period.nxm_premium_amount * 365 / c_period.cover_period * p.avg_nxm_usd_price, 0)
+      when c_period.premium_asset = 'USDC' then coalesce(c_period.nxm_premium_amount * 365 / nullif(c_period.cover_period, 0) * p.avg_nxm_usd_price, 0)
       else 0
     end as usdc_usd_active_premium,
     --cbBTC
     case
-      when c_period.premium_asset = 'cbBTC' then coalesce(c_period.nxm_premium_amount * 365 / c_period.cover_period * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0)
+      when c_period.premium_asset = 'cbBTC' then coalesce(c_period.nxm_premium_amount * 365 / nullif(c_period.cover_period, 0) * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0)
       else 0
     end as cbbtc_eth_active_premium,
     case
-      when c_period.premium_asset = 'cbBTC' then coalesce(c_period.nxm_premium_amount * 365 / c_period.cover_period * p.avg_nxm_usd_price, 0)
+      when c_period.premium_asset = 'cbBTC' then coalesce(c_period.nxm_premium_amount * 365 / nullif(c_period.cover_period, 0) * p.avg_nxm_usd_price, 0)
       else 0
     end as cbbtc_usd_active_premium,
     --NXM
     case
-      when c_period.premium_asset = 'NXM' then coalesce(c_period.nxm_premium_amount * 365 / c_period.cover_period * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0)
+      when c_period.premium_asset = 'NXM' then coalesce(c_period.nxm_premium_amount * 365 / nullif(c_period.cover_period, 0) * p.avg_nxm_usd_price / p.avg_eth_usd_price, 0)
       else 0
     end as nxm_eth_active_premium,
     case
-      when c_period.premium_asset = 'NXM' then coalesce(c_period.nxm_premium_amount * 365 / c_period.cover_period * p.avg_nxm_usd_price, 0)
+      when c_period.premium_asset = 'NXM' then coalesce(c_period.nxm_premium_amount * 365 / nullif(c_period.cover_period, 0) * p.avg_nxm_usd_price, 0)
       else 0
     end as nxm_usd_active_premium
   from day_sequence ds
