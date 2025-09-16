@@ -18,8 +18,7 @@ claims_paid as (
     --USDC
     usdc_eth_claim_amount,
     usdc_usd_claim_amount
-  --from query_3911051 -- claims paid base (fallback) query
-  from nexusmutual_ethereum.claims_paid
+  from query_5785588 -- claims paid - base root
 ),
 
 reimbursements as (

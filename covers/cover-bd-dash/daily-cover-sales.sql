@@ -19,8 +19,7 @@ claims_paid as (
     --cbBTC
     cbbtc_eth_claim_amount,
     cbbtc_usd_claim_amount
-  from query_3911051 -- claims paid base (fallback) query
-  --from nexusmutual_ethereum.claims_paid
+  from query_5785588 -- claims paid - base root
 ),
 
 claims_paid_agg as (
