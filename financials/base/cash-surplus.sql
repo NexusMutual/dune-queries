@@ -44,7 +44,7 @@ premium_aggs as (
   group by 1
 ),
 
-memebership as (
+membership as (
   -- v1
   select
     1 as version,
@@ -90,7 +90,7 @@ membership_agg as (
     sum(m.member_count) as member_count,
     sum(m.member_count * 0.0020) as eth_member_fee,
     sum(m.member_count * 0.0020 * p.avg_eth_usd_price) as usd_member_fee
-  from memebership m
+  from membership m
     inner join daily_avg_prices p on m.block_date = p.block_date
   group by 1
 ),
