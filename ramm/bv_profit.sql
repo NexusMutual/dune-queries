@@ -23,36 +23,53 @@ calls as (
   group by 1
 ),
 
-swaps as (
+raw_swaps as (
   select
     evt_tx_hash,
     evt_block_time as evt_time,
     evt_index,
-    nxmIn,
-    ethOut,
-    coalesce(sum(nxmIn) over (
-      partition by evt_tx_hash
-      order by evt_index
-      rows between 1 following and unbounded following
-    ), 0) as nxm_in_after,
-    coalesce(sum(ethOut) over (
-      partition by evt_tx_hash
-      order by evt_index
-      rows between 1 following and unbounded following
-    ), 0) as eth_out_after
+    -1 * cast(nxmIn as double) as nxm_delta_raw,
+    -1 * cast(ethOut as double) as eth_delta_raw
   from nexusmutual_ethereum.ramm_evt_nxmswappedforeth
+  union all
+  select
+    evt_tx_hash,
+    evt_block_time as evt_time,
+    evt_index,
+    cast(nxmOut as double) as nxm_delta_raw,
+    cast(ethIn as double) as eth_delta_raw
+  from nexusmutual_ethereum.ramm_evt_ethswappedfornxm
+),
+
+swaps as (
+  select
+    evt_tx_hash,
+    evt_time,
+    evt_index,
+    nxm_delta_raw,
+    eth_delta_raw,
+    coalesce(sum(nxm_delta_raw) over (
+      partition by evt_tx_hash
+      order by evt_index
+      rows between 1 following and unbounded following
+    ), 0) as nxm_delta_after_raw,
+    coalesce(sum(eth_delta_raw) over (
+      partition by evt_tx_hash
+      order by evt_index
+      rows between 1 following and unbounded following
+    ), 0) as eth_delta_after_raw
+  from raw_swaps
 ),
 
 states as (
   select
-    s.evt_tx_hash,
     s.evt_time,
     s.evt_index,
     date_trunc('minute', s.evt_time) as block_minute,
-    (c.supply_post_raw / 1e18) + (s.nxm_in_after / 1e18) as s_post,
-    (c.pool_post_raw / 1e18) + (s.eth_out_after / 1e18) as p_post,
-    s.nxmIn / 1e18 as nxm_in,
-    s.ethOut / 1e18 as eth_out
+    (c.supply_post_raw - s.nxm_delta_after_raw) / 1e18 as s_post,
+    (c.pool_post_raw - s.eth_delta_after_raw) / 1e18 as p_post,
+    s.nxm_delta_raw / 1e18 as nxm_delta,
+    s.eth_delta_raw / 1e18 as eth_delta
   from swaps s
     inner join calls c on s.evt_tx_hash = c.evt_tx_hash
 ),
@@ -64,10 +81,10 @@ bv_diff as (
     st.evt_index,
     st.s_post,
     st.p_post,
-    st.s_post + st.nxm_in as s_pre,
-    st.p_post + st.eth_out as p_pre,
-    (st.p_post / st.s_post) - ((st.p_post + st.eth_out) / (st.s_post + st.nxm_in)) as bv_diff_per_nxm,
-    ((st.p_post / st.s_post) - ((st.p_post + st.eth_out) / (st.s_post + st.nxm_in))) * st.s_post as bv_diff
+    st.s_post - st.nxm_delta as s_pre,
+    st.p_post - st.eth_delta as p_pre,
+    (st.p_post / st.s_post) - ((st.p_post - st.eth_delta) / (st.s_post - st.nxm_delta)) as bv_diff_per_nxm,
+    ((st.p_post / st.s_post) - ((st.p_post - st.eth_delta) / (st.s_post - st.nxm_delta))) * st.s_post as bv_diff
   from states st
 ),
 
