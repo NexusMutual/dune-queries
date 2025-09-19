@@ -3,9 +3,13 @@ with
 swaps_x_bv as (
   select
     block_date,
+    nxm_in_below,
+    eth_out_below,
     nxm_eth_swap_price_below,
     nxm_usd_swap_price_below,
     nxm_eth_swap_price_above,
+    nxm_out_above,
+    eth_in_above,
     nxm_usd_swap_price_above,
     eth_book_value,
     usd_book_value,
@@ -17,11 +21,15 @@ swaps_x_bv as (
 
 select
   block_date,
-  swap_price_below,
-  swap_price_above,
   book_value,
+  nxm_in_below,
+  eth_out_below,
+  swap_price_below,
   swap_price_below / book_value as redemption_pct_below,
   1.00 - (swap_price_below / book_value) as discount_below,
+  nxm_out_above,
+  eth_in_above,
+  swap_price_above,
   swap_price_above / book_value as redemption_pct_above,
   1.00 - (swap_price_above / book_value) as discount_above
 from swaps_x_bv
