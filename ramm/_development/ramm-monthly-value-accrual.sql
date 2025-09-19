@@ -23,35 +23,82 @@ latest_prices as (
     and contract_address is null
 ),
 
-bv_diff_nxm_eth_swap as (
+calls as (
   select
-    date_trunc('minute', r.evt_block_time) as block_minute,
-    s.output_0 / 1e18 as nxm_supply_pre_sale,
-    c.output_0 / 1e18 as eth_capital_pool_pre_sale,
-    (s.output_0 - r.nxmIn) / 1e18 as nxm_supply_post_sale,
-    (c.output_0 - r.ethOut) / 1e18 as eth_capital_pool_post_sale
-  from nexusmutual_ethereum.Ramm_evt_NxmSwappedForEth r
-    inner join nexusmutual_ethereum.Pool_call_getPoolValueInEth c on r.evt_block_time = c.call_block_time and r.evt_tx_hash = c.call_tx_hash
-    inner join nexusmutual_ethereum.NXMToken_call_totalSupply s on c.call_block_time = s.call_block_time and c.call_tx_hash = s.call_tx_hash
-  where c.call_success
-    and s.call_success
+    r.evt_tx_hash,
+    max_by(c.output_0, c.call_trace_address) as pool_post_raw,
+    max_by(s.output_0, s.call_trace_address) as supply_post_raw
+  from nexusmutual_ethereum.ramm_evt_nxmswappedforeth r
+    inner join nexusmutual_ethereum.pool_call_getpoolvalueineth c on r.evt_block_time = c.call_block_time and r.evt_tx_hash = c.call_tx_hash
+    inner join nexusmutual_ethereum.nxmtoken_call_totalsupply s on r.evt_block_time = s.call_block_time and r.evt_tx_hash = s.call_tx_hash
+  where c.call_success and s.call_success
+  group by 1
+),
+
+raw_swaps as (
+  select
+    evt_tx_hash,
+    evt_block_time as evt_time,
+    evt_index,
+    -1 * cast(nxmIn as double) as nxm_delta_raw,
+    -1 * cast(ethOut as double) as eth_delta_raw
+  from nexusmutual_ethereum.ramm_evt_nxmswappedforeth
+  union all
+  select
+    evt_tx_hash,
+    evt_block_time as evt_time,
+    evt_index,
+    cast(nxmOut as double) as nxm_delta_raw,
+    cast(ethIn as double) as eth_delta_raw
+  from nexusmutual_ethereum.ramm_evt_ethswappedfornxm
+),
+
+swaps as (
+  select
+    evt_tx_hash,
+    evt_time,
+    evt_index,
+    nxm_delta_raw,
+    eth_delta_raw,
+    coalesce(sum(nxm_delta_raw) over (
+      partition by evt_tx_hash
+      order by evt_index
+      rows between 1 following and unbounded following
+    ), 0) as nxm_delta_after_raw,
+    coalesce(sum(eth_delta_raw) over (
+      partition by evt_tx_hash
+      order by evt_index
+      rows between 1 following and unbounded following
+    ), 0) as eth_delta_after_raw
+  from raw_swaps
+),
+
+states as (
+  select
+    s.evt_time,
+    s.evt_index,
+    date_trunc('minute', s.evt_time) as block_minute,
+    (c.supply_post_raw - s.nxm_delta_after_raw) / 1e18 as s_post,
+    (c.pool_post_raw - s.eth_delta_after_raw) / 1e18 as p_post,
+    s.nxm_delta_raw / 1e18 as nxm_delta,
+    s.eth_delta_raw / 1e18 as eth_delta
+  from swaps s
+    inner join calls c on s.evt_tx_hash = c.evt_tx_hash
 ),
 
 bv_diff_nxm_eth_swap_ext as (
   select
-    block_minute,
+    st.block_minute,
     -- helpers
-    (eth_capital_pool_pre_sale / nxm_supply_pre_sale) as bv_per_nxm_pre_eth,
-    (eth_capital_pool_post_sale / nxm_supply_post_sale) as bv_per_nxm_post_eth,
+    (st.p_post / st.s_post) as bv_per_nxm_post_eth,
+    ((st.p_post - st.eth_delta) / (st.s_post - st.nxm_delta)) as bv_per_nxm_pre_eth,
     -- in ETH
-    (eth_capital_pool_post_sale / nxm_supply_post_sale) - (eth_capital_pool_pre_sale / nxm_supply_pre_sale) as bv_diff_per_nxm_in_eth,
-    ((eth_capital_pool_post_sale / nxm_supply_post_sale) - (eth_capital_pool_pre_sale / nxm_supply_pre_sale)) * nxm_supply_post_sale as bv_diff_eth,
+    (st.p_post / st.s_post) - ((st.p_post - st.eth_delta) / (st.s_post - st.nxm_delta)) as bv_diff_per_nxm_in_eth,
+    ( (st.p_post / st.s_post) - ((st.p_post - st.eth_delta) / (st.s_post - st.nxm_delta)) ) * st.s_post as bv_diff_eth,
     -- in NXM
-    (((eth_capital_pool_post_sale / nxm_supply_post_sale) - (eth_capital_pool_pre_sale / nxm_supply_pre_sale)) 
-      / (eth_capital_pool_post_sale / nxm_supply_post_sale)) as bv_diff_per_nxm_in_nxm,
-    ( ((eth_capital_pool_post_sale / nxm_supply_post_sale) - (eth_capital_pool_pre_sale / nxm_supply_pre_sale)) * nxm_supply_post_sale )
-      / (eth_capital_pool_post_sale / nxm_supply_post_sale) as bv_diff_nxm
-  from bv_diff_nxm_eth_swap
+    ( ( (st.p_post / st.s_post) - ((st.p_post - st.eth_delta) / (st.s_post - st.nxm_delta)) ) / (st.p_post / st.s_post) ) as bv_diff_per_nxm_in_nxm,
+    ( ( (st.p_post / st.s_post) - ((st.p_post - st.eth_delta) / (st.s_post - st.nxm_delta)) ) * st.s_post ) / (st.p_post / st.s_post) as bv_diff_nxm
+  from states st
 ),
 
 bv_profit as (
