@@ -6,7 +6,7 @@ params as (
 
 stakers as (
   select count(distinct staker) as unique_stakers
-  from query_4077503 -- stakers - base
+  from query_4077503 -- stakers active stake - base
   where cast(pool_id as int) in (select pool_id from params)
 )
 
