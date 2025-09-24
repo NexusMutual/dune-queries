@@ -3,7 +3,7 @@ with
 active_covers as (
   select
     cover_id,
-    staking_pool_id as pool_id,
+    cast(staking_pool_id as int) as pool_id,
     product_id,
     product_type,
     product_name as listing,
