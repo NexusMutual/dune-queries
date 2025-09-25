@@ -27,13 +27,13 @@ select
   date,
   pool_id,
   baseline_apy,
-  apy,
+  apy as test_apy,
   baseline_apy_7d_ma,
-  apy_7d_ma,
+  apy_7d_ma as test_apy_7d_ma,
   baseline_apy_30d_ma,
-  apy_30d_ma,
+  apy_30d_ma as test_apy_30d_ma,
   baseline_apy_91d_ma,
-  apy_91d_ma,
+  apy_91d_ma as test_apy_91d_ma,
   abs(apy - baseline_apy) as apy_delta,
   abs(apy_30d_ma - baseline_apy_30d_ma) as apy_30d_delta
 from selected
