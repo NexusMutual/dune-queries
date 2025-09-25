@@ -10,6 +10,7 @@ selected as (
   select
     s.date,
     s.pool_id,
+    s.pool_name,
     s.baseline_apy,
     s.baseline_apy_7d_ma,
     s.baseline_apy_30d_ma,
@@ -26,6 +27,7 @@ selected as (
 select
   date,
   pool_id,
+  pool_name,
   baseline_apy,
   apy as test_apy,
   baseline_apy_7d_ma,
