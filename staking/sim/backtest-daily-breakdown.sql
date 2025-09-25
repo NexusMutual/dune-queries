@@ -20,7 +20,7 @@ selected as (
       when p.rate_col = 'APY 91d MA' then s.apy_91d_ma
       else s.apy
     end as apy
-  from filtered_daily_staking s
+  from filtered_daily_staking_sim s
     inner join params p on true
   where s.date between p.start_date and p.end_date
 ),
@@ -39,7 +39,7 @@ running as (
     date,
     pool_id,
     pool_name,
-    exp(sum(ln(daily_factor)) over (order by date rows between unbounded preceding and current row)) as cum_factor
+    exp(sum(ln(greatest(daily_factor, 1e-12))) over (partition by pool_id order by date rows between unbounded preceding and current row)) as cum_factor
   from factors
 )
 

@@ -20,7 +20,7 @@ selected as (
       when p.rate_col = 'APY 91d MA' then s.apy_91d_ma
       else s.apy
     end as apy
-  from filtered_daily_staking s
+  from filtered_daily_staking_sim s
     inner join params p on true
   where s.date between p.start_date and p.end_date
 ),
@@ -37,6 +37,7 @@ agg as (
 select
   a.pool_id,
   a.pool_name,
+  p.rate_col,
   p.stake_amount,
   exp(a.sum_log_factor) * p.stake_amount - p.stake_amount as total_rewards,
   exp(a.sum_log_factor) * p.stake_amount as final_balance
