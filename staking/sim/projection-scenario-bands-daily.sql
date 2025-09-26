@@ -39,16 +39,16 @@ q as (
 
 days as (
   select
-    gs.generate_series::integer as day_num
+    d.day_num
   from params p
-    cross join generate_series(1, p.horizon_days) as gs(generate_series)
+    cross join generate_series(1, p.horizon_days) as d(day_num)
 )
 
 select
   q.pool_id,
   q.pool_name,
-  p.as_of_date + d.day_num as future_date,
-  d.day_num,
+  current_date + (interval 1 day) * d.day_num as projection_date,
+  d.day_num as horizon_day,
   p.stake_amount,
   pow(1 + coalesce(q.apy_p10, 0)/36500.0, d.day_num) * p.stake_amount as bal_low,
   pow(1 + coalesce(q.apy_p50, 0)/36500.0, d.day_num) * p.stake_amount as bal_base,
