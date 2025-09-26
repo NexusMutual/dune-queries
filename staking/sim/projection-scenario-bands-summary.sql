@@ -20,7 +20,7 @@ hist as (
       when p.rate_col = 'APY 91d MA' then s.apy_91d_ma
       else s.apy
     end as apy
-  from filtered_daily_staking s
+  from filtered_daily_staking_sim s
     inner join params p on true
   where s.date > p.as_of_date - interval '1' day * p.lookback_days
     and s.date <= p.as_of_date
@@ -40,10 +40,10 @@ q as (
 select
   q.pool_id,
   q.pool_name,
-  p.stake_amount,
   p.lookback_days,
   p.horizon_days,
   p.as_of_date,
+  p.stake_amount,
   pow(1 + coalesce(q.apy_p10, 0)/36500.0, p.horizon_days) * p.stake_amount as final_low,
   pow(1 + coalesce(q.apy_p50, 0)/36500.0, p.horizon_days) * p.stake_amount as final_base,
   pow(1 + coalesce(q.apy_p90, 0)/36500.0, p.horizon_days) * p.stake_amount as final_high
