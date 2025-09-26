@@ -52,11 +52,12 @@ select
   p.lookback_days,
   p.as_of_date,
   p.horizon_days,
+  p.paths,
   p.stake_amount,
   approx_quantile(s.end_factor, 0.10) * p.stake_amount as final_p10,
   approx_quantile(s.end_factor, 0.50) * p.stake_amount as final_p50,
   approx_quantile(s.end_factor, 0.90) * p.stake_amount as final_p90
 from sim s
   inner join params p on true
-group by 1,2,3,4,5,6
+group by 1,2,3,4,5,6,7
 order by 1
