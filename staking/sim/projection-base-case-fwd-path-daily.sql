@@ -28,19 +28,19 @@ lookback as (
 
 days as (
   select
-    gs as t
+    d.day_num
   from params p
-    cross join generate_series(1, p.horizon_days) as gs
+    cross join generate_series(1, p.horizon_days) as d(day_num)
 ),
 
 path as (
   select
     l.pool_id,
     l.pool_name,
-    p.as_of_date + t * interval '1' day as date,
-    t as horizon_day,
-    coalesce(l.avg_apy, 0) as avg_apy_used,
-    pow(1 + coalesce(l.avg_apy, 0)/36500.0, t) as cum_factor
+    p.as_of_date + (interval '1' day) * d.day_num as date,
+    d.day_num as horizon_day,
+    coalesce(l.avg_apy, 0) as avg_apy,
+    pow(1 + coalesce(l.avg_apy, 0)/36500.0, d.day_num) as cum_factor
   from lookback l
     inner join params p on true
     inner join days d on true
@@ -51,7 +51,7 @@ select
   pool_id,
   pool_name,
   horizon_day,
-  avg_apy_used,
+  avg_apy,
   p.stake_amount * cum_factor as balance,
   p.stake_amount * cum_factor - p.stake_amount as accrued_rewards
 from path
