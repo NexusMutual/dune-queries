@@ -60,7 +60,7 @@ path_prod as (
   from steps
 ),
 
-daily_pct as (
+daily_factor_pct as (
   select
     pool_id,
     pool_name,
@@ -70,20 +70,39 @@ daily_pct as (
     approx_quantile(cum_factor, 0.90) as factor_p90
   from path_prod
   group by 1,2,3
+),
+
+daily_rate_pct as (
+  select
+    pool_id,
+    pool_name,
+    day_num,
+    approx_quantile(apy_draw, 0.10) as apy_p10,
+    approx_quantile(apy_draw, 0.50) as apy_p50,
+    approx_quantile(apy_draw, 0.90) as apy_p90
+  from steps
+  group by 1,2,3
 )
 
 select
-  d.pool_id,
-  d.pool_name,
-  current_date + (interval 1 day) * d.day_num as projection_date,
-  d.day_num as horizon_day,
+  f.pool_id,
+  f.pool_name,
+  p.as_of_date + (interval 1 day) * f.day_num as projection_date,
+  f.day_num as horizon_day,
+  r.apy_p10,
+  r.apy_p50,
+  r.apy_p90,
   p.stake_amount as stake,
-  p.stake_amount * d.factor_p10 as bal_p10,
-  p.stake_amount * d.factor_p50 as bal_p50,
-  p.stake_amount * d.factor_p90 as bal_p90,
-  p.stake_amount * d.factor_p10 - p.stake_amount as rew_p10,
-  p.stake_amount * d.factor_p50 - p.stake_amount as rew_p50,
-  p.stake_amount * d.factor_p90 - p.stake_amount as rew_p90
-from daily_pct d
+  p.stake_amount * f.factor_p10 as bal_p10,
+  p.stake_amount * f.factor_p50 as bal_p50,
+  p.stake_amount * f.factor_p90 as bal_p90,
+  p.stake_amount * f.factor_p10 - p.stake_amount as rew_p10,
+  p.stake_amount * f.factor_p50 - p.stake_amount as rew_p50,
+  p.stake_amount * f.factor_p90 - p.stake_amount as rew_p90
+from daily_factor_pct f
+  inner join daily_rate_pct r
+    on r.pool_id = f.pool_id
+    and r.pool_name = f.pool_name
+    and r.day_num = f.day_num
   inner join params p on true
 order by 1, 3

@@ -30,6 +30,7 @@ factors as (
     date,
     pool_id,
     pool_name,
+    apy,
     coalesce(1 + apy/36500.0, 1.0) as daily_factor
   from selected
 ),
@@ -39,6 +40,7 @@ running as (
     date,
     pool_id,
     pool_name,
+    apy,
     exp(sum(ln(greatest(daily_factor, 1e-12))) over (partition by pool_id order by date rows between unbounded preceding and current row)) as cum_factor
   from factors
 )
@@ -47,6 +49,7 @@ select
   r.date,
   r.pool_id,
   r.pool_name,
+  r.apy,
   p.stake_amount * r.cum_factor as balance,
   p.stake_amount * r.cum_factor - p.stake_amount as accrued_rewards
 from running r cross join params p
