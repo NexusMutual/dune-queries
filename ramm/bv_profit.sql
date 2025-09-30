@@ -111,6 +111,6 @@ select
   bv_diff,
   bv_diff_cummulative_eth,
   bv_diff_cummulative_usd,
-  if('{{currency}}' = 'usd', bv_diff_cummulative_usd, bv_diff_cummulative_eth) as bv_diff_cummulative
+  if('{{currency}}' = 'USD', bv_diff_cummulative_usd, bv_diff_cummulative_eth) as bv_diff_cummulative
 from bv_profit
 order by 1 desc
