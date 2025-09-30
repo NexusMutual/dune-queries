@@ -21,6 +21,8 @@ latest_prices as (
   where symbol = 'ETH'
     and blockchain is null
     and contract_address is null
+  order by 1 desc
+  limit 1
 ),
 
 calls as (
