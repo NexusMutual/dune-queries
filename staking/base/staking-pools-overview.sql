@@ -64,7 +64,13 @@ current_rewards as (
   select
     pool_id,
     sum(reward_total) as reward_total,
-    min_by(reward_total, pool_date_rn) as latest_daily_reward_total -- min bc pool_date_rn is desc
+    min_by(
+      case
+        when block_date = current_date and reward_total > 0 then reward_total
+        else 0
+      end,
+      pool_date_rn
+    ) as latest_daily_reward_total -- min bc pool_date_rn is desc
   from query_4068272 -- daily staking rewards - base
   group by 1
 ),
