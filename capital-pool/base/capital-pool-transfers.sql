@@ -2,6 +2,7 @@ with
 
 nexusmutual_contracts (protocol_contract_address, protocol_contract_type) as (
   values
+  (0xcafea91714e55756C125B509274eDE9Bc91697CB, 'capital pool'), --Pool (active), deployed: Oct-29-2025
   (0xcafeaf6eA90CB931ae43a8Cf4B25a73a24cF6158, 'capital pool'), --Pool (active), deployed: Oct-03-2024
   (0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60, 'capital pool'), --Pool, deployed: Nov-21-2023
   (0xcafea112Db32436c2390F5EC988f3aDB96870627, 'capital pool'), --Pool (Pool V2), deployed: Mar-08-2023
