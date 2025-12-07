@@ -136,8 +136,8 @@ reth_sales_agg as (
   select
     date_trunc('month', t.block_date) as block_month,
     sum(t.amount * p.avg_reth_eth_price) as amount
-  --from query_4982562 -- capital pool transfers - base
-  from nexusmutual_ethereum.capital_pool_transfers t
+  from query_4982562 t -- capital pool transfers - base
+  --from nexusmutual_ethereum.capital_pool_transfers t
     inner join daily_reth_eth_prices p on t.block_date = p.block_date
   where t.symbol = 'rETH'
     and t.from_address_type = 'swap operator'
