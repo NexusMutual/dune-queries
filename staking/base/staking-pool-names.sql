@@ -30,7 +30,8 @@ staking_pool_names (pool_id, pool_name) as (
   (26, 'BALTACHI'),
   (27, '6666'),
   (28, 'Native'),
-  (29, 'Maximum Stake')
+  (29, 'Maximum Stake'),
+  (30, 'Crypto K&R')
 )
 
 select pool_id, pool_name, concat(cast(pool_id as varchar), ' : ', pool_name) as pool_id_name
