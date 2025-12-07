@@ -3,7 +3,7 @@ with
 nexusmutual_contracts (protocol_contract_address, protocol_contract_type) as (
   values
   (0xcafea91714e55756C125B509274eDE9Bc91697CB, 'capital pool'), --Pool (active), deployed: Oct-29-2025
-  (0xcafeaf6eA90CB931ae43a8Cf4B25a73a24cF6158, 'capital pool'), --Pool (active), deployed: Oct-03-2024
+  (0xcafeaf6eA90CB931ae43a8Cf4B25a73a24cF6158, 'capital pool'), --Pool, deployed: Oct-03-2024
   (0xcafeaBED7e0653aFe9674A3ad862b78DB3F36e60, 'capital pool'), --Pool, deployed: Nov-21-2023
   (0xcafea112Db32436c2390F5EC988f3aDB96870627, 'capital pool'), --Pool (Pool V2), deployed: Mar-08-2023
   (0xcafea35ce5a2fc4ced4464da4349f81a122fd12b, 'capital pool'), --Pool (Pool3), deployed: May-25-2021
@@ -14,6 +14,7 @@ nexusmutual_contracts (protocol_contract_address, protocol_contract_type) as (
   (0xcafea8321b5109d22c53ac019d7a449c947701fb, 'mcr'), --MCR, deployed: May-25-2021
   (0xcafea92739e411a4D95bbc2275CA61dE6993C9a7, 'mcr'), --MCR, deployed: Nov-21-2023
   (0x51ad1265C8702c9e96Ea61Fe4088C2e22eD4418e, 'ab multisig'), --Advisory Board multisig
+  (0xcafea501b78175F178b899625F06BC618ef06EB8, 'swap operator'), --SwapOperator, deployed: Oct-29-2025
   (0xcafeaed98d7Fce8F355C03c9F3507B90a974f37e, 'swap operator'), --SwapOperator, deployed: Oct-03-2024
   (0xcafea3ca5366964a102388ead5f3ebb0769c46cb, 'swap operator'), --SwapOperator, deployed: May-21-2024
   (0xcafea5c050e74a21c11af78c927e17853153097d, 'swap operator')  --SwapOperator, deployed: Jun-19-2023
