@@ -46,8 +46,8 @@ claims as (
     cast(product_id as int) as product_id,
     submit_date as claim_date,
     requested_amount as claim_amount
-  --from query_3894982 -- claims v2 base (fallback) query
-  from nexusmutual_ethereum.claims_v2
+  from query_3894982 -- claims v2 base (fallback) query
+  --from nexusmutual_ethereum.claims_v2
 ),
 
 claims_paid as (
@@ -56,11 +56,11 @@ claims_paid as (
     cl.cover_id,
     cl.claim_id,
     cl.claim_date,
-    cp.claim_payout_date,
+    coalesce(cp.claim_payout_date, cp2.evt_block_date) as claim_payout_date,
     c.product_type,
     c.product_name,
     c.cover_asset,
-    coalesce(cl.claim_amount, c.sum_assured) as claim_amount,
+    coalesce(cp2.amount / if(c.cover_asset = 'USDC', 1e6, 1e18), cl.claim_amount, c.sum_assured) as claim_amount,
     if(c.cover_asset = 'ETH', coalesce(cl.claim_amount, c.sum_assured), 0) as eth_claim_amount,
     if(c.cover_asset = 'DAI', coalesce(cl.claim_amount, c.sum_assured), 0) as dai_claim_amount,
     if(c.cover_asset = 'USDC', coalesce(cl.claim_amount, c.sum_assured), 0) as usdc_claim_amount,
@@ -77,8 +77,9 @@ claims_paid as (
         from nexusmutual_ethereum.IndividualClaims_call_redeemClaimPayout
         where call_success
       ) cp on cl.claim_id = cp.claim_id and cl.version = 2 and cp.rn = 1
+    left join nexusmutual_ethereum.claims_evt_claimpayoutredeemed cp2 on cl.claim_id = cp2.claimId and cl.version = 2
   where cl.version = 1
-    or (cl.version = 2 and cp.claim_id is not null)
+    or (cl.version = 2 and coalesce(cp.claim_id, cp2.claimId) is not null)
 ),
 
 daily_avg_prices as (

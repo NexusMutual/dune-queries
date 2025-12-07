@@ -137,7 +137,7 @@ prices as (
   from prices.usd
   where minute > timestamp '2019-05-01'
     and ((symbol = 'ETH' and blockchain is null)
-      or (symbol = 'DAI' and blockchain = 'ethereum'))
+      or (symbol = 'DAI' and blockchain = 'ethereum' and contract_address = 0x6b175474e89094c44da98b954eedeac495271d0f))
   group by 1, 2
 ),
 

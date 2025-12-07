@@ -26,8 +26,8 @@ claims as (
     assessment_id,
     cover_asset,
     requested_amount
-  --from query_3894982 -- claims v2 base (fallback) query
-  from nexusmutual_ethereum.claims_v2
+  from query_3894982 -- claims v2 base (fallback) query
+  --from nexusmutual_ethereum.claims_v2
 ),
 
 vote_count as (
@@ -48,7 +48,7 @@ open_claims as (
     c.submit_time,
     c.submit_date,
     c.cover_id,
-    c.assessment_id,
+    coalesce(c.assessment_id, c.claim_id) as assessment_id,
     c.product_id,
     c.cover_asset,
     c.requested_amount,

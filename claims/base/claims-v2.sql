@@ -12,6 +12,18 @@ claim_evt as (
     user,
     evt_tx_hash as tx_hash
   from nexusmutual_ethereum.IndividualClaims_evt_ClaimSubmitted
+  union all
+  select
+    evt_block_time as block_time,
+    evt_block_number as block_number,
+    evt_block_time as submit_time,
+    date_trunc('day', evt_block_time) as submit_date,
+    claimId as claim_id,
+    coverId as cover_id,
+    productId as product_id,
+    user,
+    evt_tx_hash as tx_hash
+  from nexusmutual_ethereum.claims_evt_claimsubmitted
 ),
 
 claim_data as (
@@ -42,6 +54,21 @@ claim_data as (
     row_number() over (partition by call_block_time, call_tx_hash, coverId order by call_trace_address desc) as rn
   from nexusmutual_ethereum.IndividualClaims_call_submitClaim
   where call_success
+  union all
+  select
+    call_block_time as block_time,
+    call_block_number as block_number,
+    coverId_bigint as cover_id,
+    cast(null as int) as assessment_id, -- TODO
+    cast(json_query(output_claim, 'lax $.coverAsset') as int) as cover_asset,
+    cast(json_query(output_claim, 'lax $.payoutRedeemed') as boolean) as is_payout_redeemed,
+    requestedAmount,
+    cast(ipfsMetadata as varchar) as ipfs_metadata,
+    call_tx_hash as tx_hash,
+    row_number() over (partition by call_block_time, call_tx_hash, coverId_bigint order by call_trace_address desc) as rn
+  from nexusmutual_ethereum.claims_call_submitclaim
+  where call_success
+    and coverId_bigint is not null
 )
 
 select
