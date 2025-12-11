@@ -97,7 +97,7 @@ select
   cc.assessment_id,
   cc.cover_id,
   case
-    when cc.yes_nxm_votes > cc.no_nxm_votes and cc.yes_nxm_votes > 0 then 'APPROVED ✅'
+    when (cc.yes_nxm_votes > cc.no_nxm_votes and cc.yes_nxm_votes > 0) or cc.assessment_id >= 29 then 'APPROVED ✅'
     else 'DENIED ❌'
   end as verdict,
   if(cc.assessment_id >= 29, concat(
