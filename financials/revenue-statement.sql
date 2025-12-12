@@ -37,7 +37,7 @@ investment_returns as (
     usd_debt_usdc_return,
     eth_fx_change,
     usd_fx_change
-  from query_4770697 -- investement returns
+  from query_4770697 -- investment returns
   where block_month in (select report_month from params)
 ),
 
