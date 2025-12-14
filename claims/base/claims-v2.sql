@@ -59,7 +59,7 @@ claim_data as (
     call_block_time as block_time,
     call_block_number as block_number,
     coverId_bigint as cover_id,
-    cast(null as int) as assessment_id, -- TODO
+    cast(null as int) as assessment_id,
     cast(json_query(output_claim, 'lax $.coverAsset') as int) as cover_asset,
     cast(json_query(output_claim, 'lax $.payoutRedeemed') as boolean) as is_payout_redeemed,
     requestedAmount,
@@ -80,7 +80,7 @@ select
   ce.cover_id,
   ce.product_id,
   ce.user,
-  cd.assessment_id,
+  coalesce(cd.assessment_id, ce.claim_id) as assessment_id,
   case cd.cover_asset
     when 0 then 'ETH'
     when 1 then 'DAI'
