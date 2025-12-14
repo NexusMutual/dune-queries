@@ -30,7 +30,8 @@ claims as (
   --from nexusmutual_ethereum.claims_v2
 ),
 
-vote_count as (
+-- v1 assessment: stake-weighted voting (assessment_id <= 28)
+vote_count_v1 as (
   select
     assessmentId as assessment_id,
     min(evt_block_time) as first_vote_time,
@@ -41,6 +42,51 @@ vote_count as (
     sum(if(accepted = false, stakedAmount / 1e18, 0)) as no_nxm_votes
   from nexusmutual_ethereum.Assessment_evt_VoteCast
   group by 1
+),
+
+-- v2 assessment: Claims Committee expert-led voting (claim_id >= 29)
+-- assessment start/end times (72 hour voting period)
+assessment_started as (
+  select
+    claimId as claim_id,
+    assessorGroupId as assessor_group_id,
+    from_unixtime(cast("start" as double)) as voting_start_time,
+    from_unixtime(cast("end" as double)) as voting_end_time,
+    evt_block_time
+  from nexusmutual_ethereum.assessments_evt_assessmentstarted
+),
+
+-- voting end can be extended
+voting_end_extended as (
+  select
+    claimId as claim_id,
+    from_unixtime(cast(newEnd as double)) as new_voting_end_time,
+    evt_block_time,
+    row_number() over (partition by claimId order by evt_block_time desc) as rn
+  from nexusmutual_ethereum.assessments_evt_votingendchanged
+),
+
+-- Claims Committee votes (2 of 3 needed for approval)
+vote_count_v2 as (
+  select
+    claimId as claim_id,
+    min(evt_block_time) as first_vote_time,
+    max(evt_block_time) as last_vote_time,
+    sum(if(support = true, 1, 0)) as yes_votes,
+    sum(if(support = false, 1, 0)) as no_votes
+  from nexusmutual_ethereum.assessments_evt_votecast
+  group by 1
+),
+
+-- combine assessment timing with extended end times
+assessment_timing as (
+  select
+    a.claim_id,
+    a.assessor_group_id,
+    a.voting_start_time,
+    coalesce(e.new_voting_end_time, a.voting_end_time) as voting_end_time
+  from assessment_started a
+    left join voting_end_extended e on a.claim_id = e.claim_id and e.rn = 1
 ),
 
 assessments as (
@@ -56,7 +102,8 @@ assessments as (
   where rn = 1
 ),
 
-completed_claims as (
+-- completed claims (old stake-weighted system, assessment_id <= 28)
+completed_claims_old as (
   select
     c.submit_time,
     c.submit_date,
@@ -70,13 +117,47 @@ completed_claims as (
     coalesce(vc.yes_nxm_votes, 0) as yes_nxm_votes,
     coalesce(vc.no_nxm_votes, 0) as no_nxm_votes,
     coalesce(a.assessor_rewards, 0) as assessor_rewards,
-    vc.last_vote_time
+    vc.last_vote_time,
+    1 as assessment_version
   from claims c
-    left join vote_count vc on c.assessment_id = vc.assessment_id
+    left join vote_count_v1 vc on c.assessment_id = vc.assessment_id
     left join assessments a on c.assessment_id = a.assessment_id
-  where date_add('day', 3, coalesce(vc.first_vote_time, c.submit_time)) <= now()
+  where c.claim_id < 29 -- old assessment system
+    and date_add('day', 3, coalesce(vc.first_vote_time, c.submit_time)) <= now()
     and (vc.last_vote_time is null
       or date_add('day', 1, vc.last_vote_time) <= now())
+),
+
+-- completed claims (Claims Committee system, claim_id >= 29)
+-- voting ends after 72 hours + 24 hour cool-down period
+completed_claims_new as (
+  select
+    c.submit_time,
+    c.submit_date,
+    c.cover_id,
+    c.claim_id as assessment_id,
+    c.product_id,
+    c.cover_asset,
+    c.requested_amount,
+    coalesce(vc.yes_votes, 0) as yes_votes,
+    coalesce(vc.no_votes, 0) as no_votes,
+    cast(0 as double) as yes_nxm_votes, -- no stake weighting in v2
+    cast(0 as double) as no_nxm_votes,
+    cast(0 as double) as assessor_rewards, -- no NXM rewards for Claims Committee
+    vc.last_vote_time,
+    2 as assessment_version
+  from claims c
+    inner join assessment_timing at on c.claim_id = at.claim_id
+    left join vote_count_v2 vc on c.claim_id = vc.claim_id
+  where c.claim_id >= 29 -- new Claims Committee system
+    and date_add('day', 1, at.voting_end_time) <= now() -- voting end + 24h cool-down
+),
+
+-- combine old and new completed claims
+completed_claims as (
+  select * from completed_claims_old
+  union all
+  select * from completed_claims_new
 ),
 
 prices as (
@@ -97,10 +178,15 @@ select
   cc.assessment_id,
   cc.cover_id,
   case
-    when (cc.yes_nxm_votes > cc.no_nxm_votes and cc.yes_nxm_votes > 0) or cc.assessment_id >= 29 then 'APPROVED ✅'
+    -- new Claims Committee: 2 of 3 votes needed for approval (simple majority)
+    when cc.assessment_version = 2 and cc.yes_votes >= 2 then 'APPROVED ✅'
+    when cc.assessment_version = 2 and cc.no_votes >= 2 then 'DENIED ❌'
+    when cc.assessment_version = 2 then 'PENDING ⏳' -- shouldn't happen for completed claims
+    -- old stake-weighted voting
+    when cc.yes_nxm_votes > cc.no_nxm_votes and cc.yes_nxm_votes > 0 then 'APPROVED ✅'
     else 'DENIED ❌'
   end as verdict,
-  if(cc.assessment_id >= 29, concat(
+  if(cc.assessment_version = 2, concat(
     '<a href="https://app.nexusmutual.io/claims/details/',
     cast(cc.assessment_id as varchar),
     '" target="_blank">',
@@ -123,6 +209,7 @@ select
   cc.yes_nxm_votes,
   cc.no_nxm_votes,
   case
+    when cc.assessment_version = 2 then 0 -- no NXM rewards for Claims Committee
     when cc.yes_nxm_votes > cc.no_nxm_votes and cc.yes_nxm_votes > 0 then cc.assessor_rewards / cc.yes_votes
     when cc.no_nxm_votes > 0 then cc.assessor_rewards / cc.no_votes
     else 0
