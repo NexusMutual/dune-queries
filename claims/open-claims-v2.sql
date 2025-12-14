@@ -30,36 +30,66 @@ claims as (
   --from nexusmutual_ethereum.claims_v2
 ),
 
+-- Claims Committee assessment start/end times (72 hour voting period)
+assessment_started as (
+  select
+    claimId as claim_id,
+    assessorGroupId as assessor_group_id,
+    from_unixtime(cast("start" as double)) as voting_start_time,
+    from_unixtime(cast("end" as double)) as voting_end_time,
+    evt_block_time
+  from nexusmutual_ethereum.assessments_evt_assessmentstarted
+),
+
+-- voting end can be extended
+voting_end_extended as (
+  select
+    claimId as claim_id,
+    from_unixtime(cast(newEnd as double)) as new_voting_end_time,
+    evt_block_time,
+    row_number() over (partition by claimId order by evt_block_time desc) as rn
+  from nexusmutual_ethereum.assessments_evt_votingendchanged
+),
+
+-- Claims Committee votes (2 of 3 needed for approval)
 vote_count as (
   select
-    assessmentId as assessment_id,
+    claimId as claim_id,
     min(evt_block_time) as first_vote_time,
     max(evt_block_time) as last_vote_time,
-    sum(if(accepted = true, 1, 0)) as yes_votes,
-    sum(if(accepted = false, 1, 0)) as no_votes,
-    sum(if(accepted = true, stakedAmount / 1e18, 0)) as yes_nxm_votes,
-    sum(if(accepted = false, stakedAmount / 1e18, 0)) as no_nxm_votes
-  from nexusmutual_ethereum.Assessment_evt_VoteCast
+    sum(if(support = true, 1, 0)) as yes_votes,
+    sum(if(support = false, 1, 0)) as no_votes
+  from nexusmutual_ethereum.assessments_evt_votecast
   group by 1
 ),
 
+-- combine assessment timing with extended end times
+assessment_timing as (
+  select
+    a.claim_id,
+    a.assessor_group_id,
+    a.voting_start_time,
+    coalesce(e.new_voting_end_time, a.voting_end_time) as voting_end_time
+  from assessment_started a
+    left join voting_end_extended e on a.claim_id = e.claim_id and e.rn = 1
+),
+
+-- open claims: voting end + 24h cool-down not yet passed
 open_claims as (
   select
     c.submit_time,
     c.submit_date,
     c.cover_id,
-    coalesce(c.assessment_id, c.claim_id) as assessment_id,
+    c.claim_id as assessment_id,
     c.product_id,
     c.cover_asset,
     c.requested_amount,
     coalesce(vc.yes_votes, 0) as yes_votes,
-    coalesce(vc.no_votes, 0) as no_votes,
-    coalesce(vc.yes_nxm_votes, 0) as yes_nxm_votes,
-    coalesce(vc.no_nxm_votes, 0) as no_nxm_votes
+    coalesce(vc.no_votes, 0) as no_votes
   from claims c
-    left join vote_count vc on c.assessment_id = vc.assessment_id
-  where date_add('day', 3, coalesce(vc.first_vote_time, c.submit_time)) > now()
-    or date_add('day', 1, vc.last_vote_time) > now()
+    inner join assessment_timing at on c.claim_id = at.claim_id
+    left join vote_count vc on c.claim_id = vc.claim_id
+  where date_add('day', 1, at.voting_end_time) > now()
 ),
 
 latest_prices as (
@@ -81,7 +111,7 @@ select
   oc.cover_id,
   'PENDING ❓' as verdict,
   concat(
-    '<a href="https://app.nexusmutual.io/claims/claim/claim-details?claimId=',
+    '<a href="https://app.nexusmutual.io/claims/details/',
     cast(oc.assessment_id as varchar),
     '" target="_blank">',
     'link',
@@ -99,9 +129,7 @@ select
   c.cover_end_time,
   oc.submit_time as claim_submit_time,
   oc.yes_votes,
-  oc.no_votes,
-  oc.yes_nxm_votes,
-  oc.no_nxm_votes
+  oc.no_votes
 from covers c
   inner join open_claims oc on c.cover_id = oc.cover_id and coalesce(c.product_id, oc.product_id) = oc.product_id
   inner join latest_prices p on oc.cover_asset = p.symbol
