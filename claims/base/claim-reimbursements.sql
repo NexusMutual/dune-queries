@@ -25,7 +25,8 @@ reimbursements (block_number, product_name, amount, symbol, tx_hash) as (
   (22631599, 'FTX', 10.00, 'USDC', 0x3d4daeeca9626ea319436d36ff4a986753901366e4478c2243464aaf6e50e92d),
   (22631860, 'FTX', 100000.00, 'USDC', 0xc083d93ff7456a24ac2729214e93986075baff1a90844dad38176850742279ea),
   (22631910, 'FTX', 108375.16612, 'USDC', 0x252071b96c2c270e1432d046dde70d146c80afdc392a2c0aa2a1c465c8692164),
-  (23488972, 'FTX', 206000.67, 'USDC', 0xdffcc99dc2e3c2fad917c3c6ccac678e8e6a6dc0d9c1e6404cac2697d3a8756a)
+  (23488972, 'FTX', 206000.67, 'USDC', 0xdffcc99dc2e3c2fad917c3c6ccac678e8e6a6dc0d9c1e6404cac2697d3a8756a),
+  (24899776, 'FTX', 46064.46, 'USDC', 0xce41d9bd43da98e503a19e59b648722bc5a90b6b629522c78bf88d999fe265ec)
 ),
 
 reimbursement_transfers as (
