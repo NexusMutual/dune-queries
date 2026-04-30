@@ -1,6 +1,6 @@
 with
 
-memebership as (
+membership as (
   -- v1
   select
     1 as version,
@@ -57,7 +57,7 @@ select
   sum(m.member_count) as member_count,
   sum(m.member_count * 0.0020) as eth_member_fee,
   sum(m.member_count * 0.0020 * p.avg_eth_usd_price) as usd_member_fee
-from memebership m
+from membership m
   inner join daily_avg_eth_prices p on m.block_date = p.block_date
 group by 1
 order by 1 desc

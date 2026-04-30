@@ -32,7 +32,7 @@ with
 SELECT
   COALESCE(nxm_recv.address, nxm_sent.address) as user_address,
   COALESCE(nxm_sent.total_sent, 0) as sent,
-  COALESCE(nxm_recv.total_recv, 0) as recieved,
+  COALESCE(nxm_recv.total_recv, 0) as received,
   COALESCE(nxm_recv.total_recv, 0) - COALESCE(nxm_sent.total_sent, 0) as total
 FROM
   nxm_sent
@@ -40,4 +40,4 @@ FROM
 where
   COALESCE(nxm_recv.total_recv, 0) - COALESCE(nxm_sent.total_sent, 0) > 0
 ORDER BY
-  total DESC
+ total DESC
