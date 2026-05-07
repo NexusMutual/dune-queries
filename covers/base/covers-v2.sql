@@ -511,7 +511,14 @@ select
   cover_end_time,
   cover_period_seconds,
   date_trunc('day', cover_start_time) as cover_start_date,
-  date_trunc('day', cover_end_time) as cover_end_date,
+  -- For edit-original segments, end the date on the last full day before the edit so the edit-new owns the day-of-edit
+  -- in date-BETWEEN active-cover joins. Same-day edits yield cover_end_date < cover_start_date by design (sub-day
+  -- segments never appear at end-of-day, so they correctly contribute nothing to the daily series).
+  case
+    when buy_type = 'edit-original'
+      then date_add('day', -1, date_trunc('day', date_add('second', 1, cover_end_time)))
+    else date_trunc('day', cover_end_time)
+  end as cover_end_date,
   staking_pool_id,
   staking_pool,
   cast(product_id as int) as product_id,
