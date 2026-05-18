@@ -13,7 +13,8 @@
 --   - USDe token:                        0x4c9edd5852cd905f086c759e8383e09bff1e68b3
 --   - reUSDe SharePriceCalculator:       0x1262a408de54db9ae3fb3bb0e429c319fbee9915
 --     SharePriceSet topic0:              0x4a1ac874d2c95dbf06e8751911760755154ef5c49e9ecfd9b5e71a11664a239c
---   - Cover record: query_3810247 (filtered to product_name = 'Real World Insurance Vault').
+--   - Cover buy/edit txs (per buyCover call): query_7506037 (filtered to productId = 425).
+--     Used for both Value of Cover (latest in-force buyCover) and PFCFA (sum of net_usdc_paid).
 --
 -- Out of scope (per spec, first pass):
 --   - NXM holdings of the multisig (separate "grant" workstream).
@@ -92,48 +93,65 @@ reusde_nav_per_day AS (
   GROUP BY b.day
 ),
 
-rwiv_covers AS (
+rwiv_cover_buys AS (
+  -- Every buyCover/editCover call by the VO Multisig for productId = 425.
+  -- Each row's fields are recorded at tx time and never rewritten by later edits.
+  --   premium_usdc    - full premium of the cover purchased in this tx (gross)
+  --   net_usdc_paid   - owner's actual outflow this tx (new premium - refund of prior cover, if edit)
+  --   period_days     - cover duration parameter as set at buy time
+  --   bought_at       - call_block_time; the moment this cover becomes in-force
+  --   cover_end       - bought_at + period_days days; expiry if not edited
   SELECT
-    cover_id,
-    cover_start_time,
-    cover_end_time,
-    premium_native,
-    cover_period
-  FROM query_3810247
-  WHERE product_name = 'Real World Insurance Vault'
+    call_block_time                                 AS bought_at,
+    call_block_time + period_days * INTERVAL '1' day AS cover_end,
+    period_days,
+    premium_usdc,
+    net_usdc_paid
+  FROM query_7506037
 ),
 
-active_cover_per_day_ranked AS (
+value_of_cover_per_day AS (
+  -- Un-amortised value of the IN-FORCE cover at each end-of-day UTC.
+  -- The in-force cover is the latest buyCover with bought_at <= as_of.
+  -- Each edit replaces the prior cover (refund + new purchase), so the latest
+  -- buyCover row IS the in-force cover. We use its original premium_usdc /
+  -- period_days / bought_at — query_3810247 retroactively truncates those on
+  -- edits, which would massively under-report the historical Value of Cover.
   SELECT
-    b.day,
-    b.as_of,
-    rc.cover_end_time,
-    rc.premium_native,
-    rc.cover_period,
-    ROW_NUMBER() OVER (PARTITION BY b.day ORDER BY rc.cover_start_time DESC) AS rn
-  FROM base b
-  LEFT JOIN rwiv_covers rc
-    ON rc.cover_start_time <= b.as_of
-   AND rc.cover_end_time   >  b.as_of
-),
-
-active_cover_per_day AS (
-  SELECT day, as_of, cover_end_time, premium_native, cover_period
-  FROM active_cover_per_day_ranked
+    day,
+    CASE
+      WHEN bought_at IS NULL  THEN NULL  -- no cover ever bought
+      WHEN cover_end <= as_of THEN 0     -- in-force cover fully expired with no follow-up
+      ELSE premium_usdc * date_diff('day', as_of, cover_end) / period_days
+    END AS value_of_cover_usdc
+  FROM (
+    SELECT
+      b.day,
+      b.as_of,
+      c.bought_at,
+      c.cover_end,
+      c.period_days,
+      c.premium_usdc,
+      ROW_NUMBER() OVER (PARTITION BY b.day ORDER BY c.bought_at DESC) AS rn
+    FROM base b
+    LEFT JOIN rwiv_cover_buys c ON c.bought_at <= b.as_of
+  ) ranked
   WHERE rn = 1
 ),
 
 pfcfa_per_day AS (
+  -- Sum of fees paid within the funding period and not yet released.
+  -- Release date = 2 * 2027-12-31 - bought_at (symmetric reflection around 2027-12-31).
   SELECT
     b.day,
-    COALESCE(SUM(rc.premium_native), 0) AS pfcfa_usdc
+    COALESCE(SUM(c.net_usdc_paid), 0) AS pfcfa_usdc
   FROM base b
-  LEFT JOIN rwiv_covers rc
-    ON rc.cover_start_time <= b.as_of
-   AND CAST(rc.cover_start_time AS date) <= DATE '2027-12-31'
+  LEFT JOIN rwiv_cover_buys c
+    ON c.bought_at <= b.as_of
+   AND CAST(c.bought_at AS date) <= DATE '2027-12-31'
    AND date_add(
          'day',
-         date_diff('day', CAST(rc.cover_start_time AS date), DATE '2027-12-31'),
+         date_diff('day', CAST(c.bought_at AS date), DATE '2027-12-31'),
          DATE '2027-12-31'
        ) >= CAST(b.day AS date)
   GROUP BY b.day
@@ -145,18 +163,15 @@ metrics AS (
     ub.usdc_amount,
     rb.reusde_amount,
     rb.reusde_amount * rn.reusde_nav_usde AS reusde_value_usde,  -- USDe held 1:1 with USDC; institutional par redemption assumed
-    CASE
-      WHEN ac.cover_end_time IS NULL THEN NULL
-      ELSE ac.premium_native * date_diff('day', b.as_of, ac.cover_end_time) / ac.cover_period
-    END AS value_of_cover_usdc,
+    vc.value_of_cover_usdc,
     b.vault_total_balance_usdc AS total_market_cap_rwiv_usdc,
     pf.pfcfa_usdc
   FROM base b
-  LEFT JOIN usdc_balance         ub  ON ub.day  = b.day
-  LEFT JOIN reusde_balance       rb  ON rb.day  = b.day
-  LEFT JOIN reusde_nav_per_day   rn  ON rn.day  = b.day
-  LEFT JOIN active_cover_per_day ac  ON ac.day  = b.day
-  LEFT JOIN pfcfa_per_day        pf  ON pf.day  = b.day
+  LEFT JOIN usdc_balance           ub  ON ub.day  = b.day
+  LEFT JOIN reusde_balance         rb  ON rb.day  = b.day
+  LEFT JOIN reusde_nav_per_day     rn  ON rn.day  = b.day
+  LEFT JOIN value_of_cover_per_day vc  ON vc.day  = b.day
+  LEFT JOIN pfcfa_per_day          pf  ON pf.day  = b.day
 )
 
 SELECT
