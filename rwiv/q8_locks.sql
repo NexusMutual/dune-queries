@@ -3,10 +3,10 @@
 -- One row per (memberId, lockId) lock. Shares read directly from SharesLocked events.
 -- USDC values calculated from the rate model (SharesLocked only emits shares).
 -- Edits: latest state (shares, period) is used; original vs latest timestamps and
--- expiries are both exposed so edits are visible. Assumes the `period` field on
--- SharesLocked carries the TOTAL period after edit (parallel to shares = total
--- after edit). Verify when the first edit occurs; if delta semantics, switch to
--- summing periods across events.
+-- expiries are both exposed so edits are visible. On editLock, SharesLocked emits
+-- shares as the TOTAL after edit but period as only the period ADDED by the edit
+-- (verified in the Locks implementation source), and startTime never changes. So
+-- the lock's total period is the sum of periods across its SharesLocked events.
 
 WITH rate_config AS (
   -- Single source of truth: Base Query 0 (Dune 7392734).
@@ -27,9 +27,10 @@ lock_events_ranked AS (
     lockId,
     CAST(shares AS double) AS shares,
     CAST(period AS double) AS period,
+    SUM(CAST(period AS double)) OVER (PARTITION BY memberId, lockId) AS total_period,
     evt_block_time,
-    ROW_NUMBER() OVER (PARTITION BY memberId, lockId ORDER BY evt_block_time ASC)  AS rn_asc,
-    ROW_NUMBER() OVER (PARTITION BY memberId, lockId ORDER BY evt_block_time DESC) AS rn_desc
+    ROW_NUMBER() OVER (PARTITION BY memberId, lockId ORDER BY evt_block_time ASC, evt_index ASC)   AS rn_asc,
+    ROW_NUMBER() OVER (PARTITION BY memberId, lockId ORDER BY evt_block_time DESC, evt_index DESC) AS rn_desc
   FROM nexusmutual_rwiv_ethereum.locks_evt_shareslocked
 ),
 
@@ -41,7 +42,7 @@ lock_state AS (
     first_evt.period         AS original_period,
     last_evt.evt_block_time  AS latest_lock_timestamp,
     last_evt.shares          AS shares,
-    last_evt.period          AS latest_period
+    last_evt.total_period    AS latest_period
   FROM lock_events_ranked first_evt
   JOIN lock_events_ranked last_evt
     ON first_evt.memberId = last_evt.memberId

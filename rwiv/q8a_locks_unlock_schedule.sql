@@ -5,6 +5,9 @@
 -- Only includes locks that are currently active (not withdrawn, not yet expired).
 -- Also projects total vault balance forward (latest cum_net_shares_raw from B1, rolled
 -- up at the baseline rate) for comparison against the locked portion.
+-- Lock period: on editLock, SharesLocked emits shares as the TOTAL after edit but period
+-- as only the period ADDED (verified in the Locks implementation source), and startTime
+-- never changes. So the lock's total period is the sum of periods across its events.
 
 WITH rate_config AS (
   -- Single source of truth: Base Query 0 (Dune 7392734).
@@ -26,9 +29,10 @@ lock_events_ranked AS (
     lockId,
     CAST(shares AS double) AS shares,
     CAST(period AS double) AS period,
+    SUM(CAST(period AS double)) OVER (PARTITION BY memberId, lockId) AS total_period,
     evt_block_time,
-    ROW_NUMBER() OVER (PARTITION BY memberId, lockId ORDER BY evt_block_time ASC)  AS rn_asc,
-    ROW_NUMBER() OVER (PARTITION BY memberId, lockId ORDER BY evt_block_time DESC) AS rn_desc
+    ROW_NUMBER() OVER (PARTITION BY memberId, lockId ORDER BY evt_block_time ASC, evt_index ASC)   AS rn_asc,
+    ROW_NUMBER() OVER (PARTITION BY memberId, lockId ORDER BY evt_block_time DESC, evt_index DESC) AS rn_desc
   FROM nexusmutual_rwiv_ethereum.locks_evt_shareslocked
 ),
 
@@ -38,7 +42,7 @@ lock_state AS (
     first_evt.lockId,
     first_evt.evt_block_time AS original_lock_timestamp,
     last_evt.shares          AS shares,
-    last_evt.period          AS latest_period
+    last_evt.total_period    AS latest_period
   FROM lock_events_ranked first_evt
   JOIN lock_events_ranked last_evt
     ON first_evt.memberId = last_evt.memberId
