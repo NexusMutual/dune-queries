@@ -9,7 +9,8 @@ covers as (
     product_type,
     product_name,
     cover_asset,
-    sum_assured
+    sum_assured,
+    cast(1 as double) as pool_share
   --from query_3788367 -- covers v1 base (fallback) query
   from nexusmutual_ethereum.covers_v1
   union all
@@ -21,7 +22,8 @@ covers as (
     product_type,
     product_name,
     cover_asset,
-    sum_assured
+    sum_assured,
+    partial_cover_amount / sum(partial_cover_amount) over (partition by cover_id) as pool_share -- pool's share of the cover
   from query_4599092 -- covers v2 - base root (fallback query)
   --where is_migrated = false
 ),
@@ -57,14 +59,15 @@ claims_paid as (
     cl.claim_id,
     cl.claim_date,
     coalesce(cp.claim_payout_date, cp2.evt_block_date) as claim_payout_date,
+    c.staking_pool,
     c.product_type,
     c.product_name,
     c.cover_asset,
-    coalesce(cp2.amount / if(c.cover_asset = 'USDC', 1e6, 1e18), cl.claim_amount, c.sum_assured) as claim_amount,
-    if(c.cover_asset = 'ETH', coalesce(cl.claim_amount, c.sum_assured), 0) as eth_claim_amount,
-    if(c.cover_asset = 'DAI', coalesce(cl.claim_amount, c.sum_assured), 0) as dai_claim_amount,
-    if(c.cover_asset = 'USDC', coalesce(cl.claim_amount, c.sum_assured), 0) as usdc_claim_amount,
-    if(c.cover_asset = 'cbBTC', coalesce(cl.claim_amount, c.sum_assured), 0) as cbbtc_claim_amount
+    coalesce(cp2.amount / if(c.cover_asset = 'USDC', 1e6, 1e18), cl.claim_amount, c.sum_assured) * c.pool_share as claim_amount,
+    if(c.cover_asset = 'ETH', coalesce(cl.claim_amount, c.sum_assured) * c.pool_share, 0) as eth_claim_amount,
+    if(c.cover_asset = 'DAI', coalesce(cl.claim_amount, c.sum_assured) * c.pool_share, 0) as dai_claim_amount,
+    if(c.cover_asset = 'USDC', coalesce(cl.claim_amount, c.sum_assured) * c.pool_share, 0) as usdc_claim_amount,
+    if(c.cover_asset = 'cbBTC', coalesce(cl.claim_amount, c.sum_assured) * c.pool_share, 0) as cbbtc_claim_amount
   from covers c
     inner join claims cl on c.cover_id = cl.cover_id
       and coalesce(c.product_id, cl.product_id, -1) = coalesce(cl.product_id, -1)
@@ -101,6 +104,7 @@ select
   cp.claim_id,
   cp.claim_date,
   cp.claim_payout_date,
+  cp.staking_pool,
   cp.product_type,
   cp.product_name,
   --ETH

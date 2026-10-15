@@ -12,7 +12,8 @@ covers as (
     product_name,
     product_type,
     cover_asset,
-    sum_assured
+    sum_assured,
+    partial_cover_amount / sum(partial_cover_amount) over (partition by cover_id) as pool_share -- pool's share of the cover
   from query_4599092 -- covers v2 - base root (fallback query)
 ),
 
@@ -197,10 +198,10 @@ select
   c.product_type,
   c.staking_pool as syndicate,
   c.cover_asset,
-  c.sum_assured as cover_amount,
-  c.sum_assured * p.usd_price as dollar_cover_amount,
-  cc.requested_amount as claim_amount,
-  cc.requested_amount * p.usd_price as dollar_claim_amount,
+  c.sum_assured * c.pool_share as cover_amount,
+  c.sum_assured * c.pool_share * p.usd_price as dollar_cover_amount,
+  cc.requested_amount * c.pool_share as claim_amount,
+  cc.requested_amount * c.pool_share * p.usd_price as dollar_claim_amount,
   c.cover_start_time,
   c.cover_end_time,
   cc.submit_time as claim_submit_time,

@@ -12,7 +12,8 @@ covers as (
     product_name,
     product_type,
     cover_asset,
-    sum_assured
+    sum_assured,
+    partial_cover_amount / sum(partial_cover_amount) over (partition by cover_id) as pool_share -- pool's share of the cover
   from query_4599092 -- covers v2 - base root (fallback query)
 ),
 
@@ -92,18 +93,18 @@ open_claims as (
   where date_add('day', 1, at.voting_end_time) > now()
 ),
 
+-- latest price per asset (usd_latest can hold stale duplicate rows, e.g. ETH)
 latest_prices as (
   select
-    minute as block_date,
+    max(minute) as block_date,
     symbol,
-    price as usd_price
+    max_by(price, minute) as usd_price
   from prices.usd_latest
   where (symbol = 'ETH' and blockchain is null and contract_address is null)
     or (symbol = 'DAI' and blockchain = 'ethereum' and contract_address = 0x6b175474e89094c44da98b954eedeac495271d0f)
     or (symbol = 'USDC' and blockchain = 'ethereum' and contract_address = 0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48)
     or (symbol = 'cbBTC' and blockchain = 'ethereum' and contract_address = 0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf)
-  order by 1 desc
-  limit 1
+  group by symbol
 )
 
 select
@@ -121,10 +122,10 @@ select
   c.product_type,
   c.staking_pool,
   c.cover_asset,
-  c.sum_assured as cover_amount,
-  c.sum_assured * p.usd_price as dollar_cover_amount,
-  oc.requested_amount as claim_amount,
-  oc.requested_amount * p.usd_price as dollar_claim_amount,
+  c.sum_assured * c.pool_share as cover_amount,
+  c.sum_assured * c.pool_share * p.usd_price as dollar_cover_amount,
+  oc.requested_amount * c.pool_share as claim_amount,
+  oc.requested_amount * c.pool_share * p.usd_price as dollar_claim_amount,
   c.cover_start_time,
   c.cover_end_time,
   oc.submit_time as claim_submit_time,
