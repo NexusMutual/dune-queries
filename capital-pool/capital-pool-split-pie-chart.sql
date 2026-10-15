@@ -5,7 +5,9 @@ capital_pool_timed as (
   --from query_3773633 -- Capital Pool base (fallback) query - can't be used: "Error: This query has too many stages and is too complex to execute at once."
   --from nexusmutual_ethereum.capital_pool_totals
   from query_4627588 -- Capital Pool - base root
-  where block_date = if(timestamp '{{End Date}}' > current_timestamp, cast(date_add('day', -1, current_date) as timestamp), timestamp '{{End Date}}')
+  where block_date <= timestamp '{{End Date}}'
+  order by block_date desc
+  limit 1 -- latest row on or before End Date (includes today's partial-day row)
 ),
 
 capital_pool_assets (asset_type, eth_amount, usd_amount, rn) as (
@@ -13,10 +15,10 @@ capital_pool_assets (asset_type, eth_amount, usd_amount, rn) as (
   select 'DAI', avg_dai_eth_total, avg_dai_usd_total, 2 from capital_pool_timed union all
   select 'stETH', steth_total, avg_steth_usd_total, 3 from capital_pool_timed union all
   select 'rETH', avg_reth_eth_total, avg_reth_usd_total, 4 from capital_pool_timed union all
-  select 'NXMTY', nxmty_eth_total, avg_nxmty_usd_total, 5 from capital_pool_timed union all
+  select 'Enzyme', nxmty_eth_total, avg_nxmty_usd_total, 5 from capital_pool_timed union all
   select 'USDC', avg_usdc_eth_total, avg_usdc_usd_total, 6 from capital_pool_timed union all
   select 'cbBTC', avg_cbbtc_eth_total, avg_cbbtc_usd_total, 7 from capital_pool_timed union all
-  select 'Cover Re', avg_cover_re_usdc_eth_total, avg_cover_re_usdc_usd_total, 8 from capital_pool_timed union all
+  select 'SafeTracker', avg_cover_re_usdc_eth_total, avg_cover_re_usdc_usd_total, 8 from capital_pool_timed union all
   select
     'Aave',
     aave_collateral_weth_total + avg_aave_debt_usdc_eth_total,
